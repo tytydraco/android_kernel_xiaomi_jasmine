@@ -26,6 +26,7 @@ obj-y += sched/
 obj-y += locking/
 obj-y += power/
 obj-y += printk/
+obj-y += printk_interface.o
 obj-y += irq/
 obj-y += rcu/
 obj-y += livepatch/
