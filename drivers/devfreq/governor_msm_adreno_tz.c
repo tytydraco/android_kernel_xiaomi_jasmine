@@ -58,7 +58,8 @@ static DEFINE_SPINLOCK(suspend_lock);
 
 #define TAG "msm_adreno_tz: "
 
-static unsigned int adrenoboost = 10000;
+static unsigned int adrenoboost = 0;
+
 static u64 suspend_time;
 static u64 suspend_start;
 static unsigned long acc_total, acc_relative_busy;
