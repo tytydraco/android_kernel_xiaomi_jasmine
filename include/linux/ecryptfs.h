@@ -158,7 +158,7 @@ static inline int ecryptfs_register_to_events(
 	return 1; /* dummy handle */
 }
 
-static int ecryptfs_unregister_from_events(int user_handle)
+static inline int ecryptfs_unregister_from_events(int user_handle)
 {
 	return 0;
 }
