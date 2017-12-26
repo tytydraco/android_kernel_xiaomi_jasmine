@@ -514,8 +514,11 @@ static void qpnp_handle_sc_irq(struct work_struct *work)
 	struct qpnp_hap *hap = container_of(work,
 				struct qpnp_hap, sc_work.work);
 	u8 val;
+	int rc;
 
-	qpnp_hap_read_reg(hap, QPNP_HAP_STATUS(hap->base), &val);
+	rc = qpnp_hap_read_reg(hap, QPNP_HAP_STATUS(hap->base), &val);
+	if (rc < 0)
+		return;
 
 	/* clear short circuit register */
 	if (val & SC_FOUND_BIT) {
@@ -599,7 +602,9 @@ static ssize_t qpnp_hap_dump_regs_show(struct device *dev,
 	u8 val;
 
 	for (i = 0; i < ARRAY_SIZE(qpnp_hap_dbg_regs); i++) {
-		qpnp_hap_read_reg(hap, hap->base + qpnp_hap_dbg_regs[i], &val);
+		int ret = qpnp_hap_read_reg(hap, hap->base + qpnp_hap_dbg_regs[i], &val);
+		if (ret < 0)
+			continue;
 		count += snprintf(buf + count, PAGE_SIZE - count,
 				"qpnp_haptics: REG_0x%x = 0x%x\n",
 				hap->base + qpnp_hap_dbg_regs[i],
@@ -647,8 +652,8 @@ static irqreturn_t qpnp_hap_sc_irq(int irq, void *_hap)
 	pr_debug("Short circuit detected\n");
 
 	if (hap->sc_count < SC_MAX_COUNT) {
-		qpnp_hap_read_reg(hap, QPNP_HAP_STATUS(hap->base), &val);
-		if (val & SC_FOUND_BIT)
+		rc = qpnp_hap_read_reg(hap, QPNP_HAP_STATUS(hap->base), &val);
+		if (!rc && (val & SC_FOUND_BIT))
 			schedule_delayed_work(&hap->sc_work,
 					QPNP_HAP_SC_IRQ_STATUS_DELAY);
 		else
@@ -1665,6 +1670,8 @@ static ssize_t qpnp_hap_hi_z_period_show(struct device *dev,
 	case QPNP_HAP_LRA_HIGH_Z_OPT3:
 		str = "high_z_opt3";
 		break;
+	default:
+		str = "unknown";
 	}
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", str);

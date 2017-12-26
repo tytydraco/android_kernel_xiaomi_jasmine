@@ -244,7 +244,7 @@ static int smb2_parse_dt(struct smb2 *chip)
 {
 	struct smb_charger *chg = &chip->chg;
 	struct device_node *node = chg->dev->of_node;
-	int rc, byte_len;
+	int rc = 0, byte_len;
 
 	if (!node) {
 		pr_err("device tree node missing\n");

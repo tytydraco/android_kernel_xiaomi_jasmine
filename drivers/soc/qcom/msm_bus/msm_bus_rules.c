@@ -616,8 +616,7 @@ static bool __rule_unregister(int num_rules, struct bus_rule_type *rule,
 		match_found = true;
 		list_for_each_entry_safe(node_rule, node_rule_tmp,
 					&node->node_rules, link) {
-			if (comp_rules(&node_rule->rule_ops,
-					&rule[i]) == 0) {
+			if (comp_rules(&node_rule->rule_ops, rule) == 0) {
 				list_del(&node_rule->link);
 				kfree(node_rule);
 				match_found = true;
