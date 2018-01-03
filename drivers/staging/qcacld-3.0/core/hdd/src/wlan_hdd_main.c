@@ -148,25 +148,7 @@ static struct cdev wlan_hdd_state_cdev;
 static struct class *class;
 static dev_t device;
 #ifndef MODULE
-static struct gwlan_loader *wlan_loader;
-static ssize_t wlan_boot_cb(struct kobject *kobj,
-			    struct kobj_attribute *attr,
-			    const char *buf, size_t count);
-struct gwlan_loader {
-	bool loaded_state;
-	struct kobject *boot_wlan_obj;
-	struct attribute_group *attr_group;
-};
-
-static struct kobj_attribute wlan_boot_attribute =
-	__ATTR(boot_wlan, 0220, NULL, wlan_boot_cb);
-
-static struct attribute *attrs[] = {
-	&wlan_boot_attribute.attr,
-	NULL,
-};
-
-#define MODULE_INITIALIZED 1
+static struct work_struct boot_work;
 #endif
 
 #define HDD_OPS_INACTIVITY_TIMEOUT (120000)
@@ -397,6 +379,7 @@ int hdd_validate_channel_and_bandwidth(hdd_adapter_t *adapter,
 	return 0;
 }
 
+#ifdef MODULE
 /**
  * hdd_wait_for_recovery_completion() - Wait for cds recovery completion
  *
@@ -430,6 +413,7 @@ static bool hdd_wait_for_recovery_completion(void)
 	hdd_info("Recovery completed successfully!");
 	return true;
 }
+#endif
 
 static int __hdd_netdev_notifier_call(struct notifier_block *nb,
 				    unsigned long state, void *data)
@@ -11707,7 +11691,7 @@ err_hdd_init:
 	return ret;
 }
 
-
+#ifdef MODULE
 /**
  * __hdd_module_exit - Module exit helper
  *
@@ -11874,21 +11858,7 @@ static int hdd_module_init(void)
 
 	return 0;
 }
-#else
-static int __init hdd_module_init(void)
-{
-	int ret = -EINVAL;
 
-	ret = wlan_init_sysfs();
-	if (ret)
-		pr_err("Failed to create sysfs entry for loading wlan");
-
-	return ret;
-}
-#endif
-
-
-#ifdef MODULE
 /**
  * hdd_module_exit() - Exit function
  *
@@ -11901,10 +11871,17 @@ static void __exit hdd_module_exit(void)
 	__hdd_module_exit();
 }
 #else
-static void __exit hdd_module_exit(void)
+static void wlan_hdd_boot_fn(struct work_struct *work)
 {
-	__hdd_module_exit();
-	wlan_deinit_sysfs();
+	__hdd_module_init();
+}
+
+static int __init hdd_module_init(void)
+{
+	INIT_WORK(&boot_work, wlan_hdd_boot_fn);
+	schedule_work(&boot_work);
+
+	return 0;
 }
 #endif
 
@@ -12678,8 +12655,12 @@ bool hdd_is_cli_iface_up(hdd_context_t *hdd_ctx)
 }
 
 /* Register the module init/exit functions */
+#ifdef MODULE
 module_init(hdd_module_init);
 module_exit(hdd_module_exit);
+#else
+late_initcall(hdd_module_init);
+#endif
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Qualcomm Atheros, Inc.");
