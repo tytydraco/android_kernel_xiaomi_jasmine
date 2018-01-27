@@ -711,6 +711,13 @@ config MSM_PERFORMANCE_HOTPLUG_ON
 	 functionality of hot plugging cores through msm_performance if there is
 	 no default core-control driver available.
 
+config MSM_PERFORMANCE_CPUFREQ_LIMITS_VOTING_ONLY
+	bool "Restrict msm_performance driver to cpufreq limits voting only"
+	depends on MSM_PERFORMANCE
+	help
+	 Setting this flag to true will restrict msm_performance driver's
+	 capabilities to setting min/max CPU frequencies only.
+
 endif # ARCH_QCOM
 
 config MSM_SUBSYSTEM_RESTART
