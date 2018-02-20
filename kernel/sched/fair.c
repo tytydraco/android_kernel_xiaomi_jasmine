@@ -9819,9 +9819,7 @@ static int sched_ilb_notifier(struct notifier_block *nfb,
 		return NOTIFY_DONE;
 	}
 }
-#endif
 
-#ifdef CONFIG_NO_HZ_COMMON
 /*
  * In CONFIG_NO_HZ_COMMON case, the idle balance kickee will do the
  * rebalancing for all the cpus for whom scheduler ticks are stopped.
@@ -9881,19 +9879,10 @@ static void nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 end:
 	clear_bit(NOHZ_BALANCE_KICK, nohz_flags(this_cpu));
 }
+#else /* !CONFIG_NO_HZ_COMMON */
+static inline void nohz_balancer_kick(struct rq *rq) { }
 
-/*
- * Current heuristic for kicking the idle load balancer in the presence
- * of an idle cpu in the system.
- *   - This rq has more than one task.
- *   - This rq has at least one CFS task and the capacity of the CPU is
- *     significantly reduced because of RT tasks or IRQs.
- *   - At parent of LLC scheduler domain level, this cpu's scheduler group has
- *     multiple busy cpu.
- *   - For SD_ASYM_PACKING, if the lower numbered cpu's in the scheduler
- *     domain span are idle.
- */
-static inline bool nohz_kick_needed(struct rq *rq)
+static bool nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 {
 	unsigned long now = jiffies;
 	struct sched_domain *sd;
@@ -9962,9 +9951,7 @@ unlock:
 	rcu_read_unlock();
 	return kick;
 }
-#else
-static void nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle) { }
-#endif
+#endif /* CONFIG_NO_HZ_COMMON */
 
 /*
  * run_rebalance_domains is triggered when needed from the scheduler tick.
@@ -9999,10 +9986,8 @@ void trigger_load_balance(struct rq *rq)
 
 	if (time_after_eq(jiffies, rq->next_balance))
 		raise_softirq(SCHED_SOFTIRQ);
-#ifdef CONFIG_NO_HZ_COMMON
-	if (nohz_kick_needed(rq))
-		nohz_balancer_kick();
-#endif
+		
+  nohz_balancer_kick();
 }
 
 static void rq_online_fair(struct rq *rq)
