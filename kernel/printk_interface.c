@@ -29,11 +29,11 @@ static ssize_t printk_mode_show(struct kobject *kobj, struct kobj_attribute *att
 	// print current mode
 	if (printk_mode == 0)
 	{
-		return sprintf(buf, "printk mode: %d (disabled)", printk_mode);
+		return sprintf(buf, "printk: %d (disabled)\n", printk_mode);
 	}
 	else
 	{
-		return sprintf(buf, "printk mode: %d (enabled)", printk_mode);
+		return sprintf(buf, "printk: %d (enabled)\n", printk_mode);
 	}
 
 }
@@ -49,10 +49,14 @@ static ssize_t printk_mode_store(struct kobject *kobj, struct kobj_attribute *at
 	ret = sscanf(buf, "%d", &val);
 
 	// check value and store if valid
-	if ((val == 0) ||  (val == 1))
+	if ((val == 0) || (val == 1))
 	{
 		printk_mode = val;
 	}
+
+	// clear buffer if disabling
+	if (val == 0)
+	    syslog_print_all(NULL, 0, true);
 
 	return count;
 }

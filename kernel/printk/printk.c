@@ -1205,7 +1205,7 @@ static int syslog_print(char __user *buf, int size)
 	return len;
 }
 
-static int syslog_print_all(char __user *buf, int size, bool clear)
+int syslog_print_all(char __user *buf, int size, bool clear)
 {
 	char *text;
 	int len = 0;
