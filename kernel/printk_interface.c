@@ -18,7 +18,7 @@
 #include "printk_interface.h"
 
 
-int printk_mode;
+int __read_mostly printk_mode;
 
 
 /* sysfs interface for printk mode */

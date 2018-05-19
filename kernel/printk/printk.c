@@ -1666,6 +1666,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 			    const char *dict, size_t dictlen,
 			    const char *fmt, va_list args)
 {
+	/* return instantly if printk is disabled */
+	if (printk_mode == 0)
+        return 0;
+
 	static int recursion_bug;
 	static char textbuf[LOG_LINE_MAX];
 	char *text = textbuf;
@@ -1677,10 +1681,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 	bool in_sched = false;
 	/* cpu currently holding logbuf_lock in this function */
 	static unsigned int logbuf_cpu = UINT_MAX;
-
-	// if printk mode is disabled, terminate instantly
-	if (printk_mode == 0)
-			return 0;
 
 	if (level == LOGLEVEL_SCHED) {
 		level = LOGLEVEL_DEFAULT;
@@ -1846,9 +1846,9 @@ EXPORT_SYMBOL(vprintk_emit);
 
 asmlinkage int vprintk(const char *fmt, va_list args)
 {
-	// if printk mode is disabled, terminate instantly
-	if (printk_mode == 0)
-			return 0;
+	/* return instantly if printk is disabled */
+	if (likely(printk_mode == 0))
+		return 0;
 
 	return vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
 }
@@ -1858,12 +1858,12 @@ asmlinkage int printk_emit(int facility, int level,
 			   const char *dict, size_t dictlen,
 			   const char *fmt, ...)
 {
+	/* return instantly if printk is disabled */
+	if (likely(printk_mode == 0))
+		return 0;
+
 	va_list args;
 	int r;
-
-	// if printk mode is disabled, terminate instantly
-	if (printk_mode == 0)
-			return 0;
 
 	va_start(args, fmt);
 	r = vprintk_emit(facility, level, dict, dictlen, fmt, args);
@@ -1875,11 +1875,11 @@ EXPORT_SYMBOL(printk_emit);
 
 int vprintk_default(const char *fmt, va_list args)
 {
-	int r;
+	/* return instantly if printk is disabled */
+	if (likely(printk_mode == 0))
+		return 0;
 
-	// if printk mode is disabled, terminate instantly
-	if (printk_mode == 0)
-			return 0;
+	int r;
 
 #ifdef CONFIG_KGDB_KDB
 	if (unlikely(kdb_trap_printk)) {

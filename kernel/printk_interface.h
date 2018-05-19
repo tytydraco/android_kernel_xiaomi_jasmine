@@ -12,4 +12,4 @@
  *
  */
 
-extern int printk_mode;
+extern int __read_mostly printk_mode;
