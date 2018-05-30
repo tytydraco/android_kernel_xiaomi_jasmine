@@ -453,10 +453,6 @@ int cpu_down(unsigned int cpu)
 	struct cpumask newmask;
 	int err;
 
-	/* kthreads require one little-cluster CPU to stay online */
-	if (!cpu)
-		return -EINVAL;
-
 	cpumask_andnot(&newmask, cpu_online_mask, cpumask_of(cpu));
 
 	/* One big cluster CPU and one little cluster CPU must remain online */
