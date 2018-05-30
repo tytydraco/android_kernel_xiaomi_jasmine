@@ -69,6 +69,17 @@
 
 int suid_dumpable = 0;
 
+#define ZYGOTE32_BIN	"/system/bin/app_process32"
+#define ZYGOTE64_BIN	"/system/bin/app_process64"
+static atomic_t zygote32_pid;
+static atomic_t zygote64_pid;
+
+bool is_zygote_pid(pid_t pid)
+{
+	return atomic_read(&zygote32_pid) == pid ||
+		atomic_read(&zygote64_pid) == pid;
+}
+
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
