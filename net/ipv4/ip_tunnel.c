@@ -316,7 +316,7 @@ static struct net_device *__ip_tunnel_create(struct net *net,
 			goto failed;
 		}
 		strlcpy(name, ops->kind, IFNAMSIZ);
-		strncat(name, "%d", 2);
+		strcat(name, "%d");
 	}
 
 	ASSERT_RTNL();
