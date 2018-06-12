@@ -89,6 +89,10 @@ struct regmap {
 	unsigned int dump_address;
 	unsigned int dump_count;
 #endif
+	//Austin +++
+	struct list_head proc_off_cache;
+	struct mutex proc_cache_lock;
+	//Austin ---
 
 	unsigned int max_register;
 	bool (*writeable_reg)(struct device *dev, unsigned int reg);
