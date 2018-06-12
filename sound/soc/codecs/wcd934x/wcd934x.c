@@ -136,7 +136,7 @@ static const struct snd_kcontrol_new name##_mux = \
 #define DAPM_MICBIAS3_STANDALONE "MIC BIAS3 Standalone"
 #define DAPM_MICBIAS4_STANDALONE "MIC BIAS4 Standalone"
 
-int g_DebugMode = 1;
+int g_DebugMode = 0;
 struct switch_dev *g_audiowizard_force_preset_sdev = NULL;
 
 #define  TX_HPF_CUT_OFF_FREQ_MASK	0x60
