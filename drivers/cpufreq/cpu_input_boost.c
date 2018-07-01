@@ -17,6 +17,7 @@
 #include <linux/cpufreq.h>
 #include <linux/fb.h>
 #include <linux/input.h>
+#include <linux/moduleparam.h>
 #include <linux/slab.h>
 
 /* Available bits for boost_drv state */
@@ -24,6 +25,12 @@
 #define INPUT_BOOST		(1U << 1)
 #define WAKE_BOOST		(1U << 2)
 #define MAX_BOOST		(1U << 3)
+
+static __read_mostly unsigned int input_boost_freq_lp = CONFIG_INPUT_BOOST_FREQ_LP;
+static __read_mostly unsigned int input_boost_freq_perf = CONFIG_INPUT_BOOST_FREQ_PERF;
+
+static __read_mostly unsigned int input_boost_ms = CONFIG_INPUT_BOOST_DURATION_MS;
+module_param(input_boost_ms, uint, 0644);
 
 struct boost_drv {
 	struct workqueue_struct *wq;
@@ -44,10 +51,56 @@ static struct boost_drv *boost_drv_g;
 static u32 get_boost_freq(struct boost_drv *b, u32 cpu)
 {
 	if (cpumask_test_cpu(cpu, cpu_lp_mask))
-		return CONFIG_INPUT_BOOST_FREQ_LP;
+		return input_boost_freq_lp;
 
-	return CONFIG_INPUT_BOOST_FREQ_PERF;
+	return input_boost_freq_perf;
 }
+
+static int set_input_boost_freq(const char *buf, const struct kernel_param *kp)
+{
+	int i, ntokens = 0;
+	unsigned int val, cpu;
+	const char *cp = buf;
+
+	while ((cp = strpbrk(cp + 1, " :")))
+		ntokens++;
+
+	/* CPU:value pair */
+	if (!(ntokens % 2))
+		return -EINVAL;
+
+	cp = buf;
+	for (i = 0; i < ntokens; i += 2) {
+		if (sscanf(cp, "%u:%u", &cpu, &val) != 2)
+			return -EINVAL;
+		
+		if (cpu < 4)
+			input_boost_freq_lp = val;
+		else if (cpu < 7) // last CPU, 7, is bugged in EXKM: always 0
+			input_boost_freq_perf = val;
+		else
+			return -EINVAL;
+
+		cp = strchr(cp, ' ');
+		cp++;
+	}
+
+	return 0;
+}
+
+static int get_input_boost_freq(char *buf, const struct kernel_param *kp)
+{
+	return snprintf(buf, PAGE_SIZE, "0:%u 1:%u 2:%u 3:%u 4:%u 5:%u 6:%u 7:%u \n",
+			input_boost_freq_lp, input_boost_freq_lp, input_boost_freq_lp,
+			input_boost_freq_lp, input_boost_freq_perf, input_boost_freq_perf,
+			input_boost_freq_perf, input_boost_freq_perf);
+}
+
+static const struct kernel_param_ops param_ops_input_boost_freq = {
+	.set = set_input_boost_freq,
+	.get = get_input_boost_freq,
+};
+module_param_cb(input_boost_freq, &param_ops_input_boost_freq, NULL, 0644);
 
 static u32 get_boost_state(struct boost_drv *b)
 {
@@ -136,6 +189,9 @@ void cpu_input_boost_kick_max(unsigned int duration_ms)
 
 static void input_boost_worker(struct work_struct *work)
 {
+	if (unlikely(input_boost_ms == 0))
+		return;
+
 	struct boost_drv *b = container_of(work, typeof(*b), input_boost);
 
 	if (!cancel_delayed_work_sync(&b->input_unboost)) {
@@ -144,7 +200,7 @@ static void input_boost_worker(struct work_struct *work)
 	}
 
 	queue_delayed_work(b->wq, &b->input_unboost,
-		msecs_to_jiffies(CONFIG_INPUT_BOOST_DURATION_MS));
+		msecs_to_jiffies(input_boost_ms));
 }
 
 static void input_unboost_worker(struct work_struct *work)
