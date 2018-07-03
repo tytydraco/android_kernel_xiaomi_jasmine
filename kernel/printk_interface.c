@@ -44,10 +44,6 @@ static ssize_t printk_mode_store(struct kobject *kobj, struct kobj_attribute *at
 		printk_mode = val;
 	}
 
-	// clear buffer if disabling
-	if (val == 0)
-	    syslog_print_all(NULL, 0, true);
-
 	return count;
 }
 
