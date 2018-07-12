@@ -20,11 +20,11 @@ config MSM_ULTRASOUND
 	  upon the ultrasound data.
 
 config DTS_EAGLE
-        bool "DTS Eagle support"
-        select SND_HWDEP
-        default n
-        help
-          To add DTS Eagle support on QDSP6 targets.
-          Eagle is a DTS pre/post processing
-          package that includes HeadphoneX. The configuration
-          includes sending tuning parameters of various modules.
+	bool "DTS Eagle support"
+	select SND_HWDEP
+	default n
+	help
+	  To add DTS Eagle support on QDSP6 targets.
+	  Eagle is a DTS pre/post processing
+	  package that includes HeadphoneX. The configuration
+	  includes sending tuning parameters of various modules.
