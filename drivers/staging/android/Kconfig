@@ -47,6 +47,17 @@ config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
 	  /sys/module/lowmemorykiller/parameters/adj and convert them
 	  to oom_score_adj values.
 
+config ANDROID_SIMPLE_LMK
+	bool "Simple Android Low Memory Killer"
+	depends on !ANDROID_LOW_MEMORY_KILLER
+	---help---
+	  This is a simple replacement for the Android Low Memory Killer
+	  driver that simply targets a predefined number of pages to be freed
+	  every time a memory allocation attempt is about to utilize direct
+	  reclaim. Processes are killed according to the priorities that
+	  Android gives them; in other words, the least important processes are
+	  always killed first.
+
 config SYNC
 	bool "Synchronization framework"
 	default n
