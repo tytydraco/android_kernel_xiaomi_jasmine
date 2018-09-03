@@ -6291,7 +6291,6 @@ static int fetch_cpu_mitigaiton_info(struct msm_thermal_data *data,
 		cpu_node = of_get_cpu_node(_cpu, NULL);
 		if (!cpu_node) {
 			pr_err("No CPU phandle for CPU%d\n", _cpu);
-			__WARN();
 			continue;
 		}
 		limits = of_parse_phandle(cpu_node, "qcom,limits-info", 0);

@@ -245,7 +245,6 @@ static inline void msm_mpm_get_irq_a2m(struct irq_data *d, uint16_t *mpm_pins)
 				msm_mpm_irqs_m2a[node->pin] = d->irq;
 			if (count >= MAX_MPM_PIN_PER_IRQ) {
 				count--;
-				__WARN();
 			}
 			mpm_pins[count] = node->pin;
 			count++;
@@ -870,7 +869,6 @@ static int mpm_init_irq_domain(struct device_node *node, int irq_domain)
 	list = of_get_property(node, mpm_of_map[i].map, &size);
 
 	if (!list || !size) {
-		__WARN();
 		return -ENODEV;
 	}
 
