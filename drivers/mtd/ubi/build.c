@@ -125,9 +125,6 @@ struct class ubi_class = {
 
 static ssize_t dev_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf);
-static ssize_t dev_attribute_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count);
 
 /* UBI device attributes (correspond to files in '/<sysfs>/class/ubi/ubiX') */
 static struct device_attribute dev_eraseblock_size =
@@ -152,13 +149,6 @@ static struct device_attribute dev_bgt_enabled =
 	__ATTR(bgt_enabled, S_IRUGO, dev_attribute_show, NULL);
 static struct device_attribute dev_mtd_num =
 	__ATTR(mtd_num, S_IRUGO, dev_attribute_show, NULL);
-static struct device_attribute dev_mtd_trigger_scrub =
-	__ATTR(scrub_all, S_IRUGO | S_IWUSR,
-		dev_attribute_show, dev_attribute_store);
-static struct device_attribute dev_mtd_max_scrub_sqnum =
-	__ATTR(scrub_max_sqnum, S_IRUGO, dev_attribute_show, NULL);
-static struct device_attribute dev_mtd_min_scrub_sqnum =
-	__ATTR(scrub_min_sqnum, S_IRUGO, dev_attribute_show, NULL);
 
 /**
  * ubi_volume_notify - send a volume change notification.
@@ -351,17 +341,6 @@ int ubi_major2num(int major)
 	return ubi_num;
 }
 
-static unsigned long long get_max_sqnum(struct ubi_device *ubi)
-{
-	unsigned long long max_sqnum;
-
-	spin_lock(&ubi->ltree_lock);
-	max_sqnum = ubi->global_sqnum - 1;
-	spin_unlock(&ubi->ltree_lock);
-
-	return max_sqnum;
-}
-
 /* "Show" method for files in '/<sysfs>/class/ubi/ubiX/' */
 static ssize_t dev_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -406,12 +385,6 @@ static ssize_t dev_attribute_show(struct device *dev,
 		ret = sprintf(buf, "%d\n", ubi->thread_enabled);
 	else if (attr == &dev_mtd_num)
 		ret = sprintf(buf, "%d\n", ubi->mtd->index);
-	else if (attr == &dev_mtd_trigger_scrub)
-		ret = sprintf(buf, "%d\n", atomic_read(&ubi->scrub_work_count));
-	else if (attr == &dev_mtd_max_scrub_sqnum)
-		ret = sprintf(buf, "%llu\n", get_max_sqnum(ubi));
-	else if (attr == &dev_mtd_min_scrub_sqnum)
-		ret = sprintf(buf, "%llu\n", ubi_wl_scrub_get_min_sqnum(ubi));
 	else
 		ret = -EINVAL;
 
@@ -431,44 +404,9 @@ static struct attribute *ubi_dev_attrs[] = {
 	&dev_min_io_size.attr,
 	&dev_bgt_enabled.attr,
 	&dev_mtd_num.attr,
-	&dev_mtd_trigger_scrub.attr,
-	&dev_mtd_max_scrub_sqnum.attr,
-	&dev_mtd_min_scrub_sqnum.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(ubi_dev);
-
-static ssize_t dev_attribute_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	int ret;
-	struct ubi_device *ubi;
-	unsigned long long scrub_sqnum;
-
-	ubi = container_of(dev, struct ubi_device, dev);
-	ubi = ubi_get_device(ubi->ubi_num);
-	if (!ubi)
-		return -ENODEV;
-
-	if (attr == &dev_mtd_trigger_scrub) {
-		if (kstrtoull(buf, 10, &scrub_sqnum)) {
-			ret = -EINVAL;
-			goto out;
-		}
-		if (!ubi->lookuptbl) {
-			pr_err("lookuptbl is null");
-			goto out;
-		}
-		ret = ubi_wl_scrub_all(ubi, scrub_sqnum);
-		if (ret == 0)
-			ret = count;
-	}
-
-out:
-	ubi_put_device(ubi);
-	return ret;
-}
 
 static void dev_release(struct device *dev)
 {
@@ -951,6 +889,17 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		return -EINVAL;
 	}
 
+	/*
+	 * Both UBI and UBIFS have been designed for SLC NAND and NOR flashes.
+	 * MLC NAND is different and needs special care, otherwise UBI or UBIFS
+	 * will die soon and you will lose all your data.
+	 */
+	if (mtd->type == MTD_MLCNANDFLASH) {
+		pr_err("ubi: refuse attaching mtd%d - MLC NAND is not supported\n",
+			mtd->index);
+		return -EINVAL;
+	}
+
 	if (ubi_num == UBI_DEV_NUM_AUTO) {
 		/* Search for an empty slot in the @ubi_devices array */
 		for (ubi_num = 0; ubi_num < UBI_MAX_DEVICES; ubi_num++)
@@ -1183,6 +1132,9 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	 */
 	get_device(&ubi->dev);
 
+#ifdef CONFIG_MTD_UBI_FASTMAP
+	cancel_work_sync(&ubi->fm_work);
+#endif
 	ubi_debugfs_exit_dev(ubi);
 	uif_close(ubi);
 

@@ -232,12 +232,13 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 	/* Walk  this report and pull out the info we need */
 	while (i < length) {
 		prefix = report[i++];
+
 		/* Determine data size and save the data in the proper variable */
 		size = (1U << PREF_SIZE(prefix)) >> 1;
 		if (i + size > length) {
 			dev_err(ddev,
-					"Not enough data (need %d, have %d)\n",
-					i + size, length);
+				"Not enough data (need %d, have %d)\n",
+				i + size, length);
 			break;
 		}
 

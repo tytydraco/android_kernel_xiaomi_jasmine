@@ -2,7 +2,6 @@
  *
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -466,7 +465,7 @@ static struct key *construct_key_and_link(struct keyring_search_context *ctx,
 
 	if (ctx->index_key.type == &key_type_keyring)
 		return ERR_PTR(-EPERM);
-	
+
 	ret = construct_get_dest_keyring(&dest_keyring);
 	if (ret)
 		goto error;
@@ -623,10 +622,9 @@ int wait_for_key_construction(struct key *key, bool intr)
 			  intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 	if (ret)
 		return -ERESTARTSYS;
-	if (test_bit(KEY_FLAG_NEGATIVE, &key->flags)) {
-		smp_rmb();
-		return key->reject_error;
-	}
+	ret = key_read_state(key);
+	if (ret < 0)
+		return ret;
 	return key_validate(key);
 }
 EXPORT_SYMBOL(wait_for_key_construction);
