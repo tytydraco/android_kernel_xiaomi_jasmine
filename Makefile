@@ -656,7 +656,6 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-overflow)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, int-in-bool-context)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, attribute-alias)
 KBUILD_CFLAGS += $(call cc-option,--param=store-merging-allow-unaligned=0)
-KBUILD_CLFAGS += -mno-unaligned-access 
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
@@ -672,7 +671,7 @@ ifdef CONFIG_CC_WERROR
 KBUILD_CFLAGS	+= -Werror
 endif
 
-KBUILD_CFLAGS += -ffast-math -funsafe-math-optimizations -fno-signed-zeros -freciprocal-math -ffp-contract=fast -mstrict-align
+KBUILD_CFLAGS += -ffast-math -funsafe-math-optimizations -fno-signed-zeros -freciprocal-math -ffp-contract=fast -mcpu=cortex-a73.cortex-a53 -mtune=cortex-a73.cortex-a53
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
