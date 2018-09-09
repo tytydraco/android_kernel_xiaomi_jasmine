@@ -70,8 +70,10 @@
 #ifdef CONFIG_OF_FLATTREE
 void __init early_init_dt_setup_pureason_arch(unsigned long pu_reason)
 {
+#ifdef CONFIG_BOOT_INFO
 	set_powerup_reason(pu_reason);
 	pr_info("Powerup reason=0x%x\n", get_powerup_reason());
+#endif
 }
 #endif
 
