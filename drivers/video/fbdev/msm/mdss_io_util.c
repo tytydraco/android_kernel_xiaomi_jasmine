@@ -258,12 +258,14 @@ int msm_dss_enable_vreg(struct dss_vreg *in_vreg, int num_vreg, int enable)
 				printk("nova panel esd check recovery \n");
 			} else {
 				/* vddio l14 continus supply */
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_DSX
 				if (enable_gesture_mode || synaptics_gesture_func_on) {
 					if ((strcmp(in_vreg[i].vreg_name, "lab") == 0) || (strcmp(in_vreg[i].vreg_name, "ibb") == 0)) {
 						printk("%s is not disable\n", in_vreg[i].vreg_name);
 						continue;
 					}
 				}
+#endif
 			}
 			if (in_vreg[i].pre_off_sleep)
 				usleep_range(in_vreg[i].pre_off_sleep * 1000,
