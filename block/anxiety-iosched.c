@@ -118,8 +118,6 @@ static int anxiety_init_queue(struct request_queue *q, struct elevator_type *e) 
 	return 0;
 }
 
-static void anxiety_exit_queue(struct elevator_queue *e) {}
-
 static struct elevator_type elevator_anxiety = {
 	.ops = {
 		.elevator_merge_req_fn		= anxiety_merged_requests,
@@ -128,7 +126,6 @@ static struct elevator_type elevator_anxiety = {
 		.elevator_former_req_fn		= anxiety_former_request,
 		.elevator_latter_req_fn		= anxiety_latter_request,
 		.elevator_init_fn		= anxiety_init_queue,
-		.elevator_exit_fn		= anxiety_exit_queue,
 	},
 	.elevator_name = "anxiety",
 	.elevator_owner = THIS_MODULE,
