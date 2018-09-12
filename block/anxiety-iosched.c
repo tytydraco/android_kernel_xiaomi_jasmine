@@ -54,7 +54,6 @@ static int anxiety_dispatch(struct request_queue *q, int force) {
 	struct anxiety_data *nd = q->elevator->elevator_data;
 	struct request *rq;
 
-	//rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
 	rq = anxiety_choose_request(nd);
 	if (!rq)
 		return 0;
