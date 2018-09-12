@@ -26,13 +26,14 @@ static inline void anxiety_merged_requests(struct request_queue *q, struct reque
 }
 
 static __always_inline struct request *anxiety_choose_request(struct anxiety_data *mdata) {
-	// if there are no writes, then we aren't starving any
+	// if there are no writes, then dont bother starving
+	bool starve = true;
 	if (list_empty(&mdata->queue[SYNC][WRITE]) && list_empty(&mdata->queue[ASYNC][WRITE]))
-		mdata->writes_starved = 0;
+		starve = false;
 
-	// sync read -> sync write -> async read -> async write
 	if (!list_empty(&mdata->queue[SYNC][READ]) && mdata->writes_starved < MAX_WRITES_STARVED) {
-		mdata->writes_starved++;
+		if (starve)
+			mdata->writes_starved++;
 		return rq_entry_fifo(mdata->queue[SYNC][READ].next);
 	}
 
@@ -42,7 +43,8 @@ static __always_inline struct request *anxiety_choose_request(struct anxiety_dat
 	}
 
 	if (!list_empty(&mdata->queue[ASYNC][READ]) && mdata->writes_starved < MAX_WRITES_STARVED) {
-		mdata->writes_starved++;
+		if (starve)
+			mdata->writes_starved++;
 		return rq_entry_fifo(mdata->queue[ASYNC][READ].next);
 	}
 
