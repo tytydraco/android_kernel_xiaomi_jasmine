@@ -118,6 +118,19 @@ config BLOCK_PERF_FRAMEWORK
 	Enabling this option allows you to measure the performance at the
 	block layer.
 
+config VM_MAX_READAHEAD
+	int "Maximum Block readahead (kbytes)"
+	default 128
+	---help---
+	Adjust the default Block max readahead value in kbytes.
+
+config VM_MIN_READAHEAD
+	int "Minimum Block readahead (kbytes)"
+	default 16
+	---help---
+	Adjust the default Block min readahead value in kbytes 
+	(including the current page).
+
 menu "Partition Types"
 
 source "block/partitions/Kconfig"
