@@ -56,7 +56,7 @@ static int anxiety_dispatch(struct request_queue *q, int force) {
 
 	//rq = list_first_entry_or_null(&nd->queue, struct request, queuelist);
 	rq = anxiety_choose_request(nd);
-	if (unlikely(!rq))
+	if (!rq)
 		return 0;
 
 	list_del_init(&rq->queuelist);
