@@ -58,8 +58,8 @@ static int anxiety_dispatch(struct request_queue *q, int force) {
 	if (!rq)
 		return 0;
 
-	list_del_init(&rq->queuelist);
-	elv_dispatch_sort(q, rq);
+	rq_fifo_clear(rq);
+	elv_dispatch_add_tail(rq->q, rq);
 	return 1;
 }
 
