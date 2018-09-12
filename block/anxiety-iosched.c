@@ -25,7 +25,7 @@ static inline void anxiety_merged_requests(struct request_queue *q, struct reque
 	list_del_init(&next->queuelist);
 }
 
-static struct request *anxiety_choose_request(struct anxiety_data *mdata) {
+static __always_inline struct request *anxiety_choose_request(struct anxiety_data *mdata) {
 	// if there are no writes, then we aren't starving any
 	if (list_empty(&mdata->queue[SYNC][WRITE]) && list_empty(&mdata->queue[ASYNC][WRITE]))
 		mdata->writes_starved = 0;
@@ -56,7 +56,7 @@ static struct request *anxiety_choose_request(struct anxiety_data *mdata) {
 	return NULL;
 }
 
-static int anxiety_dispatch(struct request_queue *q, int force) {
+static __always_inline int anxiety_dispatch(struct request_queue *q, int force) {
 	struct anxiety_data *nd = q->elevator->elevator_data;
 	struct request *rq;
 
@@ -131,11 +131,11 @@ static struct elevator_type elevator_anxiety = {
 	.elevator_owner = THIS_MODULE,
 };
 
-static int __init anxiety_init(void) {
+static inline int __init anxiety_init(void) {
 	return elv_register(&elevator_anxiety);
 }
 
-static void __exit anxiety_exit(void) {
+static inline void __exit anxiety_exit(void) {
 	elv_unregister(&elevator_anxiety);
 }
 
