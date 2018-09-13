@@ -86,11 +86,12 @@ static struct request *anxiety_latter_request(struct request_queue *q, struct re
 }
 
 static int anxiety_init_queue(struct request_queue *q, struct elevator_type *e) {
+	struct anxiety_data *nd; 
 	struct elevator_queue *eq = elevator_alloc(q, e);
 	if (!eq)
 		return -ENOMEM;
 
-	struct anxiety_data *nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
+	nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
 	if (!nd) {
 		kobject_put(&eq->kobj);
 		return -ENOMEM;
