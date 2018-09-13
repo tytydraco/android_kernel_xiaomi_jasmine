@@ -22,7 +22,7 @@ static __always_inline struct request *anxiety_choose_request(struct anxiety_dat
 	// ensure that reads will always take priority unless writes are exceedingly starved
 	bool starved = false;
 	if (mdata->writes_starved > MAX_WRITES_STARVED)
-		starved = false;
+		starved = true;
 
  	// sync read
 	if (!starved && !list_empty(&mdata->queue[SYNC][READ])) {
