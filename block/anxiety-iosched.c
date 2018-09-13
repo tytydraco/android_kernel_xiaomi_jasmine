@@ -26,35 +26,37 @@ static void anxiety_merged_requests(struct request_queue *q, struct request *rq,
 }
 
 static __always_inline struct request *anxiety_choose_request(struct anxiety_data *mdata) {
-	// if there are no writes, then dont bother starving
-	bool starve = true;
-	if (list_empty(&mdata->queue[SYNC][WRITE]) && list_empty(&mdata->queue[ASYNC][WRITE]))
-		starve = false;
+	// ensure that reads will always take priority unless writes are exceedingly starved
+	bool starved = false;
+	if (mdata->writes_starved > MAX_WRITES_STARVED)
+		starved = false;
 
-	if (!list_empty(&mdata->queue[SYNC][READ]) && mdata->writes_starved < MAX_WRITES_STARVED) {
-		if (starve)
-			mdata->writes_starved++;
+ 	// sync read
+	if (!starved && !list_empty(&mdata->queue[SYNC][READ])) {
+		mdata->writes_starved++;
 		return rq_entry_fifo(mdata->queue[SYNC][READ].next);
 	}
 
+	// sync write
 	if (!list_empty(&mdata->queue[SYNC][WRITE])) {
 		mdata->writes_starved = 0;
 		return rq_entry_fifo(mdata->queue[SYNC][WRITE].next);
 	}
 
-	if (!list_empty(&mdata->queue[ASYNC][READ]) && mdata->writes_starved < MAX_WRITES_STARVED) {
-		if (starve)
-			mdata->writes_starved++;
+	// async read
+	if (!starved && !list_empty(&mdata->queue[ASYNC][READ])) {
+		mdata->writes_starved++;
 		return rq_entry_fifo(mdata->queue[ASYNC][READ].next);
 	}
 
+	// async write
 	if (!list_empty(&mdata->queue[ASYNC][WRITE])) {
 		mdata->writes_starved = 0;
 		return rq_entry_fifo(mdata->queue[ASYNC][WRITE].next);
 	}
 
+	// all requests are finished
 	mdata->writes_starved = 0;
-
 	return NULL;
 }
 
