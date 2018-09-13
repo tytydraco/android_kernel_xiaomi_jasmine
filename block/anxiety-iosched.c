@@ -21,7 +21,7 @@ struct anxiety_data {
 	size_t writes_starved;
 };
 
-static inline void anxiety_merged_requests(struct request_queue *q, struct request *rq, struct request *next) {
+static void anxiety_merged_requests(struct request_queue *q, struct request *rq, struct request *next) {
 	list_del_init(&next->queuelist);
 }
 
@@ -58,7 +58,7 @@ static __always_inline struct request *anxiety_choose_request(struct anxiety_dat
 	return NULL;
 }
 
-static __always_inline int anxiety_dispatch(struct request_queue *q, int force) {
+static int anxiety_dispatch(struct request_queue *q, int force) {
 	struct anxiety_data *nd = q->elevator->elevator_data;
 	struct request *rq;
 
@@ -71,13 +71,13 @@ static __always_inline int anxiety_dispatch(struct request_queue *q, int force) 
 	return 1;
 }
 
-static inline void anxiety_add_request(struct request_queue *q, struct request *rq) {
+static void anxiety_add_request(struct request_queue *q, struct request *rq) {
 	const int sync = rq_is_sync(rq);
 	const int read = rq_data_dir(rq);	
 	list_add_tail(&rq->queuelist, &((struct anxiety_data *) q->elevator->elevator_data)->queue[sync][read]);
 }
 
-static inline struct request *anxiety_former_request(struct request_queue *q, struct request *rq) {
+static struct request *anxiety_former_request(struct request_queue *q, struct request *rq) {
 	const int sync = rq_is_sync(rq);
 	const int read = rq_data_dir(rq);
 	if (rq->queuelist.prev == &((struct anxiety_data *) q->elevator->elevator_data)->queue[sync][read])
@@ -85,7 +85,7 @@ static inline struct request *anxiety_former_request(struct request_queue *q, st
 	return list_prev_entry(rq, queuelist);
 }
 
-static inline struct request *anxiety_latter_request(struct request_queue *q, struct request *rq) {
+static struct request *anxiety_latter_request(struct request_queue *q, struct request *rq) {
 	const int sync = rq_is_sync(rq);
 	const int read = rq_data_dir(rq);
 	if (rq->queuelist.next == &((struct anxiety_data *) q->elevator->elevator_data)->queue[sync][read])
@@ -122,22 +122,22 @@ static int anxiety_init_queue(struct request_queue *q, struct elevator_type *e) 
 
 static struct elevator_type elevator_anxiety = {
 	.ops = {
-		.elevator_merge_req_fn		= anxiety_merged_requests,
+		.elevator_merge_req_fn	= anxiety_merged_requests,
 		.elevator_dispatch_fn		= anxiety_dispatch,
 		.elevator_add_req_fn		= anxiety_add_request,
-		.elevator_former_req_fn		= anxiety_former_request,
-		.elevator_latter_req_fn		= anxiety_latter_request,
-		.elevator_init_fn		= anxiety_init_queue,
+		.elevator_former_req_fn	= anxiety_former_request,
+		.elevator_latter_req_fn	= anxiety_latter_request,
+		.elevator_init_fn				= anxiety_init_queue,
 	},
 	.elevator_name = "anxiety",
 	.elevator_owner = THIS_MODULE,
 };
 
-static inline int __init anxiety_init(void) {
+static int __init anxiety_init(void) {
 	return elv_register(&elevator_anxiety);
 }
 
-static inline void __exit anxiety_exit(void) {
+static void __exit anxiety_exit(void) {
 	elv_unregister(&elevator_anxiety);
 }
 
