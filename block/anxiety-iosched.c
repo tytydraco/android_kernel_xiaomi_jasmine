@@ -11,19 +11,12 @@
 
 #define MAX_WRITES_STARVED 12
 
-enum { 
-	ASYNC, 
-	SYNC 
-};
+enum {ASYNC, SYNC};
 
 struct anxiety_data {
 	struct list_head queue[2][2];
 	size_t writes_starved;
 };
-
-static void anxiety_merged_requests(struct request_queue *q, struct request *rq, struct request *next) {
-	list_del_init(&next->queuelist);
-}
 
 static __always_inline struct request *anxiety_choose_request(struct anxiety_data *mdata) {
 	// ensure that reads will always take priority unless writes are exceedingly starved
@@ -61,10 +54,7 @@ static __always_inline struct request *anxiety_choose_request(struct anxiety_dat
 }
 
 static int anxiety_dispatch(struct request_queue *q, int force) {
-	struct anxiety_data *nd = q->elevator->elevator_data;
-	struct request *rq;
-
-	rq = anxiety_choose_request(nd);
+	struct request *rq = anxiety_choose_request(q->elevator->elevator_data);
 	if (!rq)
 		return 0;
 
@@ -74,36 +64,33 @@ static int anxiety_dispatch(struct request_queue *q, int force) {
 }
 
 static void anxiety_add_request(struct request_queue *q, struct request *rq) {
-	const int sync = rq_is_sync(rq);
-	const int read = rq_data_dir(rq);	
+	const uint8_t sync = rq_is_sync(rq);
+	const uint8_t read = rq_data_dir(rq);	
 	list_add_tail(&rq->queuelist, &((struct anxiety_data *) q->elevator->elevator_data)->queue[sync][read]);
 }
 
 static struct request *anxiety_former_request(struct request_queue *q, struct request *rq) {
-	const int sync = rq_is_sync(rq);
-	const int read = rq_data_dir(rq);
+	const uint8_t sync = rq_is_sync(rq);
+	const uint8_t read = rq_data_dir(rq);
 	if (rq->queuelist.prev == &((struct anxiety_data *) q->elevator->elevator_data)->queue[sync][read])
 		return NULL;
 	return list_prev_entry(rq, queuelist);
 }
 
 static struct request *anxiety_latter_request(struct request_queue *q, struct request *rq) {
-	const int sync = rq_is_sync(rq);
-	const int read = rq_data_dir(rq);
+	const uint8_t sync = rq_is_sync(rq);
+	const uint8_t read = rq_data_dir(rq);
 	if (rq->queuelist.next == &((struct anxiety_data *) q->elevator->elevator_data)->queue[sync][read])
 		return NULL;
 	return list_next_entry(rq, queuelist);
 }
 
 static int anxiety_init_queue(struct request_queue *q, struct elevator_type *e) {
-	struct anxiety_data *nd;
-	struct elevator_queue *eq;
-
-	eq = elevator_alloc(q, e);
+	struct elevator_queue *eq = elevator_alloc(q, e);
 	if (!eq)
 		return -ENOMEM;
 
-	nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
+	struct anxiety_data *nd = kmalloc_node(sizeof(*nd), GFP_KERNEL, q->node);
 	if (!nd) {
 		kobject_put(&eq->kobj);
 		return -ENOMEM;
@@ -124,7 +111,6 @@ static int anxiety_init_queue(struct request_queue *q, struct elevator_type *e) 
 
 static struct elevator_type elevator_anxiety = {
 	.ops = {
-		.elevator_merge_req_fn	= anxiety_merged_requests,
 		.elevator_dispatch_fn		= anxiety_dispatch,
 		.elevator_add_req_fn		= anxiety_add_request,
 		.elevator_former_req_fn	= anxiety_former_request,
