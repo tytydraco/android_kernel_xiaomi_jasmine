@@ -18,11 +18,13 @@ struct anxiety_data {
 	size_t writes_starved;
 };
 
+static void anxiety_merged_requests(struct request_queue *q, struct request *rq, struct request *next) {
+	rq_fifo_clear(next);
+}
+
 static __always_inline struct request *anxiety_choose_request(struct anxiety_data *mdata) {
 	// ensure that reads will always take priority unless writes are exceedingly starved
-	bool starved = false;
-	if (mdata->writes_starved > MAX_WRITES_STARVED)
-		starved = true;
+	bool starved = (mdata->writes_starved > MAX_WRITES_STARVED);
 
  	// sync read
 	if (!starved && !list_empty(&mdata->queue[SYNC][READ])) {
@@ -112,6 +114,7 @@ static int anxiety_init_queue(struct request_queue *q, struct elevator_type *e) 
 
 static struct elevator_type elevator_anxiety = {
 	.ops = {
+		.elevator_merge_req_fn	= anxiety_merged_requests,
 		.elevator_dispatch_fn		= anxiety_dispatch,
 		.elevator_add_req_fn		= anxiety_add_request,
 		.elevator_former_req_fn	= anxiety_former_request,
