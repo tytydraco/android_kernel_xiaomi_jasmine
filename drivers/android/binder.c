@@ -2182,15 +2182,15 @@ static void binder_send_failed_reply(struct binder_transaction *t,
  * @error_code:	error to return to caller (if synchronous call)
  */
 static void binder_cleanup_transaction(struct binder_transaction *t,
-		const char *reason,
-		uint32_t error_code)
+				       const char *reason,
+				       uint32_t error_code)
 {
 	if (t->buffer->target_node && !(t->flags & TF_ONE_WAY)) {
 		binder_send_failed_reply(t, error_code);
 	} else {
 		binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
-				"undelivered transaction %d, %s\n",
-				t->debug_id, reason);
+			"undelivered transaction %d, %s\n",
+			t->debug_id, reason);
 		binder_free_transaction(t);
 	}
 }
@@ -4281,7 +4281,7 @@ retry:
 				binder_thread_dec_tmpref(t_from);
 
 			binder_cleanup_transaction(t, "put_user failed",
-					BR_FAILED_REPLY);
+						   BR_FAILED_REPLY);
 
 			return -EFAULT;
 		}
@@ -4291,7 +4291,7 @@ retry:
 				binder_thread_dec_tmpref(t_from);
 
 			binder_cleanup_transaction(t, "copy_to_user failed",
-					BR_FAILED_REPLY);
+						   BR_FAILED_REPLY);
 
 			return -EFAULT;
 		}
@@ -4364,7 +4364,7 @@ static void binder_release_work(struct binder_proc *proc,
 			t = container_of(w, struct binder_transaction, work);
 
 			binder_cleanup_transaction(t, "process died.",
-					BR_DEAD_REPLY);
+						   BR_DEAD_REPLY);
 		} break;
 		case BINDER_WORK_RETURN_ERROR: {
 			struct binder_error *e = container_of(
