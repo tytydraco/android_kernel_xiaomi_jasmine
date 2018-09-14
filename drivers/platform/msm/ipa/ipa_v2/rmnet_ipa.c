@@ -773,9 +773,7 @@ static int find_vchannel_name_index(const char *vchannel_name)
 {
 	int i;
 
-
-    for (i = 0; i < rmnet_index; i++) {
-
+	for (i = 0; i < rmnet_index; i++) {
 		if (0 == strcmp(mux_channel[i].vchannel_name, vchannel_name))
 			return i;
 	}
