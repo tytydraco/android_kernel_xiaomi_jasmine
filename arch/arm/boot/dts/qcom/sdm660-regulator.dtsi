@@ -1,4 +1,5 @@
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -713,8 +714,8 @@
 				regulator-max-microvolt = <17>;
 
 				qcom,cpr-fuse-corners = <5>;
-				qcom,cpr-fuse-combos = <40>;
-				qcom,cpr-speed-bins = <5>;
+				qcom,cpr-fuse-combos = <32>;
+				qcom,cpr-speed-bins = <4>;
 				qcom,cpr-speed-bin-corners = <17 17 0 17 17>;
 				qcom,cpr-corners =
 					/* Speed bin 0 */
@@ -728,10 +729,6 @@
 
 					/* Speed bin 3 */
 					<17 17 17 17 17 17 17 17>;
-
-					/* Speed bin 4 */
-					<8 8 8 8 8 8 8 8>;
-
 				qcom,cpr-corner-fmax-map =
 					/* Speed bin 0 */
 					<2 3 4 5 17>,
@@ -745,8 +742,6 @@
 					/* Speed bin 3 */
 					<2 3 4 5 17>;
 
-					/* Speed bin 4 */
-					<2 3 4 5 8>;
 
 				qcom,cpr-voltage-ceiling =
 					<474000  588000  696000
@@ -788,11 +783,6 @@
 					1248000000 1344000000 1401600000
 					1536000000 1612800000 1747200000
 					1843200000 1958400000>;
-					
-					/* Speed bin 4 */
-					<300000000  633600000  902400000
-					1113600000 1401600000 1536000000
-					1747200000 1843200000>;
 
 				qcom,allow-voltage-interpolation;
 				qcom,allow-quotient-interpolation;
@@ -883,8 +873,8 @@
 				regulator-max-microvolt = <20>;
 
 				qcom,cpr-fuse-corners = <5>;
-				qcom,cpr-fuse-combos = <40>;
-				qcom,cpr-speed-bins = <5>;
+				qcom,cpr-fuse-combos = <32>;
+				qcom,cpr-speed-bins = <4>;
 				qcom,cpr-speed-bin-corners = <20 20 0 20 20>;
 				qcom,cpr-corners =
 					/* Speed-bin 0 */
@@ -899,9 +889,6 @@
 					/* Speed-bin 3 */
 					<20 20 20 20 20 20 20 20>;
 
-					/* Speed-bin 4 */
-					<7 7 7 7 7 7 7 7>;
-
 				qcom,cpr-corner-fmax-map =
 					/* Speed-bin 0 */
 					<2 3 4 6 20>,
@@ -915,7 +902,7 @@
 					/* Speed-bin 3 */
 					<2 3 4 6 20>;
 			
-				qcom,cpr-voltage-ceiling =
+			qcom,cpr-voltage-ceiling =
 					<474000  522000  572000  
 					 572000  656000  656000  
 					 724000  724000  724000   
@@ -923,10 +910,6 @@
 					 868000  868000  868000
 					 988000  988000  988000  
 					1068000 1068000>;
-				
-				qcom,cpr-voltage-ceiling =
-					<724000  724000  788000  868000
-					 988000  988000 1068000>;
 
 				qcom,cpr-voltage-floor =
 					<338000  408000  428000  
