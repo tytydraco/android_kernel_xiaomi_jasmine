@@ -4468,6 +4468,9 @@ int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp)
 	if (!asoc)
 		return -EINVAL;
 
+	if (!asoc)
+		return -EINVAL;
+
 	/* An association cannot be branched off from an already peeled-off
 	 * socket, nor is this supported for tcp style sockets.
 	 */
