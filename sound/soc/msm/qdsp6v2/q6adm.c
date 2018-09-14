@@ -1,5 +1,4 @@
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -99,7 +98,6 @@ struct adm_ctl {
 	int num_ec_ref_rx_chans;
 	int ec_ref_rx_bit_width;
 	int ec_ref_rx_sampling_rate;
-	int lsm_port_id;
 };
 
 static struct adm_ctl			this_adm;
@@ -2140,18 +2138,13 @@ static int get_cal_path(int path)
 		return TX_DEVICE;
 }
 
-void adm_set_lsm_port_id(int port_id)
-{
-	this_adm.lsm_port_id = port_id;
-}
-
 static void send_adm_cal(int port_id, int copp_idx, int path, int perf_mode,
 			 int app_type, int acdb_id, int sample_rate,
 			 int passthr_mode)
 {
 	pr_debug("%s: port id 0x%x copp_idx %d\n", __func__, port_id, copp_idx);
 
-	if (port_id != this_adm.lsm_port_id)
+	if (passthr_mode != LISTEN)
 		send_adm_cal_type(ADM_AUDPROC_CAL, path, port_id, copp_idx,
 				perf_mode, app_type, acdb_id, sample_rate);
 	else
