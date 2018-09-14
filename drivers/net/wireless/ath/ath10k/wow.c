@@ -472,6 +472,7 @@ static void ath10k_wow_op_report_wakeup_reason(struct ath10k *ar)
 	struct cfg80211_wowlan_wakeup *wakeup = &ar->wow.wakeup;
 	struct ath10k_vif *arvif;
 
+	memset(wakeup, 0, sizeof(struct cfg80211_wowlan_wakeup));
 	switch (ar->wow.wakeup_reason) {
 	case WOW_REASON_UNSPECIFIED:
 		wakeup = NULL;
@@ -489,6 +490,7 @@ static void ath10k_wow_op_report_wakeup_reason(struct ath10k *ar)
 		wakeup->gtk_rekey_failure = true;
 		break;
 	}
+	ar->wow.wakeup_reason = WOW_REASON_UNSPECIFIED;
 
 	if (wakeup) {
 		wakeup->pattern_idx = -1;
