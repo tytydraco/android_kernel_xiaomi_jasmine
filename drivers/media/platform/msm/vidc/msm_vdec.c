@@ -1980,11 +1980,11 @@ int msm_vdec_inst_init(struct msm_vidc_inst *inst)
 
 	/* By default, initialize CAPTURE port to NV12 format */
 	fmt = msm_comm_get_pixel_fmt_fourcc(vdec_formats,
-			ARRAY_SIZE(vdec_formats), V4L2_PIX_FMT_NV12,
+		ARRAY_SIZE(vdec_formats), V4L2_PIX_FMT_NV12,
 			CAPTURE_PORT);
 	if (!fmt || fmt->type != CAPTURE_PORT) {
 		dprintk(VIDC_ERR,
-				"vdec_formats corrupted\n");
+			"vdec_formats corrupted\n");
 		return -EINVAL;
 	}
 	memcpy(&inst->fmts[fmt->type], fmt,
@@ -1997,10 +1997,10 @@ int msm_vdec_inst_init(struct msm_vidc_inst *inst)
 	/* By default, initialize OUTPUT port to H264 decoder */
 	fmt = msm_comm_get_pixel_fmt_fourcc(vdec_formats,
 			ARRAY_SIZE(vdec_formats), V4L2_PIX_FMT_H264,
-			OUTPUT_PORT);
+				OUTPUT_PORT);
 	if (!fmt || fmt->type != OUTPUT_PORT) {
 		dprintk(VIDC_ERR,
-				"vdec_formats corrupted\n");
+			"vdec_formats corrupted\n");
 		return -EINVAL;
 	}
 	memcpy(&inst->fmts[fmt->type], fmt,

@@ -782,7 +782,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				continue;
 
 			if (c->dfs_state != NL80211_DFS_UNAVAILABLE &&
-					c->dfs_state != NL80211_DFS_AVAILABLE)
+			    c->dfs_state != NL80211_DFS_AVAILABLE)
 				continue;
 
 			if (c->dfs_state == NL80211_DFS_UNAVAILABLE) {
@@ -790,7 +790,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				radar_event = NL80211_RADAR_NOP_FINISHED;
 			} else {
 				if (regulatory_pre_cac_allowed(wiphy) ||
-						cfg80211_any_wiphy_oper_chan(wiphy, c))
+				    cfg80211_any_wiphy_oper_chan(wiphy, c))
 					continue;
 
 				time_dfs_update = REG_PRE_CAC_EXPIRY_GRACE_MS;
@@ -798,7 +798,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 			}
 
 			timeout = c->dfs_state_entered +
-					msecs_to_jiffies(time_dfs_update);
+				  msecs_to_jiffies(time_dfs_update);
 
 			if (time_after_eq(jiffies, timeout)) {
 				c->dfs_state = NL80211_DFS_USABLE;

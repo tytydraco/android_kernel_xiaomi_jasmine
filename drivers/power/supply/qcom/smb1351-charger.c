@@ -1654,7 +1654,6 @@ static int smb1351_parallel_set_property(struct power_supply *psy,
 		chip->vfloat_mv = val->intval / 1000;
 		if (!chip->parallel_charger_suspended)
 			rc = smb1351_float_voltage_set(chip, chip->vfloat_mv);
-		pr_err("chip->vfloat_mv = %d \n", chip->vfloat_mv);
 		break;
 	default:
 		return -EINVAL;

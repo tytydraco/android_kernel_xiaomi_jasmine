@@ -1359,9 +1359,9 @@ static void msm_vfe40_cfg_camif(struct vfe_device *vfe_dev,
 	* configure EPOCH1: epoch_line1 before EOF
 	*/
 	msm_camera_io_w_mb(0x140000 | epoch_line1,
-			vfe_dev->vfe_base + 0x318);
+		vfe_dev->vfe_base + 0x318);
 	pr_debug("%s:%d: epoch_line1: %d\n",
-			__func__, __LINE__, epoch_line1);
+		__func__, __LINE__, epoch_line1);
 	if (subsample_period && subsample_pattern) {
 		val = msm_camera_io_r(vfe_dev->vfe_base + 0x2F8);
 		val &= 0xFFE0FFFF;

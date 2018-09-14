@@ -3172,7 +3172,7 @@ static struct mmc_cmdq_req *mmc_blk_cmdq_rw_prep(
 }
 
 static void mmc_blk_cmdq_requeue_rw_rq(struct mmc_queue *mq,
-			struct request *req)
+				struct request *req)
 {
 	struct mmc_card *card = mq->card;
 	struct mmc_host *host = card->host;

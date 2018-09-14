@@ -457,14 +457,14 @@ static int isp_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	isp_page = vfe_dev->isp_page;
 
 	pr_debug("%s: vfeid:%d u_virt_addr:0x%lx k_virt_addr:%pK\n",
-			__func__, vfe_dev->pdev->id, vma->vm_start,
-			(void *)isp_page);
+		__func__, vfe_dev->pdev->id, vma->vm_start,
+		(void *)isp_page);
 	if (isp_page != NULL) {
 		page = virt_to_page(isp_page);
 		get_page(page);
 		vmf->page = page;
 		isp_page->kernel_sofid =
-				vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id;
+			vfe_dev->axi_data.src_info[VFE_PIX_0].frame_id;
 		isp_page->vfeid = vfe_dev->pdev->id;
 	}
 	return 0;
@@ -486,12 +486,12 @@ static int msm_isp_v4l2_fops_mmap(struct file *filep,
 
 	vma->vm_ops = &isp_vm_ops;
 	vma->vm_flags |=
-			(unsigned long)(VM_DONTEXPAND | VM_DONTDUMP);
+		(unsigned long)(VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_private_data = vfe_dev;
 	isp_vma_open(vma);
 	ret = 0;
 	pr_debug("%s: isp mmap is called vm_start: 0x%lx\n",
-			__func__, vma->vm_start);
+		__func__, vma->vm_start);
 	return ret;
 }
 

@@ -878,7 +878,7 @@ done:
 EXPORT_SYMBOL(msm_pcm_routing_get_stream_app_type_cfg);
 
 static struct cal_block_data *msm_routing_find_topology_by_path(int path,
-			int cal_index)
+								int cal_index)
 {
 	struct list_head		*ptr, *next;
 	struct cal_block_data		*cal_block = NULL;
@@ -947,8 +947,8 @@ static int msm_routing_get_adm_topology(int fedai_id, int session_type,
 
 	mutex_lock(&cal_data[ADM_TOPOLOGY_CAL_TYPE_IDX]->lock);
 	cal_block = msm_routing_find_topology(session_type, app_type,
-			acdb_dev_id,
-			ADM_TOPOLOGY_CAL_TYPE_IDX);
+					      acdb_dev_id,
+					      ADM_TOPOLOGY_CAL_TYPE_IDX);
 	if (cal_block != NULL)
 		topology = ((struct audio_cal_info_adm_top *)
 			cal_block->cal_info)->topology;
@@ -958,8 +958,8 @@ static int msm_routing_get_adm_topology(int fedai_id, int session_type,
 		pr_debug("%s: Check for LSM topology\n", __func__);
 		mutex_lock(&cal_data[ADM_LSM_TOPOLOGY_CAL_TYPE_IDX]->lock);
 		cal_block = msm_routing_find_topology(session_type, app_type,
-				acdb_dev_id,
-				ADM_LSM_TOPOLOGY_CAL_TYPE_IDX);
+						acdb_dev_id,
+						ADM_LSM_TOPOLOGY_CAL_TYPE_IDX);
 		if (cal_block != NULL)
 			topology = ((struct audio_cal_info_adm_top *)
 				cal_block->cal_info)->topology;
@@ -2566,6 +2566,7 @@ static int msm_routing_lsm_func_put(struct snd_kcontrol *kcontrol,
 
 	pr_debug("%s: port_id 0x%x, mad_type %d\n", __func__, port_id,
 		 mad_type);
+	adm_set_lsm_port_id(port_id);
 	return afe_port_set_mad_type(port_id, mad_type);
 }
 
@@ -16463,7 +16464,7 @@ static int msm_routing_set_cal(int32_t cal_type,
 	cal_index = get_cal_type_index(cal_type);
 	if (cal_index < 0) {
 		pr_err("%s: Could not get cal index %d\n",
-				__func__, cal_index);
+			__func__, cal_index);
 		ret = -EINVAL;
 		goto done;
 	}

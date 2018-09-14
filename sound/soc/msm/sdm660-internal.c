@@ -739,7 +739,7 @@ static int msm_int_enable_dig_cdc_clk(struct snd_soc_codec *codec,
 		mutex_lock(&pdata->cdc_int_mclk0_mutex);
 		if (atomic_read(&pdata->int_mclk0_enabled) == true) {
 			pdata->digital_cdc_core_clk.clk_freq_in_hz =
-					DEFAULT_MCLK_RATE;
+						DEFAULT_MCLK_RATE;
 			pdata->digital_cdc_core_clk.enable = 0;
 			ret = afe_set_lpass_clock_v2(
 				AFE_PORT_ID_INT0_MI2S_RX,
@@ -974,7 +974,7 @@ static int msm_int_mclk0_event(struct snd_soc_dapm_widget *w,
 		ret = msm_cdc_pinctrl_select_active_state(pdata->pdm_gpio_p);
 		if (ret < 0) {
 			pr_err("%s: gpio set cannot be activated %s\n",
-					__func__, "int_pdm");
+			       __func__, "int_pdm");
 			return ret;
 		}
 		msm_int_enable_dig_cdc_clk(codec, 1, true);
@@ -3225,7 +3225,7 @@ static void msm_disable_int_mclk0(struct work_struct *work)
 		pr_debug("Disable the mclk\n");
 		pdata->digital_cdc_core_clk.enable = 0;
 		pdata->digital_cdc_core_clk.clk_freq_in_hz =
-				DEFAULT_MCLK_RATE;
+					DEFAULT_MCLK_RATE;
 		ret = afe_set_lpass_clock_v2(
 			AFE_PORT_ID_INT0_MI2S_RX,
 			&pdata->digital_cdc_core_clk);

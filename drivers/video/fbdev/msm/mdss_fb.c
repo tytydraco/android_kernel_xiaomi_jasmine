@@ -4244,7 +4244,7 @@ skip_commit:
 		mdss_fb_signal_timeline(sync_pt_data);
 
 		if ((mfd->panel.type == MIPI_CMD_PANEL) &&
-				(mfd->mdp.signal_retire_fence))
+			(mfd->mdp.signal_retire_fence))
 			mfd->mdp.signal_retire_fence(mfd, 1);
 	}
 	if (dynamic_dsi_switch) {
@@ -5185,7 +5185,7 @@ static int mdss_fb_atomic_commit_ioctl(struct fb_info *info,
 		if ((mfd->panel.type == MIPI_CMD_PANEL) &&
 			mfd->mdp.signal_retire_fence && mdp5_data)
 			mfd->mdp.signal_retire_fence(mfd,
-					mdp5_data->retire_cnt);
+						mdp5_data->retire_cnt);
 		return 0;
 	}
 

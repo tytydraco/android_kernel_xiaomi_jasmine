@@ -735,11 +735,11 @@ static int ath10k_snoc_driver_event_fw_ready_ind(struct ath10k *ar)
 	atomic_set(&qmi_cfg->fw_ready, 1);
 	if (ar_snoc->drv_state == ATH10K_DRIVER_STATE_PROBED) {
 		ret = ath10k_core_register(ar,
-				ar_snoc->target_info.soc_version);
+					   ar_snoc->target_info.soc_version);
 		if (ret) {
 			ath10k_err(ar,
-					"failed to register driver core: %d\n",
-					ret);
+				   "failed to register driver core: %d\n",
+				   ret);
 			return 0;
 		}
 		ar_snoc->drv_state = ATH10K_DRIVER_STATE_STARTED;

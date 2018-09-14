@@ -6366,7 +6366,7 @@ void mdss_mdp_footswitch_ctrl_handler(bool on)
 }
 
 static void mdss_mdp_signal_retire_fence(struct msm_fb_data_type *mfd,
-			int retire_cnt)
+						int retire_cnt)
 {
 	__vsync_retire_signal(mfd, retire_cnt);
 	pr_debug("Signaled (%d) pending retire fence\n", retire_cnt);

@@ -1615,7 +1615,7 @@ static int32_t q6asm_srvc_callback(struct apr_client_data *data, void *priv)
 		pr_debug("%s: session[%d] already freed\n",
 			 __func__, session_id);
 		if ((session_id > 0 &&
-				session_id <= ASM_ACTIVE_STREAMS_ALLOWED))
+			session_id <= ASM_ACTIVE_STREAMS_ALLOWED))
 			spin_unlock(&(session[session_id].session_lock));
 		return 0;
 	}
@@ -1668,7 +1668,7 @@ static int32_t q6asm_srvc_callback(struct apr_client_data *data, void *priv)
 			break;
 		}
 		if ((session_id > 0 &&
-				session_id <= ASM_ACTIVE_STREAMS_ALLOWED))
+			session_id <= ASM_ACTIVE_STREAMS_ALLOWED))
 			spin_unlock(&(session[session_id].session_lock));
 		return 0;
 	}
@@ -1788,7 +1788,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 	session_id = q6asm_get_session_id_from_audio_client(ac);
 	if (session_id <= 0 || session_id > ASM_ACTIVE_STREAMS_ALLOWED) {
 		pr_err("%s: Session ID is invalid, session = %d\n", __func__,
-				session_id);
+			session_id);
 		return -EINVAL;
 	}
 
@@ -1914,7 +1914,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 					wake_up(&ac->cmd_wait);
 				}
 				spin_unlock(
-						&(session[session_id].session_lock));
+					&(session[session_id].session_lock));
 				return 0;
 			}
 			if ((is_adsp_reg_event(payload[0]) >= 0) ||
@@ -1946,7 +1946,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 					wake_up(&ac->mem_wait);
 				}
 				spin_unlock(
-						&(session[session_id].session_lock));
+					&(session[session_id].session_lock));
 				return 0;
 			}
 			if (atomic_read(&ac->mem_state) && wakeup_flag) {
@@ -2010,7 +2010,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 				pr_err("%s: Unexpected Write Done\n",
 								__func__);
 				spin_unlock(
-						&(session[session_id].session_lock));
+					&(session[session_id].session_lock));
 				return -EINVAL;
 			}
 			spin_lock_irqsave(&port->dsp_lock, dsp_flags);
@@ -2026,7 +2026,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 				spin_unlock_irqrestore(&port->dsp_lock,
 								dsp_flags);
 				spin_unlock(
-						&(session[session_id].session_lock));
+					&(session[session_id].session_lock));
 				return -EINVAL;
 			}
 			port->buf[buf_index].used = 1;
@@ -2098,7 +2098,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			if (port->buf == NULL) {
 				pr_err("%s: Unexpected Write Done\n", __func__);
 				spin_unlock(
-						&(session[session_id].session_lock));
+					&(session[session_id].session_lock));
 				return -EINVAL;
 			}
 			spin_lock_irqsave(&port->dsp_lock, dsp_flags);

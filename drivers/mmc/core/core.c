@@ -1192,13 +1192,13 @@ static int mmc_start_cmdq_request(struct mmc_host *host,
 	} else {
 		ret = -ENOENT;
 		pr_err("%s: %s: cmdq request host op is not available\n",
-				mmc_hostname(host), __func__);
+			mmc_hostname(host), __func__);
 	}
 
 	if (ret) {
 		mmc_host_clk_release(host);
 		pr_err("%s: %s: issue request failed, err=%d\n",
-				mmc_hostname(host), __func__, ret);
+			mmc_hostname(host), __func__, ret);
 	}
 
 	return ret;

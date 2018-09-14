@@ -186,7 +186,7 @@ static void event_handler(uint32_t opcode,
 		buf_index = q6asm_get_buf_index_from_token(token);
 		if (buf_index >= CAPTURE_MAX_NUM_PERIODS) {
 			pr_err("%s: buffer index %u is out of range.\n",
-					__func__, buf_index);
+				__func__, buf_index);
 			return;
 		}
 		pr_debug("%s: token=0x%08x buf_index=0x%08x\n",

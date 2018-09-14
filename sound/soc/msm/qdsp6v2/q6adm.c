@@ -99,6 +99,7 @@ struct adm_ctl {
 	int num_ec_ref_rx_chans;
 	int ec_ref_rx_bit_width;
 	int ec_ref_rx_sampling_rate;
+	int lsm_port_id;
 };
 
 static struct adm_ctl			this_adm;
@@ -1994,7 +1995,7 @@ static struct cal_block_data *adm_find_cal_by_path(int cal_index, int path)
 			struct cal_block_data, list);
 
 		if (cal_index == ADM_AUDPROC_CAL ||
-				cal_index == ADM_LSM_AUDPROC_CAL) {
+		    cal_index == ADM_LSM_AUDPROC_CAL) {
 			audproc_cal_info = cal_block->cal_info;
 			if (audproc_cal_info->path == path)
 				return cal_block;
@@ -2025,7 +2026,7 @@ static struct cal_block_data *adm_find_cal_by_app_type(int cal_index, int path,
 			struct cal_block_data, list);
 
 		if (cal_index == ADM_AUDPROC_CAL ||
-				cal_index == ADM_LSM_AUDPROC_CAL) {
+		    cal_index == ADM_LSM_AUDPROC_CAL) {
 			audproc_cal_info = cal_block->cal_info;
 			if ((audproc_cal_info->path == path) &&
 			    (audproc_cal_info->app_type == app_type))
@@ -2060,7 +2061,7 @@ static struct cal_block_data *adm_find_cal(int cal_index, int path,
 			struct cal_block_data, list);
 
 		if (cal_index == ADM_AUDPROC_CAL ||
-				cal_index == ADM_LSM_AUDPROC_CAL) {
+		    cal_index == ADM_LSM_AUDPROC_CAL) {
 			audproc_cal_info = cal_block->cal_info;
 			if ((audproc_cal_info->path == path) &&
 			    (audproc_cal_info->app_type == app_type) &&
@@ -2139,13 +2140,18 @@ static int get_cal_path(int path)
 		return TX_DEVICE;
 }
 
+void adm_set_lsm_port_id(int port_id)
+{
+	this_adm.lsm_port_id = port_id;
+}
+
 static void send_adm_cal(int port_id, int copp_idx, int path, int perf_mode,
 			 int app_type, int acdb_id, int sample_rate,
 			 int passthr_mode)
 {
 	pr_debug("%s: port id 0x%x copp_idx %d\n", __func__, port_id, copp_idx);
 
-	if (passthr_mode != LISTEN)
+	if (port_id != this_adm.lsm_port_id)
 		send_adm_cal_type(ADM_AUDPROC_CAL, path, port_id, copp_idx,
 				perf_mode, app_type, acdb_id, sample_rate);
 	else

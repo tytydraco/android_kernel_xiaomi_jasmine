@@ -162,9 +162,9 @@ struct wmi_ops {
 	struct sk_buff *(*gen_sta_keepalive)(struct ath10k *ar,
 					     const struct wmi_sta_keepalive_arg *arg);
 	struct sk_buff *(*gen_set_arp_ns_offload)(struct ath10k *ar,
-					struct ath10k_vif *arvif);
+						  struct ath10k_vif *arvif);
 	struct sk_buff *(*gen_gtk_offload)(struct ath10k *ar,
-					struct ath10k_vif *arvif);
+					   struct ath10k_vif *arvif);
 	struct sk_buff *(*gen_wow_enable)(struct ath10k *ar);
 	struct sk_buff *(*gen_wow_add_wakeup_event)(struct ath10k *ar, u32 vdev_id,
 						    enum wmi_wow_wakeup_event event,

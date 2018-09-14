@@ -914,7 +914,7 @@ int __ipa_del_hdr(u32 hdr_hdl, bool by_user)
 	if (by_user) {
 		if (!strcmp(entry->name, IPA_LAN_RX_HDR_NAME)) {
 			IPADBG("Trying to delete hdr %s offset=%u\n",
-					entry->name, entry->offset_entry->offset);
+				entry->name, entry->offset_entry->offset);
 			if (!entry->offset_entry->offset) {
 				IPAERR("User cannot delete default header\n");
 				return -EPERM;
@@ -1245,7 +1245,7 @@ int ipa2_reset_hdr(void)
 		/* do not remove the default header */
 		if (!strcmp(entry->name, IPA_LAN_RX_HDR_NAME)) {
 			IPADBG("Trying to remove hdr %s offset=%u\n",
-					entry->name, entry->offset_entry->offset);
+				entry->name, entry->offset_entry->offset);
 			if (!entry->offset_entry->offset) {
 				if (entry->is_hdr_proc_ctx) {
 					mutex_unlock(&ipa_ctx->lock);

@@ -1328,7 +1328,7 @@ err_exit:
 }
 
 static int afe_get_cal_topology_id(u16 port_id, u32 *topology_id,
-			int cal_type_index)
+				   int cal_type_index)
 {
 	int ret = 0;
 
@@ -1391,7 +1391,7 @@ static int afe_send_port_topology_id(u16 port_id)
 	if (ret < 0) {
 		pr_debug("%s: Check for LSM topology\n", __func__);
 		ret = afe_get_cal_topology_id(port_id, &topology_id,
-				AFE_LSM_TOPOLOGY_CAL);
+					      AFE_LSM_TOPOLOGY_CAL);
 	}
 	if (ret || !topology_id) {
 		pr_debug("%s: AFE port[%d] get_cal_topology[%d] invalid!\n",
@@ -1534,9 +1534,9 @@ static int send_afe_cal_type(int cal_index, int port_id)
 	mutex_lock(&this_afe.cal_data[cal_index]->lock);
 
 	if (((cal_index == AFE_COMMON_RX_CAL) ||
-			(cal_index == AFE_COMMON_TX_CAL) ||
-			(cal_index == AFE_LSM_TX_CAL)) &&
-			(this_afe.dev_acdb_id[afe_port_index] > 0))
+	     (cal_index == AFE_COMMON_TX_CAL) ||
+	     (cal_index == AFE_LSM_TX_CAL)) &&
+	    (this_afe.dev_acdb_id[afe_port_index] > 0))
 		cal_block = afe_find_cal(cal_index, port_id);
 	else
 		cal_block = cal_utils_get_only_cal_block(

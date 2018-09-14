@@ -1434,9 +1434,9 @@ void msm_vfe47_cfg_camif(struct vfe_device *vfe_dev,
 	* configure EPOCH1: epoch_line1 before EOF
 	*/
 	msm_camera_io_w_mb(0x140000 | epoch_line1,
-			vfe_dev->vfe_base + 0x4A0);
+		vfe_dev->vfe_base + 0x4A0);
 	pr_debug("%s:%d: epoch_line1: %d\n",
-			__func__, __LINE__, epoch_line1);
+		__func__, __LINE__, epoch_line1);
 	msm_camera_io_w(((irq_sub_period - 1) << 8) | 0 << 5 |
 		(frame_sub_period - 1), vfe_dev->vfe_base + 0x494);
 	msm_camera_io_w(0xFFFFFFFF, vfe_dev->vfe_base + 0x498);

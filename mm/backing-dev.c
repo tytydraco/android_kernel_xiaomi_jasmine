@@ -237,6 +237,7 @@ static __init int bdi_class_init(void)
 
 	bdi_class->dev_groups = bdi_dev_groups;
 	bdi_debug_init();
+
 	return 0;
 }
 postcore_initcall(bdi_class_init);

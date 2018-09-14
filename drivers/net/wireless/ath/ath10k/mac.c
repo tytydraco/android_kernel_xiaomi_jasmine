@@ -1302,13 +1302,13 @@ static int ath10k_start_cac(struct ath10k *ar)
 		ret = ath10k_monitor_recalc(ar);
 		if (ret) {
 			ath10k_warn(ar, "failed to start monitor (cac): %d\n",
-					ret);
+				    ret);
 			clear_bit(ATH10K_CAC_RUNNING, &ar->dev_flags);
 			return ret;
 		}
 
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac cac start monitor vdev %d\n",
-				ar->monitor_vdev_id);
+			   ar->monitor_vdev_id);
 	}
 
 	return 0;

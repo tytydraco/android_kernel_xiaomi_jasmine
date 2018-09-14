@@ -1590,7 +1590,7 @@ static int msm_compr_playback_open(struct snd_compr_stream *cstream)
 	pr_debug("%s\n", __func__);
 	if (pdata->is_in_use[rtd->dai_link->be_id] == true) {
 		pr_err("%s: %s is already in use,err: %d ",
-				__func__, rtd->dai_link->cpu_dai_name, -EBUSY);
+			__func__, rtd->dai_link->cpu_dai_name, -EBUSY);
 		return -EBUSY;
 	}
 	prtd = kzalloc(sizeof(struct msm_compr_audio), GFP_KERNEL);

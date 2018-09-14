@@ -1585,7 +1585,7 @@ static int ath10k_snoc_hif_suspend(struct ath10k *ar)
 	ret = enable_irq_wake(ar_snoc->ce_irqs[WCN3990_WAKE_IRQ_CE].irq_line);
 	if (ret) {
 		ath10k_dbg(ar, ATH10K_DBG_SNOC,
-				"HIF Suspend: Failed to enable wakeup IRQ\n");
+			   "HIF Suspend: Failed to enable wakeup IRQ\n");
 		return ret;
 	}
 
@@ -1607,7 +1607,7 @@ static int ath10k_snoc_hif_resume(struct ath10k *ar)
 	ret = disable_irq_wake(ar_snoc->ce_irqs[WCN3990_WAKE_IRQ_CE].irq_line);
 	if (ret) {
 		ath10k_dbg(ar, ATH10K_DBG_SNOC,
-				"HIF Resume: Failed to disable wakeup IRQ\n");
+			   "HIF Resume: Failed to disable wakeup IRQ\n");
 		return ret;
 	}
 
@@ -1725,11 +1725,11 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	/* chip id needs to be retrieved from platform driver */
 	if (atomic_read(&qmi_cfg->fw_ready)) {
 		ret = ath10k_core_register(ar,
-				ar_snoc->target_info.soc_version);
+					   ar_snoc->target_info.soc_version);
 		if (ret) {
 			ath10k_err(ar,
-					"failed to register driver core: %d\n",
-					ret);
+				   "failed to register driver core: %d\n",
+				   ret);
 			goto err_free_irq;
 		}
 		ar_snoc->drv_state = ATH10K_DRIVER_STATE_STARTED;

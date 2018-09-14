@@ -42,7 +42,7 @@ static void msm_test_add_child_dev(struct work_struct *work)
 			     msm_test_add_child_dev_work);
 	if (!pdata) {
 		pr_err("%s: Memory for pdata does not exist\n",
-				__func__);
+			__func__);
 		return;
 	}
 	if (!pdata->dev) {
@@ -51,14 +51,14 @@ static void msm_test_add_child_dev(struct work_struct *work)
 	}
 	if (!pdata->dev->of_node) {
 		dev_err(pdata->dev,
-				"%s: DT node for pdata does not exist\n", __func__);
+			"%s: DT node for pdata does not exist\n", __func__);
 		return;
 	}
 
 	adsp_state = apr_get_subsys_state();
 	while (adsp_state != APR_SUBSYS_LOADED) {
 		dev_dbg(pdata->dev, "Adsp is not loaded yet %d\n",
-				adsp_state);
+			adsp_state);
 		msleep(500);
 		adsp_state = apr_get_subsys_state();
 	}
@@ -73,7 +73,7 @@ static void msm_test_add_child_dev(struct work_struct *work)
 		pdev = platform_device_alloc(plat_dev_name, -1);
 		if (!pdev) {
 			dev_err(pdata->dev, "%s: pdev memory alloc failed\n",
-					__func__);
+				__func__);
 			ret = -ENOMEM;
 			goto err;
 		}
@@ -83,8 +83,8 @@ static void msm_test_add_child_dev(struct work_struct *work)
 		ret = platform_device_add(pdev);
 		if (ret) {
 			dev_err(&pdev->dev,
-					"%s: Cannot add platform device\n",
-					__func__);
+				"%s: Cannot add platform device\n",
+				__func__);
 			goto fail_pdev_add;
 		}
 	}
@@ -125,7 +125,7 @@ static int msm_pcm_hostless_probe(struct platform_device *pdev)
 	pr_debug("%s: dev name %s\n", __func__, dev_name(&pdev->dev));
 	pdata->dev = &pdev->dev;
 	INIT_WORK(&pdata->msm_test_add_child_dev_work,
-			msm_test_add_child_dev);
+		  msm_test_add_child_dev);
 	schedule_work(&pdata->msm_test_add_child_dev_work);
 	return snd_soc_register_platform(&pdev->dev,
 				   &msm_soc_hostless_platform);

@@ -212,7 +212,7 @@ static long ipa3_wan_ioctl(struct file *filp,
 			break;
 		}
 		rc = rmnet_ipa3_set_data_quota(
-				(struct wan_ioctl_set_data_quota *)param);
+			(struct wan_ioctl_set_data_quota *)param);
 		if (rc != 0) {
 			IPAWANERR("WAN_IOC_SET_DATA_QUOTA failed\n");
 			if (retval == -ENODEV)
