@@ -1809,14 +1809,22 @@ static ssize_t qpnp_hap_vmax_store(struct device *dev,
 	struct timed_output_dev *timed_dev = dev_get_drvdata(dev);
 	struct qpnp_hap *hap = container_of(timed_dev, struct qpnp_hap,
 					 timed_dev);
-	int data, rc;
-
-	rc = kstrtoint(buf, 10, &data);
+	u32 data;
+	int rc;
+ 	if (sscanf(buf, "%d", &data) != 1)
+		return -EINVAL;
+ 	if (data < QPNP_HAP_VMAX_MIN_MV) {
+		pr_err("%s: mv %d not in range (%d - %d), using min.", __func__, data, QPNP_HAP_VMAX_MIN_MV, QPNP_HAP_VMAX_MAX_MV);
+		data = QPNP_HAP_VMAX_MIN_MV;
+	} else if (data > QPNP_HAP_VMAX_MAX_MV) {
+		pr_err("%s: mv %d not in range (%d - %d), using max.", __func__, data, QPNP_HAP_VMAX_MIN_MV, QPNP_HAP_VMAX_MAX_MV);
+		data = QPNP_HAP_VMAX_MAX_MV;
+	}
+ 	hap->vmax_mv = data;
+	rc = qpnp_hap_vmax_config(hap, hap->vmax_mv, true);
 	if (rc)
-		return rc;
-
-	hap->vmax_mv = data;
-	return count;
+		pr_info("qpnp: error while writing vibration control register\n");
+ 	return strnlen(buf, count);
 }
 
 /* sysfs attributes */
