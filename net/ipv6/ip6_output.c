@@ -1379,7 +1379,7 @@ emsgsize:
 	    (((length + (skb ? skb->len : headersize)) > mtu) &&
 	    (skb_queue_len(queue) <= 1) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
-	    (rt->dst.dev->features & NETIF_F_UFO) && !dst_xfrm(&rt->dst) &&
+	    (rt->dst.dev->features & NETIF_F_UFO) &&
 	    (sk->sk_type == SOCK_DGRAM) && !udp_get_no_check6_tx(sk))) {
 		err = ip6_ufo_append_data(sk, queue, getfrag, from, length,
 					  hh_len, fragheaderlen, exthdrlen,
@@ -1801,6 +1801,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 		ip6_cork_release(&cork, &v6_cork);
 		return ERR_PTR(err);
 	}
+
 	if (dontfrag < 0)
 		dontfrag = inet6_sk(sk)->dontfrag;
 

@@ -979,7 +979,7 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		 * N.B. This ioctl never worked properly, but failed to
 		 * return an error value. So returning '0' to keep compability
 		 * with legacy applications.
-		 */	
+		 */
 		return 0;
 	case SG_GET_LOW_DMA:
 		return put_user((int) sdp->device->host->unchecked_isa_dma, ip);
@@ -1053,7 +1053,7 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 				mutex_unlock(&sfp->f_mutex);
 				return -EBUSY;
 			}
-			
+
 			mutex_lock(&sfp->parentdp->open_rel_lock);
 			sg_remove_scat(sfp, &sfp->reserve);
 			sg_build_reserve(sfp, val);
