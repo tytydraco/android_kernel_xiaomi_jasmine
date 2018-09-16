@@ -1268,7 +1268,7 @@
 		];
 
 
-		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-on-command-state = "dsi_hs_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
 		qcom,mdss-dsi-ce-on-command-state = "dsi_hs_mode";
 		qcom,mdss-dsi-ce-off-command-state = "dsi_hs_mode";
