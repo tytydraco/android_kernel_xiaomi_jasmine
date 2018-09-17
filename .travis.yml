@@ -1,0 +1,43 @@
+
+language: c
+#######################################################################################
+os:
+  - linux
+  
+addons:
+  apt:
+    packages:
+      - curl
+
+#######################################################################################
+
+
+before_install:
+
+  - sudo apt-get update -qq
+  
+  - git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 ~/aarch64-linux-android-4.9/
+  
+  - sudo chmod -R a+x *
+  #- mkdir out/ && mkdir mkdir modules_jasmine/
+
+#######################################################################################
+
+
+script:  
+  - export ARCH=arm64
+  - export ARCH_QCOM_PLATFORM=sdm660
+  - export CROSS_COMPILE=~/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+  - export KBUILD_BUILD_USER="tytydraco-hex"
+  - export KBUILD_BUILD_HOST="Manish4586"
+  - mkdir out
+  - make O=out jasmine-perf_defconfig
+  - make O=out -j4
+
+after_success:
+  #- grep -rl --null --include '*.ko' LINUX/UNIX . | xargs -0r cp -t modules_jasmine
+  #- echo "--> Making Flashable Zip"
+  #- zip -r modules.zip modules_jasmine
+  #- curl --upload-file modules.zip https://transfer.sh/modules_jasmine.zip
+  - curl --upload-file out/arch/arm64/boot/Image.gz-dtb https://transfer.sh/Image.gz-dtb
+  
