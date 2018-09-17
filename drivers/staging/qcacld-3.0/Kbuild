@@ -591,9 +591,9 @@ ifeq ($(CONFIG_QCOM_TDLS),y)
 MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/lim_process_tdls.o
 endif
 
-ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
+#ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
 MAC_LIM_OBJS += $(MAC_SRC_DIR)/pe/lim/lim_process_fils.o
-endif
+#endif
 
 ifeq ($(CONFIG_WLAN_FEATURE_NAN_DATAPATH), y)
 MAC_NDP_OBJS += $(MAC_SRC_DIR)/pe/nan/nan_datapath.o
