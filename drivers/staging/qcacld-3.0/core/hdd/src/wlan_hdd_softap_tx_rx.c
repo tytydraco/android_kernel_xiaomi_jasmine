@@ -42,7 +42,10 @@
 #include <cdp_txrx_peer_ops.h>
 #include <cds_utils.h>
 #include <wlan_hdd_regulatory.h>
+
+#ifdef IPA_OFFLOAD
 #include <wlan_hdd_ipa.h>
+#endif
 
 /* Preprocessor definitions and constants */
 #undef QCA_HDD_SAP_DUMP_SK_BUFF
@@ -191,39 +194,9 @@ void hdd_softap_tx_resume_cb(void *adapter_context, bool tx_resume)
 static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb)
 {
-	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(pAdapter);
-	int need_orphan = 0;
-
-	if (pAdapter->tx_flow_low_watermark > 0) {
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
-		/*
-		 * The TCP TX throttling logic is changed a little after
-		 * 3.19-rc1 kernel, the TCP sending limit will be smaller,
-		 * which will throttle the TCP packets to the host driver.
-		 * The TCP UP LINK throughput will drop heavily. In order to
-		 * fix this issue, need to orphan the socket buffer asap, which
-		 * will call skb's destructor to notify the TCP stack that the
-		 * SKB buffer is unowned. And then the TCP stack will pump more
-		 * packets to host driver.
-		 *
-		 * The TX packets might be dropped for UDP case in the iperf
-		 * testing. So need to be protected by follow control.
-		 */
-		need_orphan = 1;
-#else
-		if (hdd_ctx->config->tx_orphan_enable)
-			need_orphan = 1;
-#endif
-	} else if (hdd_ctx->config->tx_orphan_enable) {
-		if (qdf_nbuf_is_ipv4_tcp_pkt(skb) ||
-		    qdf_nbuf_is_ipv6_tcp_pkt(skb))
-			need_orphan = 1;
-	}
-
-	if (need_orphan) {
+	if (pAdapter->tx_flow_low_watermark > 0)
 		skb_orphan(skb);
-		++pAdapter->hdd_stats.hddTxRxStats.txXmitOrphaned;
-	} else
+	else
 		skb = skb_unshare(skb, GFP_ATOMIC);
 
 	return skb;
@@ -241,13 +214,11 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		struct sk_buff *skb) {
 
 	struct sk_buff *nskb;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
 	hdd_context_t *hdd_ctx = pAdapter->pHddCtx;
-#endif
+
 	hdd_skb_fill_gso_size(pAdapter->dev, skb);
 
 	nskb = skb_unshare(skb, GFP_ATOMIC);
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
 	if (unlikely(hdd_ctx->config->tx_orphan_enable) && (nskb == skb)) {
 		/*
 		 * For UDP packets we want to orphan the packet to allow the app
@@ -257,7 +228,6 @@ static inline struct sk_buff *hdd_skb_orphan(hdd_adapter_t *pAdapter,
 		++pAdapter->hdd_stats.hddTxRxStats.txXmitOrphaned;
 		skb_orphan(skb);
 	}
-#endif
 	return nskb;
 }
 #endif /* QCA_LL_LEGACY_TX_FLOW_CONTROL */
@@ -391,7 +361,26 @@ static int __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 	if (!qdf_nbuf_ipa_owned_get(skb)) {
 #endif
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0))
+		/*
+		 * The TCP TX throttling logic is changed a little after
+		 * 3.19-rc1 kernel, the TCP sending limit will be smaller,
+		 * which will throttle the TCP packets to the host driver.
+		 * The TCP UP LINK throughput will drop heavily. In order to
+		 * fix this issue, need to orphan the socket buffer asap, which
+		 * will call skb's destructor to notify the TCP stack that the
+		 * SKB buffer is unowned. And then the TCP stack will pump more
+		 * packets to host driver.
+		 *
+		 * The TX packets might be dropped for UDP case in the iperf
+		 * testing. So need to be protected by follow control.
+		 */
 		skb = hdd_skb_orphan(pAdapter, skb);
+#else
+		/* Check if the buffer has enough header room */
+		skb = skb_unshare(skb, GFP_ATOMIC);
+#endif
+
 		if (!skb)
 			goto drop_pkt_accounting;
 
@@ -544,7 +533,7 @@ static void __hdd_softap_tx_timeout(struct net_device *dev)
 			  i, netif_tx_queue_stopped(txq), txq->trans_start);
 	}
 
-	wlan_hdd_display_netif_queue_history(hdd_ctx, QDF_STATS_VERB_LVL_HIGH);
+	wlan_hdd_display_netif_queue_history(hdd_ctx);
 	ol_tx_dump_flow_pool_info();
 	QDF_TRACE(QDF_MODULE_ID_HDD_DATA, QDF_TRACE_LEVEL_DEBUG,
 			"carrier state: %d", netif_carrier_ok(dev));
@@ -561,7 +550,7 @@ static void __hdd_softap_tx_timeout(struct net_device *dev)
 			ol_txrx_post_data_stall_event(
 					DATA_STALL_LOG_INDICATOR_HOST_DRIVER,
 					DATA_STALL_LOG_HOST_SOFTAP_TX_TIMEOUT,
-					0xFF, 0xFF,
+					0xFF, 0XFF,
 					DATA_STALL_LOG_RECOVERY_TRIGGER_PDR);
 	}
 }
@@ -800,6 +789,8 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	else
 		++pAdapter->hdd_stats.hddTxRxStats.rxRefused[cpu_index];
 
+	pAdapter->dev->last_rx = jiffies;
+
 	return QDF_STATUS_SUCCESS;
 }
 
@@ -836,14 +827,6 @@ QDF_STATUS hdd_softap_deregister_sta(hdd_adapter_t *pAdapter, uint8_t staId)
 			staId, qdf_status, qdf_status);
 
 	if (pAdapter->aStaInfo[staId].isUsed) {
-		if (hdd_ipa_uc_is_enabled(pHddCtx)) {
-			if (hdd_ipa_wlan_evt(pAdapter,
-					 pAdapter->aStaInfo[staId].ucSTAId,
-					 HDD_IPA_CLIENT_DISCONNECT,
-					 pAdapter->aStaInfo[staId].macAddrSTA.
-					 bytes))
-				hdd_err("WLAN_CLIENT_DISCONNECT event failed");
-		}
 		spin_lock_bh(&pAdapter->staInfo_lock);
 		qdf_mem_zero(&pAdapter->aStaInfo[staId],
 			     sizeof(hdd_station_info_t));
@@ -1047,19 +1030,13 @@ QDF_STATUS hdd_softap_stop_bss(hdd_adapter_t *pAdapter)
 			}
 		}
 	}
+	if (pAdapter->device_mode == QDF_SAP_MODE)
+		wlan_hdd_restore_channels(pHddCtx);
 
 	/* Mark the indoor channel (passive) to enable */
 	if (pHddCtx->config->disable_indoor_channel) {
 		hdd_update_indoor_channel(pHddCtx, false);
 		sme_update_channel_list(pHddCtx->hHal);
-	}
-
-	if (hdd_ipa_is_enabled(pHddCtx)) {
-		if (hdd_ipa_wlan_evt(pAdapter,
-				WLAN_HDD_GET_AP_CTX_PTR(pAdapter)->uBCStaId,
-				HDD_IPA_AP_DISCONNECT,
-				pAdapter->dev->dev_addr))
-			hdd_err("WLAN_AP_DISCONNECT event failed");
 	}
 
 	return qdf_status;

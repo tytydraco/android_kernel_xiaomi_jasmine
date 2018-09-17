@@ -120,32 +120,7 @@
 #define RX_HASH_LOG(x)          /* no-op */
 #endif
 
-#if HTT_PADDR64
-#define NEXT_FIELD_OFFSET_IN32 2
-#else /* ! HTT_PADDR64 */
-#define NEXT_FIELD_OFFSET_IN32 1
-#endif /* HTT_PADDR64 */
-
 #ifndef CONFIG_HL_SUPPORT
-
-/**
- * htt_get_first_packet_after_wow_wakeup() - get first packet after wow wakeup
- * @msg_word: pointer to rx indication message word
- * @buf: pointer to buffer
- *
- * Return: None
- */
-static void
-htt_get_first_packet_after_wow_wakeup(uint32_t *msg_word, qdf_nbuf_t buf)
-{
-	if (HTT_RX_IN_ORD_PADDR_IND_MSDU_INFO_GET(*msg_word) &
-			FW_MSDU_INFO_FIRST_WAKEUP_M) {
-		qdf_nbuf_mark_wakeup_frame(buf);
-		QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO,
-			  "%s: First packet after WOW Wakeup rcvd", __func__);
-	}
-}
-
 /* De -initialization function of the rx buffer hash table. This function will
  *   free up the hash table which includes freeing all the pending rx buffers
  */
@@ -164,7 +139,7 @@ static void htt_rx_hash_deinit(struct htt_pdev_t *pdev)
 
 	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
 		mem_map_table = qdf_mem_map_table_alloc(
-					pdev->rx_ring.fill_level);
+					RX_NUM_HASH_BUCKETS * RX_ENTRIES_SIZE);
 		if (!mem_map_table) {
 			qdf_print("%s: Failed to allocate memory for mem map table\n",
 				  __func__);
@@ -514,7 +489,7 @@ static int htt_rx_ring_fill_n(struct htt_pdev_t *pdev, int num)
 		if (!mem_map_table) {
 			qdf_print("%s: Failed to allocate memory for mem map table\n",
 				  __func__);
-			goto update_alloc_idx;
+			goto fail;
 		}
 		mem_info = mem_map_table;
 	}
@@ -622,30 +597,11 @@ moretofill:
 		filled++;
 		idx &= pdev->rx_ring.size_mask;
 	}
-
-	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
-		cds_smmu_map_unmap(true, num_alloc, mem_map_table);
-		qdf_mem_free(mem_map_table);
-	}
-
-	num_alloc = 0;
 	if (debt_served <  qdf_atomic_read(&pdev->rx_ring.refill_debt)) {
 		num = qdf_atomic_read(&pdev->rx_ring.refill_debt);
 		debt_served += num;
-		if (qdf_mem_smmu_s1_enabled(pdev->osdev) &&
-				pdev->is_ipa_uc_enabled) {
-			mem_map_table = qdf_mem_map_table_alloc(num);
-			if (!mem_map_table) {
-				qdf_print("%s: Failed to allocate memory for mem map table\n",
-					  __func__);
-				goto update_alloc_idx;
-			}
-			mem_info = mem_map_table;
-		}
 		goto moretofill;
 	}
-
-	goto update_alloc_idx;
 
 free_mem_map_table:
 	if (qdf_mem_smmu_s1_enabled(pdev->osdev) && pdev->is_ipa_uc_enabled) {
@@ -653,7 +609,7 @@ free_mem_map_table:
 		qdf_mem_free(mem_map_table);
 	}
 
-update_alloc_idx:
+fail:
 	/*
 	 * Make sure alloc index write is reflected correctly before FW polls
 	 * remote ring write index as compiler can reorder the instructions
@@ -771,7 +727,6 @@ void htt_rx_detach(struct htt_pdev_t *pdev)
 {
 	qdf_timer_stop(&pdev->rx_ring.refill_retry_timer);
 	qdf_timer_free(&pdev->rx_ring.refill_retry_timer);
-	htt_rx_dbg_rxbuf_deinit(pdev);
 
 	if (pdev->cfg.is_full_reorder_offload) {
 		qdf_mem_free_consistent(pdev->osdev, pdev->osdev->dev,
@@ -1723,9 +1678,15 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 	qdf_nbuf_unmap(pdev->osdev, buf, QDF_DMA_FROM_DEVICE);
 #endif
 
-	if (pdev->cfg.is_first_wakeup_packet)
-		htt_get_first_packet_after_wow_wakeup(
-			msg_word + NEXT_FIELD_OFFSET_IN32, buf);
+	if (pdev->cfg.is_first_wakeup_packet) {
+		if (HTT_RX_IN_ORD_PADDR_IND_MSDU_INFO_GET(*(curr_msdu + 1)) &
+			   FW_MSDU_INFO_FIRST_WAKEUP_M) {
+			qdf_nbuf_mark_wakeup_frame(buf);
+			QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO,
+				  "%s: First packet after WOW Wakeup rcvd",
+				  __func__);
+		}
+	}
 
 	msdu_hdr = (uint32_t *) qdf_nbuf_data(buf);
 
@@ -1746,6 +1707,11 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#if HTT_PADDR64
+#define NEXT_FIELD_OFFSET_IN32 2
+#else /* ! HTT_PADDR64 */
+#define NEXT_FIELD_OFFSET_IN32 1
+#endif /* HTT_PADDR64 */
 
 #ifndef CONFIG_HL_SUPPORT
 /**
@@ -2317,6 +2283,7 @@ static int htt_rx_mon_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		last_frag = ((struct htt_rx_in_ord_paddr_ind_msdu_t *)
 			     msg_word)->msdu_info;
 
+#undef NEXT_FIELD_OFFSET_IN32
 		/* Handle amsdu packet */
 		if (!last_frag) {
 			/*
@@ -2455,7 +2422,6 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		qdf_print("%s: netbuf pop failed!\n", __func__);
 		*tail_msdu = NULL;
 		ret = 0;
-		pdev->rx_ring.pop_fail_cnt++;
 		goto free_mem_map_table;
 	}
 
@@ -2503,6 +2469,11 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 			qdf_nbuf_data_addr(msdu),
 			sizeof(qdf_nbuf_data(msdu)), QDF_RX));
 
+#if HTT_PADDR64
+#define NEXT_FIELD_OFFSET_IN32 2
+#else /* ! HTT_PADDR64 */
+#define NEXT_FIELD_OFFSET_IN32 1
+#endif /* HTT_PADDR64 */
 		qdf_nbuf_trim_tail(msdu,
 				   HTT_RX_BUF_SIZE -
 				   (RX_STD_DESC_SIZE +
@@ -2514,6 +2485,7 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 		*((uint8_t *) &rx_desc->fw_desc.u.val) =
 			HTT_RX_IN_ORD_PADDR_IND_FW_DESC_GET(*(msg_word +
 						NEXT_FIELD_OFFSET_IN32));
+#undef NEXT_FIELD_OFFSET_IN32
 
 		msdu_count--;
 
@@ -2524,11 +2496,6 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				status = RX_PKT_FATE_FW_DROP_INVALID;
 			pdev->rx_pkt_dump_cb(msdu, peer_id, status);
 		}
-
-		if (pdev->cfg.is_first_wakeup_packet)
-			htt_get_first_packet_after_wow_wakeup(
-				msg_word + NEXT_FIELD_OFFSET_IN32, msdu);
-
 		/* if discard flag is set (SA is self MAC), then
 		 * don't check mic failure.
 		 */
@@ -2562,7 +2529,6 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 								 __func__);
 					*tail_msdu = NULL;
 					ret = 0;
-					pdev->rx_ring.pop_fail_cnt++;
 					goto free_mem_map_table;
 				}
 
@@ -2594,7 +2560,6 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				qdf_print("%s: netbuf pop failed!\n",
 					  __func__);
 				*tail_msdu = NULL;
-				pdev->rx_ring.pop_fail_cnt++;
 				ret = 0;
 				goto free_mem_map_table;
 			}
@@ -3364,7 +3329,6 @@ int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
 		qdf_spin_lock_bh(&(pdev->rx_ring.refill_lock));
 	}
 	pdev->rx_buff_fill_n_invoked++;
-
 	filled = htt_rx_ring_fill_n(pdev, num);
 
 	if (filled > num) {
@@ -3813,7 +3777,6 @@ int htt_rx_attach(struct htt_pdev_t *pdev)
 		 QDF_TIMER_TYPE_SW);
 
 	pdev->rx_ring.fill_cnt = 0;
-	pdev->rx_ring.pop_fail_cnt = 0;
 #ifdef DEBUG_DMA_DONE
 	pdev->rx_ring.dbg_ring_idx = 0;
 	pdev->rx_ring.dbg_refill_cnt = 0;

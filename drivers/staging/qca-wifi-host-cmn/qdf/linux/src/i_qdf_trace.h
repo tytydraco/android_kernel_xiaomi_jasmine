@@ -36,8 +36,8 @@
 #define __I_QDF_TRACE_H
 
 /* older kernels have a bug in kallsyms, so ensure module.h is included */
-#include <linux/module.h>
-#include <linux/kallsyms.h>
+#include <module.h>
+#include <kallsyms.h>
 
 #if !defined(__printf)
 #define __printf(a, b)
@@ -56,7 +56,6 @@
  */
 #if defined(WLAN_DEBUG) || defined(DEBUG)
 #define QDF_TRACE qdf_trace_msg
-#define QDF_VTRACE qdf_vtrace_msg
 #define QDF_TRACE_HEX_DUMP qdf_trace_hex_dump
 #define QDF_TRACE_RATE_LIMITED(rate, module, level, format, ...)\
 	do {\
@@ -69,7 +68,6 @@
 	} while (0)
 #else
 #define QDF_TRACE(arg ...)
-#define QDF_VTRACE(arg ...)
 #define QDF_TRACE_HEX_DUMP(arg ...)
 #define QDF_TRACE_RATE_LIMITED(arg ...)
 #endif

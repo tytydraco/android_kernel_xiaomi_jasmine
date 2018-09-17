@@ -463,6 +463,17 @@ static void __lim_process_operating_mode_action_frame(tpAniSirGlobal mac_ctx,
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
 	pe_debug("Received Operating Mode action frame");
+	if (CHAN_ENUM_14 >= session->currentOperChannel)
+		cb_mode = mac_ctx->roam.configParam.channelBondingMode24GHz;
+	else
+		cb_mode = mac_ctx->roam.configParam.channelBondingMode5GHz;
+	/* Do not update the channel bonding mode if channel bonding
+	 * mode is disabled in INI.
+	 */
+	if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE == cb_mode) {
+		pe_warn("channel bonding disabled");
+		return;
+	}
 	operating_mode_frm = qdf_mem_malloc(sizeof(*operating_mode_frm));
 	if (NULL == operating_mode_frm) {
 		pe_err("AllocateMemory failed");
@@ -486,19 +497,6 @@ static void __lim_process_operating_mode_action_frame(tpAniSirGlobal mac_ctx,
 	if (sta_ptr == NULL) {
 		pe_err("Station context not found");
 		goto end;
-	}
-
-	if (CHAN_ENUM_14 >= session->currentOperChannel)
-		cb_mode = mac_ctx->roam.configParam.channelBondingMode24GHz;
-	else
-		cb_mode = mac_ctx->roam.configParam.channelBondingMode5GHz;
-	/*
-	 * Do not update the channel bonding mode if channel bonding
-	 * mode is disabled in INI.
-	 */
-	if (WNI_CFG_CHANNEL_BONDING_MODE_DISABLE == cb_mode) {
-		pe_debug("channel bonding disabled");
-		goto update_nss;
 	}
 
 	if (sta_ptr->htSupportedChannelWidthSet) {
@@ -563,7 +561,6 @@ static void __lim_process_operating_mode_action_frame(tpAniSirGlobal mac_ctx,
 			session->dot11mode, sta_ptr->staIndex, mac_hdr->sa);
 	}
 
-update_nss:
 	if (sta_ptr->vhtSupportedRxNss !=
 			(operating_mode_frm->OperatingMode.rxNSS + 1)) {
 		sta_ptr->vhtSupportedRxNss =
@@ -1084,7 +1081,6 @@ static void __lim_process_qos_map_configure_frame(tpAniSirGlobal mac_ctx,
 	uint32_t frame_len;
 	uint8_t *body_ptr;
 	tSirRetStatus retval;
-
 	mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 	body_ptr = WMA_GET_RX_MPDU_DATA(rx_pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
@@ -1190,7 +1186,6 @@ __lim_process_tpc_request_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 	uint8_t *pBody;
 	tpSirMacTpcReqActionFrame pTpcReqFrame;
 	uint32_t frameLen;
-
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 	pBody = WMA_GET_RX_MPDU_DATA(pRxPacketInfo);
 	frameLen = WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
@@ -1640,20 +1635,18 @@ static void lim_process_action_vendor_specific(tpAniSirGlobal mac_ctx,
 	uint32_t frame_len = 0;
 	uint8_t session_id = 0;
 	uint8_t p2p_oui[] = { 0x50, 0x6F, 0x9A, 0x09 };
-	uint8_t dpp_oui[] = { 0x50, 0x6F, 0x9A, 0x1A };
 
 	mac_hdr = WMA_GET_RX_MAC_HEADER(pkt_info);
 	frame_len = WMA_GET_RX_PAYLOAD_LEN(pkt_info);
-	if (frame_len < sizeof(action_hdr)) {
+	if (frame_len < sizeof(*action_hdr)) {
 		pe_debug("Received action frame of invalid len %d", frame_len);
 		return;
 	}
 
 	if (session)
 		session_id = session->smeSessionId;
-	/* Check if it is a P2P or DPP public action frame. */
-	if (!qdf_mem_cmp(action_hdr->Oui, p2p_oui, 4) ||
-	    !qdf_mem_cmp(action_hdr->Oui, dpp_oui, 4)) {
+	/* Check if it is a P2P public action frame. */
+	if (!qdf_mem_cmp(action_hdr->Oui, p2p_oui, 4)) {
 		/* Forward to the SME to HDD to wpa_supplicant */
 		/* type is ACTION */
 		lim_send_sme_mgmt_frame_ind(mac_ctx, mac_hdr->fc.subType,
@@ -1693,10 +1686,16 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 #endif
 	tpSirMacMgmtHdr mac_hdr = NULL;
 	int8_t rssi;
-	uint32_t frame_len;
+	uint32_t frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 	tpSirMacVendorSpecificFrameHdr vendor_specific;
 	uint8_t oui[] = { 0x00, 0x00, 0xf0 };
 	tpSirMacVendorSpecificPublicActionFrameHdr pub_action;
+
+	if (frame_len < sizeof(*action_hdr)) {
+		pe_debug("frame_len %d less than Action Frame Hdr size",
+			 frame_len);
+		return;
+	}
 
 #ifdef WLAN_FEATURE_11W
 	if (lim_is_robust_mgmt_action_frame(action_hdr->category) &&
@@ -1704,8 +1703,6 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 			mac_hdr_11w, action_hdr->category))
 		return;
 #endif
-
-	frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
 	switch (action_hdr->category) {
 	case SIR_MAC_ACTION_QOS_MGMT:
@@ -1899,10 +1896,14 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 	case SIR_MAC_ACTION_VENDOR_SPECIFIC_CATEGORY:
 		vendor_specific = (tpSirMacVendorSpecificFrameHdr) action_hdr;
 		mac_hdr = NULL;
-		frame_len = 0;
 
 		mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
-		frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
+
+		if (frame_len < sizeof(*vendor_specific)) {
+			pe_debug("frame len %d less than Vendor Specific Hdr len",
+				 frame_len);
+			return;
+		}
 
 		/* Check if it is a vendor specific action frame. */
 		if (LIM_IS_STA_ROLE(session) &&
@@ -2050,10 +2051,8 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		break;
 	case SIR_MAC_ACTION_FST: {
 		tpSirMacMgmtHdr     hdr;
-		uint32_t            frame_len;
 
 		hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
-		frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 
 		pe_debug("Received FST MGMT action frame");
 		/* Forward to the SME to HDD */
@@ -2076,7 +2075,6 @@ void lim_process_action_frame(tpAniSirGlobal mac_ctx,
 		case SIR_MAC_PDPA_GAS_COMEBACK_REQ:
 		case SIR_MAC_PDPA_GAS_COMEBACK_RSP:
 			mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
-			frame_len = WMA_GET_RX_PAYLOAD_LEN(rx_pkt_info);
 			rssi = WMA_GET_RX_RSSI_NORMALIZED(rx_pkt_info);
 			lim_send_sme_mgmt_frame_ind(mac_ctx,
 				mac_hdr->fc.subType, (uint8_t *) mac_hdr,

@@ -297,12 +297,6 @@ static struct pci_device_id pld_pcie_id_table[] = {
 	{ 0 }
 };
 
-#ifdef MULTI_IF_NAME
-#define PLD_PCIE_OPS_NAME "pld_pcie_" MULTI_IF_NAME
-#else
-#define PLD_PCIE_OPS_NAME "pld_pcie"
-#endif
-
 #ifdef CONFIG_PLD_PCIE_CNSS
 #ifdef FEATURE_RUNTIME_PM
 struct cnss_wlan_runtime_ops runtime_pm_ops = {
@@ -312,7 +306,7 @@ struct cnss_wlan_runtime_ops runtime_pm_ops = {
 #endif
 
 struct cnss_wlan_driver pld_pcie_ops = {
-	.name       = PLD_PCIE_OPS_NAME,
+	.name       = "pld_pcie",
 	.id_table   = pld_pcie_id_table,
 	.probe      = pld_pcie_probe,
 	.remove     = pld_pcie_remove,
@@ -351,7 +345,7 @@ void pld_pcie_unregister_driver(void)
 }
 #else
 struct pci_driver pld_pcie_ops = {
-	.name       = PLD_PCIE_OPS_NAME,
+	.name       = "pld_pcie",
 	.id_table   = pld_pcie_id_table,
 	.probe      = pld_pcie_probe,
 	.remove     = pld_pcie_remove,

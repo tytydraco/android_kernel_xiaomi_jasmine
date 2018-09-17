@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1617,17 +1617,6 @@ QDF_STATUS wmi_unified_roam_scan_offload_rssi_thresh_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
-QDF_STATUS wmi_unified_roam_mawc_params_cmd(
-			void *wmi_hdl, struct wmi_mawc_roam_params *params)
-{
-	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
-
-	if (wmi_handle->ops->send_roam_mawc_params_cmd)
-		return wmi_handle->ops->send_roam_mawc_params_cmd(
-				wmi_handle, params);
-
-	return QDF_STATUS_E_FAILURE;
-}
 /**
  * wmi_unified_roam_scan_filter_cmd() - send roam scan whitelist,
  *                                      blacklist and preferred list
@@ -1906,24 +1895,6 @@ QDF_STATUS wmi_unified_pno_start_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 #endif
-
-/**
- * wmi_unified_nlo_mawc_cmd() - NLO MAWC cmd configuration
- * @wmi_hdl: wmi handle
- * @params: Configuration parameters
- *
- * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
- */
-QDF_STATUS wmi_unified_nlo_mawc_cmd(void *wmi_hdl,
-		struct nlo_mawc_params *params)
-{
-	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
-
-	if (wmi_handle->ops->send_nlo_mawc_cmd)
-		return wmi_handle->ops->send_nlo_mawc_cmd(wmi_handle, params);
-
-	return QDF_STATUS_E_FAILURE;
-}
 
 /* wmi_unified_set_ric_req_cmd() - set ric request element
  * @wmi_hdl: wmi handle
@@ -2322,28 +2293,6 @@ QDF_STATUS wmi_unified_wow_sta_ra_filter_cmd(void *wmi_hdl,
 
 }
 #endif /* FEATURE_WLAN_RA_FILTERING */
-
-/**
- * wmi_unified_wow_timer_pattern_cmd() - set timer pattern tlv, so that firmware
- * will wake up host after specified time is elapsed
- * @wmi_handle: wmi handle
- * @vdev_id: vdev id
- * @cookie: value to identify reason why host set up wake call.
- * @time: time in ms
- *
- * Return: CDF status
- */
-QDF_STATUS wmi_unified_wow_timer_pattern_cmd(void *wmi_hdl, uint8_t vdev_id,
-					     uint32_t cookie, uint32_t time)
-{
-	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
-
-	if (wmi_handle->ops->send_wow_timer_pattern_cmd)
-		return wmi_handle->ops->send_wow_timer_pattern_cmd(wmi_handle,
-							vdev_id, cookie, time);
-
-	return QDF_STATUS_E_FAILURE;
-}
 
 /**
  * wmi_unified_nat_keepalive_en_cmd() - enable NAT keepalive filter
@@ -6349,30 +6298,6 @@ QDF_STATUS wmi_unified_send_sar_limit_cmd(void *wmi_hdl,
 	return QDF_STATUS_E_FAILURE;
 }
 
-QDF_STATUS wmi_unified_get_sar_limit_cmd(void *wmi_hdl)
-{
-	wmi_unified_t wmi_handle = wmi_hdl;
-
-	if (wmi_handle->ops->get_sar_limit_cmd)
-		return wmi_handle->ops->get_sar_limit_cmd(wmi_handle);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-QDF_STATUS wmi_unified_extract_sar_limit_event(void *wmi_hdl,
-					       uint8_t *evt_buf,
-					       struct sar_limit_event *event)
-{
-	wmi_unified_t wmi_handle = wmi_hdl;
-
-	if (wmi_handle->ops->extract_sar_limit_event)
-		return wmi_handle->ops->extract_sar_limit_event(wmi_handle,
-								evt_buf,
-								event);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
 /**
  * wmi_unified_encrypt_decrypt_send_cmd() - send encryptdecrypt cmd to fw
  * @wmi_hdl: wmi handle
@@ -6462,6 +6387,30 @@ QDF_STATUS wmi_unified_send_limit_off_chan_cmd(void *wmi_hdl,
 	if (wmi_handle->ops->send_limit_off_chan_cmd)
 		return wmi_handle->ops->send_limit_off_chan_cmd(wmi_handle,
 				limit_off_chan_param);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_offload_11k_cmd(void *wmi_hdl,
+				struct wmi_11k_offload_params *params)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_offload_11k_cmd)
+		return wmi_handle->ops->send_offload_11k_cmd(
+				wmi_handle, params);
+
+	return QDF_STATUS_E_FAILURE;
+}
+
+QDF_STATUS wmi_unified_invoke_neighbor_report_cmd(void *wmi_hdl,
+			struct wmi_invoke_neighbor_report_params *params)
+{
+	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
+
+	if (wmi_handle->ops->send_invoke_neighbor_report_cmd)
+		return wmi_handle->ops->send_invoke_neighbor_report_cmd(
+				wmi_handle, params);
 
 	return QDF_STATUS_E_FAILURE;
 }

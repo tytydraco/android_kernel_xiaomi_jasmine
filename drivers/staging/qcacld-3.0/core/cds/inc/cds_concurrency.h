@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -38,9 +38,10 @@
 
 #include "wlan_hdd_main.h"
 
-#define MAX_NUMBER_OF_CONC_CONNECTIONS 3
-#define DBS_OPPORTUNISTIC_TIME    10
-#define CONNECTION_UPDATE_TIMEOUT 3000
+#define MAX_NUMBER_OF_CONC_CONNECTIONS    3
+#define DBS_OPPORTUNISTIC_TIME            10
+#define CONNECTION_UPDATE_TIMEOUT         3000
+#define CHANNEL_SWITCH_COMPLETE_TIMEOUT   1000
 
 /* Some max value greater than the max length of the channel list */
 #define MAX_WEIGHT_OF_PCL_CHANNELS 255
@@ -742,23 +743,6 @@ bool cds_is_any_nondfs_chnl_present(uint8_t *channel);
 bool cds_is_any_dfs_beaconing_session_present(uint8_t *channel);
 bool cds_allow_concurrency(enum cds_con_mode mode,
 				uint8_t channel, enum hw_mode_bandwidth bw);
-
-/**
- * cds_check_privacy_with_concurrency() - privacy/concurrency checker
- *
- * This function checks the new device mode of the current adapter against its
- * privacy settings and concurrency settings to see if there are any conflicts.
- *
- * Return: true if all checkings are passed, false if any conflict detected
- */
-#ifdef FEATURE_WLAN_WAPI
-bool cds_check_privacy_with_concurrency(void);
-#else
-static inline bool cds_check_privacy_with_concurrency(void)
-{
-	return true;
-}
-#endif
 enum cds_conc_priority_mode cds_get_first_connection_pcl_table_index(void);
 enum cds_one_connection_mode cds_get_second_connection_pcl_table_index(void);
 enum cds_two_connection_mode cds_get_third_connection_pcl_table_index(void);
@@ -850,13 +834,6 @@ QDF_STATUS qdf_wait_for_connection_update(void);
 QDF_STATUS qdf_reset_connection_update(void);
 QDF_STATUS qdf_set_connection_update(void);
 QDF_STATUS qdf_init_connection_update(void);
-
-/**
- * cds_stop_opportunistic_timer() - Stops opportunistic timer
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS cds_stop_opportunistic_timer(void);
 QDF_STATUS cds_restart_opportunistic_timer(bool check_state);
 QDF_STATUS cds_modify_sap_pcl_based_on_mandatory_channel(uint8_t *pcl_list_org,
 		uint8_t *weight_list_org,

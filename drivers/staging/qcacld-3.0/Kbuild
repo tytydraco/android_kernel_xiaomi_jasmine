@@ -42,9 +42,7 @@ ifeq ($(KERNEL_BUILD), 0)
 	# Need to explicitly configure for Android-based builds
 
 	ifneq ($(DEVELOPER_DISABLE_BUILD_TIMESTAMP),y)
-	ifneq ($(WLAN_DISABLE_BUILD_TAG),y)
-	CONFIG_BUILD_TAG := y
-	endif
+	CONFIG_BUILD_TIMESTAMP := y
 	endif
 
 	ifeq ($(CONFIG_ARCH_MDM9630), y)
@@ -110,14 +108,6 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_QCACLD_FEATURE_METERING := y
 	endif
 
-	ifeq ($(CONFIG_ARCH_SDM845), y)
-	CONFIG_QCACLD_FEATURE_METERING := y
-	endif
-
-	ifeq ($(CONFIG_ARCH_SDM670), y)
-	CONFIG_QCACLD_FEATURE_METERING := y
-	endif
-
 	#Flag to enable Fast Transition (11r) feature
 	CONFIG_QCOM_VOWIFI_11R := y
 
@@ -180,6 +170,9 @@ ifeq ($(KERNEL_BUILD), 0)
 	CONFIG_WLAN_FEATURE_DSRC := y
 	endif
 
+	#enable spectral scan feature
+	CONFIG_WLAN_SPECTRAL_SCAN := y
+
 ifneq ($(CONFIG_ROME_IF),sdio)
 	#Flag to enable DISA
 	CONFIG_WLAN_FEATURE_DISA := y
@@ -240,8 +233,6 @@ ifneq ($(TARGET_BUILD_VARIANT),user)
 	CONFIG_FEATURE_PKTLOG := y
 endif
 
-#enable spectral scan feature
-CONFIG_WLAN_SPECTRAL_SCAN := y
 
 #Enable WLAN/Power debugfs feature only if debug_fs is enabled
 ifeq ($(CONFIG_DEBUG_FS), y)
@@ -269,13 +260,7 @@ BUILD_DEBUG_VERSION := 1
 BUILD_DIAG_VERSION := 1
 
 #Do we panic on bug?  default is to warn
-ifeq ($(CONFIG_SLUB_DEBUG), y)
-	PANIC_ON_BUG := 1
-else ifeq ($(CONFIG_PERF_DEBUG), y)
-	PANIC_ON_BUG := 1
-else
-	PANIC_ON_BUG := 0
-endif
+PANIC_ON_BUG := 1
 
 #Enable OL debug and wmi unified functions
 CONFIG_ATH_PERF_PWR_OFFLOAD := 1
@@ -788,8 +773,7 @@ QDF_OBJS := 	$(QDF_OBJ_DIR)/qdf_defer.o \
 		$(QDF_OBJ_DIR)/qdf_nbuf.o \
 		$(QDF_OBJ_DIR)/qdf_threads.o \
 		$(QDF_OBJ_DIR)/qdf_crypto.o \
-		$(QDF_OBJ_DIR)/qdf_trace.o \
-		$(QDF_OBJ_DIR)/qdf_idr.o
+		$(QDF_OBJ_DIR)/qdf_trace.o
 
 ifeq ($(CONFIG_WLAN_DEBUGFS), y)
 QDF_OBJS += $(QDF_OBJ_DIR)/qdf_debugfs.o
@@ -926,18 +910,17 @@ HIF_SDIO_NATIVE_INC_DIR := $(HIF_SDIO_NATIVE_DIR)/include
 HIF_SDIO_NATIVE_SRC_DIR := $(HIF_SDIO_NATIVE_DIR)/src
 
 HIF_INC := -I$(WLAN_COMMON_INC)/$(HIF_DIR)/inc \
-	   -I$(WLAN_COMMON_INC)/$(HIF_DIR)/src
+	   -I$(WLAN_COMMON_INC)/$(HIF_DIR)/src \
+	   -I$(WLAN_COMMON_INC)/$(HIF_CE_DIR)
 
 ifeq ($(CONFIG_HIF_PCI), 1)
 HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_DISPATCHER_DIR)
 HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_PCIE_DIR)
-HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_CE_DIR)
 endif
 
 ifeq ($(CONFIG_HIF_SNOC), 1)
 HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_DISPATCHER_DIR)
 HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_SNOC_DIR)
-HIF_INC += -I$(WLAN_COMMON_INC)/$(HIF_CE_DIR)
 endif
 
 ifeq ($(CONFIG_HIF_USB), 1)
@@ -1073,7 +1056,7 @@ endif
 
 TARGET_INC := -I$(WLAN_ROOT)/../fw-api/fw
 
-LINUX_INC :=	-Iinclude
+LINUX_INC :=	-Iinclude/linux
 
 INCS :=		$(HDD_INC) \
 		$(EPPING_INC) \
@@ -1196,9 +1179,9 @@ ifneq ($(CONFIG_HIF_USB), 1)
 CDEFINES += -DWLAN_LOGGING_SOCK_SVC_ENABLE
 endif
 
-ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
+#ifeq ($(CONFIG_WLAN_FEATURE_FILS),y)
 CDEFINES += -DWLAN_FEATURE_FILS_SK
-endif
+#endif
 
 ifeq ($(CONFIG_CNSS), y)
 ifeq ($(CONFIG_CNSS_SDIO), y)
@@ -1562,9 +1545,6 @@ CDEFINES += -DQCA_HT_2040_COEX
 #features specific to mobile router use case
 ifeq ($(CONFIG_MOBILE_ROUTER), y)
 
-#MDM platform specific LL Legacy TX flow control
-CDEFINES += -DFEATURE_WLAN_LL_LEGACY_TX_FLOW_CT
-
 #enable MCC TO SCC switch
 CDEFINES += -DFEATURE_WLAN_MCC_TO_SCC_SWITCH
 
@@ -1579,9 +1559,6 @@ CDEFINES += -DFEATURE_WLAN_AP_AP_ACS_OPTIMIZE
 
 #Enable 4address scheme
 CDEFINES += -DFEATURE_WLAN_STA_4ADDR_SCHEME
-
-#enable MDM/SDX special config
-CDEFINES += -DMDM_PLATFORM
 
 #Disable STA-AP Mode DFS support
 CDEFINES += -DFEATURE_WLAN_STA_AP_MODE_DFS_DISABLE
@@ -1755,18 +1732,9 @@ CDEFINES += -DFEATURE_WLAN_D0WOW
 endif
 endif
 
-#Flag to enable SMMU S1 support for SDM845
+#Flag to enable SMMU S1 support
 ifeq ($(CONFIG_ARCH_SDM845), y)
 CDEFINES += -DENABLE_SMMU_S1_TRANSLATION
-endif
-
-#Flag to enable SMMU S1 support for SDM670
-ifeq ($(CONFIG_ARCH_SDM670), y)
-CDEFINES += -DENABLE_SMMU_S1_TRANSLATION
-endif
-
-ifeq ($(CONFIG_DYNAMIC_DEBUG),y)
-CDEFINES += -DFEATURE_MULTICAST_HOST_FW_MSGS
 endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)
@@ -1775,9 +1743,6 @@ KBUILD_CPPFLAGS += $(CDEFINES)
 # is disabling the maybe-uninitialized warning.  Re-enable it for the
 # WLAN driver.  Note that we must use EXTRA_CFLAGS here so that it
 # will override the kernel settings.
-ifeq ($(call cc-option-yn, -Wmaybe-uninitialized),y)
-#EXTRA_CFLAGS += -Wmaybe-uninitialized
-endif
 EXTRA_CFLAGS += -Wmissing-prototypes
 
 ifeq ($(call cc-option-yn, -Wheader-guard),y)
@@ -1804,24 +1769,8 @@ CDEFINES += -DWLAN_HDD_ADAPTER_MAGIC=$(WLAN_HDD_ADAPTER_MAGIC)
 endif
 
 # inject some build related information
-ifeq ($(CONFIG_BUILD_TAG), y)
-CLD_CHECKOUT = $(shell cd "$(WLAN_ROOT)" && \
-	git reflog | grep -vm1 cherry-pick | grep -oE ^[0-f]+)
-CLD_IDS = $(shell cd "$(WLAN_ROOT)" && \
-	git log $(CLD_CHECKOUT)~..HEAD | \
-		sed -nE 's/^\s*Change-Id: (I[0-f]{10})[0-f]{30}\s*$$/\1/p' | \
-		paste -sd "," -)
-
-CMN_CHECKOUT = $(shell cd "$(WLAN_COMMON_INC)" && \
-	git reflog | grep -vm1 cherry-pick | grep -oE ^[0-f]+)
-CMN_IDS = $(shell cd "$(WLAN_COMMON_INC)" && \
-	git log $(CMN_CHECKOUT)~..HEAD | \
-		sed -nE 's/^\s*Change-Id: (I[0-f]{10})[0-f]{30}\s*$$/\1/p' | \
-		paste -sd "," -)
-
-TIMESTAMP = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-BUILD_TAG = "$(TIMESTAMP); cld:$(CLD_IDS); cmn:$(CMN_IDS);"
-CDEFINES += -DBUILD_TAG=\"$(BUILD_TAG)\"
+ifeq ($(CONFIG_BUILD_TIMESTAMP), y)
+CDEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
 endif
 
 # Module information used by KBuild framework

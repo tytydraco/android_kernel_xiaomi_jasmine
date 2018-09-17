@@ -810,6 +810,13 @@ typedef enum {
 } eCsrSetKeyAction;
 
 typedef enum {
+	eCSR_BAND_ALL,
+	eCSR_BAND_24,
+	eCSR_BAND_5G,
+	eCSR_BAND_MAX,
+} eCsrBand;
+
+typedef enum {
 	/*
 	 * Roaming because HDD requested for reassoc by changing one of the
 	 * fields in tCsrRoamModifyProfileFields. OR Roaming because SME
@@ -982,7 +989,6 @@ typedef struct tagCsrRoamProfile {
 	bool ApUapsdEnable;
 	bool protEnabled;
 	bool obssProtEnabled;
-	bool chan_switch_hostapd_rate_enabled;
 	uint16_t cfg_protection;
 	uint8_t wps_state;
 	tCsrMobilityDomainInfo MDID;
@@ -991,20 +997,19 @@ typedef struct tagCsrRoamProfile {
 	/* addIe params */
 	tSirAddIeParams addIeParams;
 	uint8_t sap_dot11mc;
-	uint16_t beacon_tx_rate;
+	uint8_t beacon_tx_rate;
 	tSirMacRateSet  supported_rates;
 	tSirMacRateSet  extended_rates;
 	struct qdf_mac_addr bssid_hint;
 	bool force_24ghz_in_ht20;
-	bool supplicant_disabled_roaming;
-	bool driver_disabled_roaming;
-	bool roaming_allowed_on_iface;
+	bool do_not_roam;
 #ifdef WLAN_FEATURE_FILS_SK
 	bool fils_connection;
 	uint8_t *hlp_ie;
 	uint32_t hlp_ie_len;
 	struct cds_fils_connection_info *fils_con_info;
 #endif
+	bool chan_switch_hostapd_rate_enabled;
 } tCsrRoamProfile;
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
@@ -1124,18 +1129,44 @@ struct csr_sta_roam_policy_params {
 	uint8_t sap_operating_band;
 };
 
+/**
+ * struct csr_neighbor_report_offload_params - neighbor report offload params
+ * @params_bitmask: bitmask to specify which of the below are enabled
+ * @time_offset: time offset after 11k offload command to trigger a neighbor
+ *		report request (in seconds)
+ * @low_rssi_offset: Offset from rssi threshold to trigger neighbor
+ *	report request (in dBm)
+ * @bmiss_count_trigger: Number of beacon miss events to trigger neighbor
+ *		report request
+ * @per_threshold_offset: offset from PER threshold to trigger neighbor
+ *		report request (in %)
+ * @neighbor_report_cache_timeout: timeout after which new trigger can enable
+ *		sending of a neighbor report request (in seconds)
+ * @max_neighbor_report_req_cap: max number of neighbor report requests that
+ *		can be sent to the peer in the current session
+ */
+struct csr_neighbor_report_offload_params {
+	uint8_t params_bitmask;
+	uint32_t time_offset;
+	uint32_t low_rssi_offset;
+	uint32_t bmiss_count_trigger;
+	uint32_t per_threshold_offset;
+	uint32_t neighbor_report_cache_timeout;
+	uint32_t max_neighbor_report_req_cap;
+};
+
 typedef struct tagCsrConfigParam {
 	uint32_t FragmentationThreshold;
 	/* keep this uint32_t. This gets converted to ePhyChannelBondState */
 	uint32_t channelBondingMode24GHz;
 	uint32_t channelBondingMode5GHz;
 	eCsrPhyMode phyMode;
-	tSirRFBand eBand;
+	eCsrBand eBand;
 	uint32_t RTSThreshold;
 	uint32_t HeartbeatThresh50;
 	uint32_t HeartbeatThresh24;
 	eCsrCBChoice cbChoice;
-	tSirRFBand bandCapability;
+	eCsrBand bandCapability;     /* indicate hw capability */
 	uint16_t TxRate;
 	eCsrRoamWmmUserModeType WMMSupportMode;
 	bool Is11eSupportEnabled;
@@ -1205,7 +1236,7 @@ typedef struct tagCsrConfigParam {
 	uint8_t isEseIniFeatureEnabled;
 #endif
 	uint8_t isFastRoamIniFeatureEnabled;
-	struct mawc_params csr_mawc_config;
+	uint8_t MAWCEnabled;
 	uint8_t isFastTransitionEnabled;
 	uint8_t RoamRssiDiff;
 	int32_t rssi_abs_thresh;
@@ -1270,9 +1301,11 @@ typedef struct tagCsrConfigParam {
 	uint8_t enable_rx_ldpc;
 	uint8_t disable_high_ht_mcs_2x2;
 	uint8_t rx_ldpc_support_for_2g;
-	bool enable_vht20_mcs9;
 	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	uint8_t isCoalesingInIBSSAllowed;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	uint8_t cc_switch_mode;
@@ -1347,7 +1380,6 @@ typedef struct tagCsrConfigParam {
 	uint32_t rx_aggregation_size;
 	struct wmi_per_roam_config per_roam_config;
 	bool enable_bcast_probe_rsp;
-	bool is_fils_enabled;
 	bool qcn_ie_support;
 	uint8_t fils_max_chan_guard_time;
 	uint16_t pkt_err_disconn_th;
@@ -1361,8 +1393,9 @@ typedef struct tagCsrConfigParam {
 	uint32_t scan_probe_repeat_time;
 	uint32_t scan_num_probes;
 	struct sir_score_config bss_score_params;
-	uint8_t oce_feature_bitmap;
-	bool enable_ftopen;
+	uint32_t offload_11k_enable_bitmask;
+	struct csr_neighbor_report_offload_params neighbor_report_offload;
+	bool roam_force_rssi_trigger;
 } tCsrConfigParam;
 
 /* Tush */
@@ -1518,10 +1551,11 @@ typedef struct tagCsrRoamInfo {
 #ifdef WLAN_FEATURE_FILS_SK
 	struct fils_join_rsp_params *fils_join_rsp;
 #endif
-
 	int rssi;
 	int tx_rate;
 	int rx_rate;
+	tSirMacCapabilityInfo capability_info;
+	uint32_t rx_mc_bc_cnt;
 } tCsrRoamInfo;
 
 typedef struct tagCsrFreqScanInfo {
@@ -1565,6 +1599,7 @@ typedef struct sSirSmeAssocIndToUpperLayerCnf {
 
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEVHTCaps VHTCaps;
+	tSirMacCapabilityInfo capability_info;
 } tSirSmeAssocIndToUpperLayerCnf, *tpSirSmeAssocIndToUpperLayerCnf;
 
 typedef struct tagCsrSummaryStatsInfo {
@@ -1777,7 +1812,7 @@ QDF_STATUS csr_set_reg_info(tHalHandle hHal, uint8_t *apCntryCode);
 /* enum to string conversion for debug output */
 const char *get_e_roam_cmd_status_str(eRoamCmdStatus val);
 const char *get_e_csr_roam_result_str(eCsrRoamResult val);
-QDF_STATUS csr_set_phy_mode(tHalHandle hHal, uint32_t phyMode, tSirRFBand eBand,
+QDF_STATUS csr_set_phy_mode(tHalHandle hHal, uint32_t phyMode, eCsrBand eBand,
 			    bool *pfRestartNeeded);
 typedef void (*csr_roamLinkQualityIndCallback)
 	(eCsrRoamLinkQualityInd ind, void *pContext);
@@ -1799,8 +1834,8 @@ static inline QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hHal,
 	return QDF_STATUS_E_NOSUPPORT;
 }
 #endif
-QDF_STATUS csr_set_band(tHalHandle hHal, uint8_t sessionId, tSirRFBand eBand);
-tSirRFBand csr_get_current_band(tHalHandle hHal);
+QDF_STATUS csr_set_band(tHalHandle hHal, uint8_t sessionId, eCsrBand eBand);
+eCsrBand csr_get_current_band(tHalHandle hHal);
 typedef void (*csr_readyToSuspendCallback)(void *pContext, bool suspended);
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
 typedef void (*csr_readyToExtWoWCallback)(void *pContext, bool status);

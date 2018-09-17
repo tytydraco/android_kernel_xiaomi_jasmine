@@ -1042,8 +1042,8 @@ struct ol_txrx_pdev_t {
 	ol_tx_pause_callback_fp pause_cb;
 
 	struct {
-		void (*offld_flush_cb)(void *);
-	} rx_offld_info;
+		void (*lro_flush_cb)(void *);
+	} lro_info;
 	struct ol_txrx_peer_t *self_peer;
 };
 
@@ -1087,7 +1087,6 @@ struct ol_txrx_vdev_t {
 		 */
 		ol_txrx_vdev_delete_cb callback;
 		void *context;
-		atomic_t detaching;
 	} delete;
 
 	/* safe mode control to bypass the encrypt and decipher process */
@@ -1284,7 +1283,6 @@ struct ol_txrx_peer_t {
 	struct ol_rx_reorder_t tids_rx_reorder[OL_TXRX_NUM_EXT_TIDS];
 	union htt_rx_pn_t tids_last_pn[OL_TXRX_NUM_EXT_TIDS];
 	uint8_t tids_last_pn_valid[OL_TXRX_NUM_EXT_TIDS];
-	uint8_t tids_rekey_flag[OL_TXRX_NUM_EXT_TIDS];
 	uint16_t tids_next_rel_idx[OL_TXRX_NUM_EXT_TIDS];
 	uint16_t tids_last_seq[OL_TXRX_NUM_EXT_TIDS];
 	uint16_t tids_mcast_last_seq[OL_TXRX_NUM_EXT_TIDS];

@@ -219,7 +219,6 @@ static int epping_set_mac_address(struct net_device *dev, void *addr)
 {
 	epping_adapter_t *pAdapter = netdev_priv(dev);
 	struct sockaddr *psta_mac_addr = addr;
-
 	qdf_mem_copy(&pAdapter->macAddressCurrent,
 		     psta_mac_addr->sa_data, ETH_ALEN);
 	qdf_mem_copy(dev->dev_addr, psta_mac_addr->sa_data, ETH_ALEN);
@@ -327,7 +326,6 @@ void epping_destroy_adapter(epping_adapter_t *pAdapter)
 
 	while (qdf_nbuf_queue_len(&pAdapter->nodrop_queue)) {
 		qdf_nbuf_t tmp_nbuf = NULL;
-
 		tmp_nbuf = qdf_nbuf_queue_remove(&pAdapter->nodrop_queue);
 		if (tmp_nbuf)
 			qdf_nbuf_free(tmp_nbuf);
@@ -412,10 +410,10 @@ int epping_connect_service(epping_context_t *pEpping_ctx)
 
 	/* these fields are the same for all service endpoints */
 	connect.EpCallbacks.pContext = pEpping_ctx;
-	connect.EpCallbacks.EpTxCompleteMultiple = NULL;
+	connect.EpCallbacks.EpTxCompleteMultiple = epping_tx_complete_multiple;
 	connect.EpCallbacks.EpRecv = epping_rx;
 	/* epping_tx_complete use Multiple version */
-	connect.EpCallbacks.EpTxComplete  = epping_tx_complete;
+	connect.EpCallbacks.EpTxComplete = NULL;
 	connect.MaxSendQueueDepth = 64;
 
 #ifdef HIF_SDIO

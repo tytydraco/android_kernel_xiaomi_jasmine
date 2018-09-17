@@ -33,7 +33,7 @@
 
 #include <cds_queue.h>          /* TAILQ */
 #ifdef QCA_COMPUTE_TX_DELAY
-#include <linux/ieee80211.h>          /* ieee80211_frame, etc. */
+#include <ieee80211.h>          /* ieee80211_frame, etc. */
 #include <enet.h>               /* ethernet_hdr_t, etc. */
 #include <ipv6_defs.h>          /* ipv6_traffic_class */
 #endif
@@ -617,8 +617,9 @@ static void ol_tx_update_connectivity_stats(struct ol_tx_desc_t *tx_desc,
 	}
 	osif_dev = tx_desc->vdev->osif_dev;
 	stats_rx = tx_desc->vdev->stats_rx;
-	pkt_type_bitmap = cds_get_connectivity_stats_pkt_bitmap(osif_dev);
 	ol_tx_flow_pool_unlock(tx_desc);
+
+	pkt_type_bitmap = cds_get_connectivity_stats_pkt_bitmap(osif_dev);
 
 	if (pkt_type_bitmap) {
 		if (status != htt_tx_status_download_fail)
@@ -748,7 +749,6 @@ ol_tx_completion_handler(ol_txrx_pdev_handle pdev,
 	union ol_tx_desc_list_elem_t *lcl_freelist = NULL;
 	union ol_tx_desc_list_elem_t *tx_desc_last = NULL;
 	ol_tx_desc_list tx_descs;
-
 	TAILQ_INIT(&tx_descs);
 
 	ol_tx_delay_compute(pdev, status, desc_ids, num_msdus);

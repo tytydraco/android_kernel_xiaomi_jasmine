@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -30,7 +30,7 @@
  *
  * WLAN HDD NAPI interface implementation
  */
-#include <linux/smp.h> /* get_cpu */
+#include <smp.h> /* get_cpu */
 
 #include "wlan_hdd_napi.h"
 #include "cds_api.h"       /* cds_get_context */
@@ -379,12 +379,11 @@ int hdd_napi_apply_throughput_policy(struct hdd_context_s *hddctx,
 	else
 		req_state = QCA_NAPI_TPUT_LO;
 
-	if (req_state != napid->napi_mode) {
+	if (req_state != napid->napi_mode)
 		/* [re]set the floor frequency of high cluster */
 		rc = hdd_napi_perfd_cpufreq(req_state);
 		/* blacklist/boost_mode on/off */
 		rc = hdd_napi_event(NAPI_EVT_TPUT_STATE, (void *)req_state);
-	}
 	return rc;
 }
 
@@ -473,8 +472,7 @@ int hdd_display_napi_stats(void)
 		hdd_err("%s unable to retrieve napi structure", __func__);
 		return -EFAULT;
 	}
-	hdd_log(QDF_TRACE_LEVEL_INFO_LOW,
-		"[NAPI %u][BL %d]:  scheds   polls   comps    done t-lim p-lim  corr  max_time napi-buckets(%d)",
+	qdf_print("[NAPI %u][BL %d]:  scheds   polls   comps    done t-lim p-lim  corr  max_time napi-buckets(%d)",
 		  napid->napi_mode,
 		  hif_napi_cpu_blacklist(napid, BLACKLIST_QUERY),
 		  QCA_NAPI_NUM_BUCKETS);
@@ -497,8 +495,7 @@ int hdd_display_napi_stats(void)
 				}
 
 				if (napis->napi_schedules != 0)
-					hdd_log(QDF_TRACE_LEVEL_INFO_LOW,
-					"NAPI[%2d]CPU[%d]: %7d %7d %7d %7d %5d %5d %5d %9llu %s",
+					qdf_print("NAPI[%2d]CPU[%d]: %7d %7d %7d %7d %5d %5d %5d %9llu %s",
 						  i, j,
 						  napis->napi_schedules,
 						  napis->napi_polls,
@@ -516,33 +513,3 @@ int hdd_display_napi_stats(void)
 	return 0;
 }
 
-/**
- * hdd_clear_napi_stats() - clear NAPI stats
- *
- * Return: == 0: success; !=0: failure
- */
-int hdd_clear_napi_stats(void)
-{
-	int i, j;
-	struct qca_napi_data *napid;
-	struct qca_napi_info *napii;
-	struct qca_napi_stat *napis;
-
-	napid = hdd_napi_get_all();
-	if (NULL == napid) {
-		hdd_err("%s unable to retrieve napi structure", __func__);
-		return -EFAULT;
-	}
-
-	for (i = 0; i < CE_COUNT_MAX; i++)
-		if (napid->ce_map & (0x01 << i)) {
-			napii = napid->napis[i];
-			for (j = 0; j < NR_CPUS; j++) {
-				napis = &(napii->stats[j]);
-				qdf_mem_zero(napis,
-					     sizeof(struct qca_napi_stat));
-			}
-		}
-
-	return 0;
-}

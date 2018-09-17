@@ -53,7 +53,7 @@
 /* session ID invalid */
 #define CSR_SESSION_ID_INVALID    0xFF
 /* No of sessions to be supported, and a session is for Infra, IBSS or BT-AMP */
-#define CSR_ROAM_SESSION_MAX      SIR_MAX_SUPPORTED_BSS
+#define CSR_ROAM_SESSION_MAX      5
 #define CSR_IS_SESSION_VALID(pMac, sessionId) \
 	(((sessionId) < CSR_ROAM_SESSION_MAX) && \
 	 ((pMac)->roam.roamSession[(sessionId)].sessionActive))
@@ -175,8 +175,6 @@ typedef enum {
 	eCsrLostLink1Abort,
 	eCsrLostLink2Abort,
 	eCsrLostLink3Abort,
-	/* Roaming disabled from driver during connect/start BSS */
-	eCsrDriverDisabled,
 } eCsrRoamReason;
 
 typedef enum {
@@ -293,7 +291,7 @@ typedef struct tagBssConfigParam {
 	uint32_t uRTSThresh;
 	uint32_t uDeferThresh;
 	eCsrCfgDot11Mode uCfgDot11Mode;
-	tSirRFBand eBand;
+	eCsrBand eBand;
 	uint8_t standardRate[CSR_DOT11_SUPPORTED_RATES_MAX];
 	uint8_t extendedRate[CSR_DOT11_EXTENDED_SUPPORTED_RATES_MAX];
 	eCsrExposedTxRate txRate;
@@ -346,7 +344,7 @@ typedef struct tagCsrRoamStartBssParams {
 #endif
 	tSirAddIeParams addIeParams;
 	uint8_t sap_dot11mc;
-	uint16_t beacon_tx_rate;
+	uint8_t beacon_tx_rate;
 } tCsrRoamStartBssParams;
 
 typedef struct tagScanCmd {
@@ -475,6 +473,17 @@ typedef struct tagCsrNeighborRoamConfig {
 	int32_t nhi_rssi_scan_rssi_ub;
 } tCsrNeighborRoamConfig;
 
+/*
+ * Neighbor Report Params Bitmask
+ */
+#define NEIGHBOR_REPORT_PARAMS_TIME_OFFSET            0x01
+#define NEIGHBOR_REPORT_PARAMS_LOW_RSSI_OFFSET        0x02
+#define NEIGHBOR_REPORT_PARAMS_BMISS_COUNT_TRIGGER    0x04
+#define NEIGHBOR_REPORT_PARAMS_PER_THRESHOLD_OFFSET   0x08
+#define NEIGHBOR_REPORT_PARAMS_CACHE_TIMEOUT          0x10
+#define NEIGHBOR_REPORT_PARAMS_MAX_REQ_CAP            0x20
+#define NEIGHBOR_REPORT_PARAMS_ALL                    0x3F
+
 typedef struct tagCsrConfig {
 	uint32_t agingCount;
 	uint32_t FragmentationThreshold;
@@ -483,11 +492,11 @@ typedef struct tagCsrConfig {
 	uint32_t RTSThreshold;
 	eCsrPhyMode phyMode;
 	eCsrCfgDot11Mode uCfgDot11Mode;
-	tSirRFBand eBand;
+	eCsrBand eBand;
 	uint32_t HeartbeatThresh50;
 	uint32_t HeartbeatThresh24;
 	eCsrCBChoice cbChoice;
-	tSirRFBand bandCapability;
+	eCsrBand bandCapability;        /* indicate hw capability */
 	eCsrRoamWmmUserModeType WMMSupportMode;
 	bool Is11eSupportEnabled;
 	bool Is11dSupportEnabled;
@@ -550,7 +559,7 @@ typedef struct tagCsrConfig {
 	bool ssidHidden;
 	tCsr11rConfig csr11rConfig;
 	uint8_t isFastRoamIniFeatureEnabled;
-	struct mawc_params csr_mawc_config;
+	uint8_t MAWCEnabled;
 	uint8_t isRoamOffloadScanEnabled;
 	bool bFastRoamInConIniFeatureEnabled;
 #ifdef FEATURE_WLAN_ESE
@@ -583,7 +592,6 @@ typedef struct tagCsrConfig {
 	bool fScanTwice;
 	uint32_t nVhtChannelWidth;
 	uint8_t enable_txbf_sap_mode;
-	bool enable_vht20_mcs9;
 	uint8_t enable2x2;
 	bool enableVhtFor24GHz;
 	uint8_t enableVhtpAid;
@@ -602,6 +610,9 @@ typedef struct tagCsrConfig {
 	bool enableHeartBeatOffload;
 	uint8_t max_amsdu_num;
 	uint8_t nSelect5GHzMargin;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	uint8_t isCoalesingInIBSSAllowed;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	uint8_t cc_switch_mode;
@@ -653,7 +664,6 @@ typedef struct tagCsrConfig {
 	uint32_t rx_aggregation_size;
 	struct wmi_per_roam_config per_roam_config;
 	bool enable_bcast_probe_rsp;
-	bool is_fils_enabled;
 	bool qcn_ie_support;
 	uint8_t fils_max_chan_guard_time;
 	uint16_t pkt_err_disconn_th;
@@ -667,8 +677,9 @@ typedef struct tagCsrConfig {
 	uint32_t scan_probe_repeat_time;
 	uint32_t scan_num_probes;
 	struct sir_score_config bss_score_params;
-	uint8_t oce_feature_bitmap;
-	bool enable_ftopen;
+	uint32_t offload_11k_enable_bitmask;
+	struct csr_neighbor_report_offload_params neighbor_report_offload;
+	bool roam_force_rssi_trigger;
 } tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo {
@@ -919,6 +930,7 @@ typedef struct tagCsrRoamSession {
 	csr_roam_completeCallback callback;
 	void *pContext;
 	eCsrConnectState connectState;
+	struct rsn_caps rsn_caps;
 	tCsrRoamConnectedProfile connectedProfile;
 	tCsrRoamConnectedInfo connectedInfo;
 	tCsrRoamProfile *pCurRoamProfile;
@@ -1171,27 +1183,27 @@ typedef struct tagCsrRoamStruct {
  * the 2.4 GHz band, meaning. it is NOT operating in the 5.0 GHz band.
  */
 #define CSR_IS_24_BAND_ONLY(pMac) \
-	(SIR_BAND_2_4_GHZ == (pMac)->roam.configParam.eBand)
+	(eCSR_BAND_24 == (pMac)->roam.configParam.eBand)
 
 #define CSR_IS_5G_BAND_ONLY(pMac) \
-	(SIR_BAND_5_GHZ == (pMac)->roam.configParam.eBand)
+	(eCSR_BAND_5G == (pMac)->roam.configParam.eBand)
 
 #define CSR_IS_RADIO_DUAL_BAND(pMac) \
-	(SIR_BAND_ALL == (pMac)->roam.configParam.bandCapability)
+	(eCSR_BAND_ALL == (pMac)->roam.configParam.bandCapability)
 
 #define CSR_IS_RADIO_BG_ONLY(pMac) \
-	(SIR_BAND_2_4_GHZ == (pMac)->roam.configParam.bandCapability)
+	(eCSR_BAND_24 == (pMac)->roam.configParam.bandCapability)
 
 /*
  * this function returns true if the NIC is operating exclusively in the 5.0 GHz
  * band, meaning. it is NOT operating in the 2.4 GHz band
  */
 #define CSR_IS_RADIO_A_ONLY(pMac) \
-	(SIR_BAND_5_GHZ == (pMac)->roam.configParam.bandCapability)
+	(eCSR_BAND_5G == (pMac)->roam.configParam.bandCapability)
 /* this function returns true if the NIC is operating in both bands. */
 #define CSR_IS_OPEARTING_DUAL_BAND(pMac) \
-	((SIR_BAND_ALL == (pMac)->roam.configParam.bandCapability) && \
-		(SIR_BAND_ALL == (pMac)->roam.configParam.eBand))
+	((eCSR_BAND_ALL == (pMac)->roam.configParam.bandCapability) && \
+		(eCSR_BAND_ALL == (pMac)->roam.configParam.eBand))
 /*
  * this function returns true if the NIC can operate in the 5.0 GHz band
  * (could operate in the 2.4 GHz band also)
@@ -1208,7 +1220,7 @@ typedef struct tagCsrRoamStruct {
 	(CSR_IS_OPEARTING_DUAL_BAND((pMac)) || \
 		CSR_IS_RADIO_BG_ONLY((pMac)) || CSR_IS_24_BAND_ONLY((pMac)))
 #define CSR_GET_BAND(ch_num) \
-	((CDS_IS_CHANNEL_24GHZ(ch_num)) ? SIR_BAND_2_4_GHZ : SIR_BAND_5_GHZ)
+	((CDS_IS_CHANNEL_24GHZ(ch_num)) ? eCSR_BAND_24 : eCSR_BAND_5G)
 #define CSR_IS_11D_INFO_FOUND(pMac) \
 	(0 != (pMac)->scan.channelOf11dInfo)
 #define CSR_IS_ROAMING(pSession) \

@@ -47,10 +47,6 @@
 #include "sch_api.h"
 #include "lim_send_messages.h"
 
-
-static struct sDphHashNode
-	g_dph_node_array[SIR_MAX_SUPPORTED_BSS][CFG_SAP_MAX_NO_PEERS_MAX + 1];
-
 /*--------------------------------------------------------------------------
 
    \brief pe_init_beacon_params() - Initialize the beaconParams structure
@@ -410,7 +406,6 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 	QDF_STATUS status;
 	uint8_t i;
 	tpPESession session_ptr;
-
 	for (i = 0; i < pMac->lim.maxBssId; i++) {
 		/* Find first free room in session table */
 		if (pMac->lim.gpSession[i].valid == true)
@@ -433,7 +428,17 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 		return NULL;
 	}
 
-	session_ptr->dph.dphHashTable.pDphNodeArray = g_dph_node_array[i];
+	session_ptr->dph.dphHashTable.pDphNodeArray =
+		qdf_mem_malloc(sizeof(tDphHashNode) * (numSta + 1));
+	if (NULL == session_ptr->dph.dphHashTable.pDphNodeArray) {
+		pe_err("memory allocate failed!");
+		qdf_mem_free(session_ptr->dph.dphHashTable.pHashTable);
+		session_ptr->dph.dphHashTable.
+		pHashTable = NULL;
+		return NULL;
+	}
+
+
 	session_ptr->dph.dphHashTable.size = numSta + 1;
 	dph_hash_table_class_init(pMac, &session_ptr->dph.dphHashTable);
 	session_ptr->gpLimPeerIdxpool = qdf_mem_malloc(
@@ -442,9 +447,7 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 	if (NULL == session_ptr->gpLimPeerIdxpool) {
 		pe_err("memory allocate failed!");
 		qdf_mem_free(session_ptr->dph.dphHashTable.pHashTable);
-		qdf_mem_zero(session_ptr->dph.dphHashTable.pDphNodeArray,
-			sizeof(struct sDphHashNode) *
-			(CFG_SAP_MAX_NO_PEERS_MAX + 1));
+		qdf_mem_free(session_ptr->dph.dphHashTable.pDphNodeArray);
 		session_ptr->dph.dphHashTable.pHashTable = NULL;
 		session_ptr->dph.dphHashTable.pDphNodeArray = NULL;
 		return NULL;
@@ -498,10 +501,7 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 		    || (NULL == session_ptr->pSchBeaconFrameEnd)) {
 			pe_err("memory allocate failed!");
 			qdf_mem_free(session_ptr->dph.dphHashTable.pHashTable);
-			qdf_mem_zero(
-				session_ptr->dph.dphHashTable.pDphNodeArray,
-				sizeof(struct sDphHashNode) *
-				(CFG_SAP_MAX_NO_PEERS_MAX + 1));
+			qdf_mem_free(session_ptr->dph.dphHashTable.pDphNodeArray);
 			qdf_mem_free(session_ptr->gpLimPeerIdxpool);
 			qdf_mem_free(session_ptr->pSchProbeRspTemplate);
 			qdf_mem_free(session_ptr->pSchBeaconFrameBegin);
@@ -596,7 +596,6 @@ tpPESession pe_find_session_by_bssid(tpAniSirGlobal pMac, uint8_t *bssid,
 tpPESession pe_find_session_by_bss_idx(tpAniSirGlobal pMac, uint8_t bssIdx)
 {
 	uint8_t i;
-
 	for (i = 0; i < pMac->lim.maxBssId; i++) {
 		/* If BSSID matches return corresponding tables address */
 		if ((pMac->lim.gpSession[i].valid)
@@ -739,9 +738,7 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 	}
 
 	if (session->dph.dphHashTable.pDphNodeArray != NULL) {
-		qdf_mem_zero(session->dph.dphHashTable.pDphNodeArray,
-			sizeof(struct sDphHashNode) *
-			(CFG_SAP_MAX_NO_PEERS_MAX + 1));
+		qdf_mem_free(session->dph.dphHashTable.pDphNodeArray);
 		session->dph.dphHashTable.pDphNodeArray = NULL;
 	}
 

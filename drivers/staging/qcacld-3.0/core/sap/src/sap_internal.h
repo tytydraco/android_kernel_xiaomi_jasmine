@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -268,13 +268,12 @@ typedef struct sSapContext {
 	bool is_pre_cac_on;
 	bool pre_cac_complete;
 	uint8_t chan_before_pre_cac;
-	uint16_t beacon_tx_rate;
+	uint8_t beacon_tx_rate;
 	tSirMacRateSet supp_rate_set;
 	tSirMacRateSet extended_rate_set;
 	enum sap_acs_dfs_mode dfs_mode;
 	uint8_t sap_sta_id;
 	bool is_chan_change_inprogress;
-	bool stop_bss_in_progress;
 } *ptSapContext;
 
 /*----------------------------------------------------------------------------

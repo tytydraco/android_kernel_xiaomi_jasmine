@@ -31,10 +31,10 @@
 ******************************************************************************/
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
-#include <linux/vmalloc.h>
+#include <vmalloc.h>
 #include <cds_api.h>
 #include <wlan_logging_sock_svc.h>
-#include <linux/kthread.h>
+#include <kthread.h>
 #include <qdf_time.h>
 #include <wlan_ptt_sock_svc.h>
 #include <host_diag_core_event.h>
@@ -239,7 +239,6 @@ static int wlan_queue_logmsg_for_app(void)
 {
 	char *ptr;
 	int ret = 0;
-
 	ptr = &gwlan_logging.pcur_node->logbuf[sizeof(tAniHdr)];
 	ptr[gwlan_logging.pcur_node->filled_length] = '\0';
 

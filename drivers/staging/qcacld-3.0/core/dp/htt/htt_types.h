@@ -298,7 +298,6 @@ struct htt_pdev_t {
 
 		int fill_level; /* how many rx buffers to keep in the ring */
 		int fill_cnt;   /* # of rx buffers (full+empty) in the ring */
-		int pop_fail_cnt;   /* # of nebuf pop failures */
 
 		/*
 		 * target_idx -
@@ -398,7 +397,6 @@ struct htt_pdev_t {
 				       qdf_nbuf_t msdu, uint16_t msdu_id);
 
 	HTT_TX_MUTEX_TYPE htt_tx_mutex;
-	HTT_TX_MUTEX_TYPE credit_mutex;
 
 	struct {
 		int htc_err_cnt;

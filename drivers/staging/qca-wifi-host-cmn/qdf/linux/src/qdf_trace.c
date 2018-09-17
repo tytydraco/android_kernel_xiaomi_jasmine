@@ -289,48 +289,6 @@ void qdf_snprintf(char *str_buffer, unsigned int size, char *str_format, ...)
 qdf_export_symbol(qdf_snprintf);
 
 #ifdef QDF_ENABLE_TRACING
-void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		   char *str_format, va_list val)
-{
-	char str_buffer[QDF_TRACE_BUFFER_SIZE];
-	int n;
-
-	/* Print the trace message when the desired level bit is set in
-	 * the module tracel level mask
-	 */
-	if (g_qdf_trace_info[module].module_trace_level &
-	    QDF_TRACE_LEVEL_TO_MODULE_BITMASK(level)) {
-		/* the trace level strings in an array.  these are ordered in
-		 * the same order as the trace levels are defined in the enum
-		 * (see QDF_TRACE_LEVEL) so we can index into this array with
-		 * the level and get the right string. The qdf trace levels
-		 * are... none, Fatal, Error, Warning, Info, info_high, info_med,
-		 * info_low, Debug
-		 */
-		static const char * const TRACE_LEVEL_STR[] = { "  ", "F ",
-				"E ", "W ", "I ", "IH", "IM", "IL", "D" };
-
-		/* print the prefix string into the string buffer... */
-		n = snprintf(str_buffer, QDF_TRACE_BUFFER_SIZE,
-			     "wlan: [%d:%2s:%3s] ",
-			     in_interrupt() ? 0 : current->pid,
-			     (char *)TRACE_LEVEL_STR[level],
-			     (char *)g_qdf_trace_info[module].module_name_str);
-
-		/* print the formatted log message after the prefix string */
-		if ((n >= 0) && (n < QDF_TRACE_BUFFER_SIZE)) {
-			vsnprintf(str_buffer + n, QDF_TRACE_BUFFER_SIZE - n,
-				  str_format, val);
-#if defined(WLAN_LOGGING_SOCK_SVC_ENABLE)
-			wlan_log_to_user(level, (char *)str_buffer,
-					 strlen(str_buffer));
-#else
-			pr_err("%s\n", str_buffer);
-#endif
-		}
-	}
-}
-qdf_export_symbol(qdf_vtrace_msg);
 
 /**
  * qdf_trace_msg() - externally called trace function
@@ -350,11 +308,46 @@ qdf_export_symbol(qdf_vtrace_msg);
 void qdf_trace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 		   char *str_format, ...)
 {
-	va_list val;
+	char str_buffer[QDF_TRACE_BUFFER_SIZE];
+	int n;
 
-	va_start(val, str_format);
-	qdf_vtrace_msg(module, level, str_format, val);
-	va_end(val);
+	/* Print the trace message when the desired level bit is set in
+	 * the module tracel level mask
+	 */
+	if (g_qdf_trace_info[module].module_trace_level &
+	    QDF_TRACE_LEVEL_TO_MODULE_BITMASK(level)) {
+		/* the trace level strings in an array.  these are ordered in
+		 * the same order as the trace levels are defined in the enum
+		 * (see QDF_TRACE_LEVEL) so we can index into this array with
+		 * the level and get the right string. The qdf trace levels
+		 * are... none, Fatal, Error, Warning, Info, info_high, info_med,
+		 * info_low, Debug
+		 */
+		static const char * const TRACE_LEVEL_STR[] = { "  ", "F ",
+				"E ", "W ", "I ", "IH", "IM", "IL", "D" };
+		va_list val;
+
+		va_start(val, str_format);
+		/* print the prefix string into the string buffer... */
+		n = snprintf(str_buffer, QDF_TRACE_BUFFER_SIZE,
+			     "wlan: [%d:%2s:%3s] ",
+			     in_interrupt() ? 0 : current->pid,
+			     (char *)TRACE_LEVEL_STR[level],
+			     (char *)g_qdf_trace_info[module].module_name_str);
+
+		/* print the formatted log message after the prefix string */
+		if ((n >= 0) && (n < QDF_TRACE_BUFFER_SIZE)) {
+			vsnprintf(str_buffer + n, QDF_TRACE_BUFFER_SIZE - n,
+				  str_format, val);
+#if defined(WLAN_LOGGING_SOCK_SVC_ENABLE)
+			wlan_log_to_user(level, (char *)str_buffer,
+					 strlen(str_buffer));
+#else
+			pr_err("%s\n", str_buffer);
+#endif
+		}
+		va_end(val);
+	}
 }
 qdf_export_symbol(qdf_trace_msg);
 
@@ -1041,8 +1034,6 @@ const char *qdf_dp_code_to_string(enum QDF_DP_TRACE_ID code)
 		return "CE: TX: PTR:";
 	case QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD:
 		return "CE: TX: FAST: PTR:";
-	case QDF_DP_TRACE_CE_FAST_PACKET_ERR_RECORD:
-		return "CE: TX: FAST: ERR:";
 	case QDF_DP_TRACE_FREE_PACKET_PTR_RECORD:
 		return "FREE: TX: PTR:";
 	case QDF_DP_TRACE_RX_HTT_PACKET_PTR_RECORD:
@@ -1426,23 +1417,6 @@ static bool qdf_log_eapol_pkt(uint8_t session_id, struct sk_buff *skb,
 		else if (QDF_RX == dir)
 			QDF_NBUF_CB_RX_DP_TRACE(skb) = 1;
 
-		switch (subtype) {
-		case QDF_PROTO_EAPOL_M1:
-			g_qdf_dp_trace_data.eapol_m1++;
-			break;
-		case QDF_PROTO_EAPOL_M2:
-			g_qdf_dp_trace_data.eapol_m2++;
-			break;
-		case QDF_PROTO_EAPOL_M3:
-			g_qdf_dp_trace_data.eapol_m3++;
-			break;
-		case QDF_PROTO_EAPOL_M4:
-			g_qdf_dp_trace_data.eapol_m4++;
-			break;
-		default:
-			g_qdf_dp_trace_data.eapol_others++;
-			break;
-		}
 		QDF_NBUF_CB_DP_TRACE_PRINT(skb) = true;
 		return true;
 	}
@@ -1478,27 +1452,6 @@ static bool qdf_log_dhcp_pkt(uint8_t session_id, struct sk_buff *skb,
 			QDF_NBUF_CB_RX_DP_TRACE(skb) = 1;
 
 		QDF_NBUF_CB_DP_TRACE_PRINT(skb) = true;
-		switch (subtype) {
-		case QDF_PROTO_DHCP_DISCOVER:
-			g_qdf_dp_trace_data.dhcp_disc++;
-			break;
-		case QDF_PROTO_DHCP_OFFER:
-			g_qdf_dp_trace_data.dhcp_off++;
-			break;
-		case QDF_PROTO_DHCP_REQUEST:
-			g_qdf_dp_trace_data.dhcp_req++;
-			break;
-		case QDF_PROTO_DHCP_ACK:
-			g_qdf_dp_trace_data.dhcp_ack++;
-			break;
-		case QDF_PROTO_DHCP_NACK:
-			g_qdf_dp_trace_data.dhcp_nack++;
-			break;
-		default:
-			g_qdf_dp_trace_data.eapol_others++;
-			break;
-		}
-
 		return true;
 	}
 	return false;
@@ -1831,9 +1784,6 @@ void qdf_dp_display_record(struct qdf_dp_trace_record_s *pRecord,
 	case  QDF_DP_TRACE_HDD_SOFTAP_TX_TIMEOUT:
 		DPTRACE_PRINT(" %s: HDD  SoftAP TX Timeout", prepend_str);
 		break;
-	case  QDF_DP_TRACE_CE_FAST_PACKET_ERR_RECORD:
-		DPTRACE_PRINT(" %s: CE Fast Packet Error", prepend_str);
-		break;
 	case QDF_DP_TRACE_HDD_TX_PACKET_RECORD:
 	case QDF_DP_TRACE_HDD_RX_PACKET_RECORD:
 	default:
@@ -1915,32 +1865,6 @@ void qdf_dp_trace_clear_buffer(void)
 }
 qdf_export_symbol(qdf_dp_trace_clear_buffer);
 
-void qdf_dp_trace_dump_stats(void)
-{
-		DPTRACE_PRINT("STATS |DPT: icmp(%u %u) arp(%u %u) icmpv6(%u %u %u %u %u %u) dhcp(%u %u %u %u %u %u) eapol(%u %u %u %u %u)",
-				g_qdf_dp_trace_data.icmp_req,
-				g_qdf_dp_trace_data.icmp_resp,
-				g_qdf_dp_trace_data.arp_req,
-				g_qdf_dp_trace_data.arp_resp,
-				g_qdf_dp_trace_data.icmpv6_req,
-				g_qdf_dp_trace_data.icmpv6_resp,
-				g_qdf_dp_trace_data.icmpv6_ns,
-				g_qdf_dp_trace_data.icmpv6_na,
-				g_qdf_dp_trace_data.icmpv6_rs,
-				g_qdf_dp_trace_data.icmpv6_ra,
-				g_qdf_dp_trace_data.dhcp_disc,
-				g_qdf_dp_trace_data.dhcp_off,
-				g_qdf_dp_trace_data.dhcp_req,
-				g_qdf_dp_trace_data.dhcp_ack,
-				g_qdf_dp_trace_data.dhcp_nack,
-				g_qdf_dp_trace_data.dhcp_others,
-				g_qdf_dp_trace_data.eapol_m1,
-				g_qdf_dp_trace_data.eapol_m2,
-				g_qdf_dp_trace_data.eapol_m3,
-				g_qdf_dp_trace_data.eapol_m4,
-				g_qdf_dp_trace_data.eapol_others);
-}
-
 /**
  * qdf_dp_trace_dump_all() - Dump data from ring buffer via call back functions
  * registered with QDF
@@ -1968,7 +1892,20 @@ void qdf_dp_trace_dump_all(uint32_t count)
 		g_qdf_dp_trace_data.high_tput_thresh,
 		g_qdf_dp_trace_data.thresh_time_limit);
 
-	qdf_dp_trace_dump_stats();
+	DPTRACE_PRINT("DPT: stats - tx %u rx %u icmp(%u %u) arp(%u %u)"
+		"icmpv6 (%u %u) icmpv6_ns_na (%u %u) icmpv6_rs_ra (%u %u)",
+		g_qdf_dp_trace_data.tx_count,
+		g_qdf_dp_trace_data.rx_count,
+		g_qdf_dp_trace_data.icmp_req,
+		g_qdf_dp_trace_data.icmp_resp,
+		g_qdf_dp_trace_data.arp_req,
+		g_qdf_dp_trace_data.arp_resp,
+		g_qdf_dp_trace_data.icmpv6_req,
+		g_qdf_dp_trace_data.icmpv6_resp,
+		g_qdf_dp_trace_data.icmpv6_ns,
+		g_qdf_dp_trace_data.icmpv6_na,
+		g_qdf_dp_trace_data.icmpv6_rs,
+		g_qdf_dp_trace_data.icmpv6_ra);
 
 	DPTRACE_PRINT("DPT: Total Records: %d, Head: %d, Tail: %d",
 		      g_qdf_dp_trace_data.num, g_qdf_dp_trace_data.head,

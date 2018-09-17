@@ -662,7 +662,6 @@ void pld_device_self_recovery(struct device *dev)
 	case PLD_BUS_TYPE_SNOC:
 		break;
 	case PLD_BUS_TYPE_SDIO:
-		pld_sdio_device_self_recovery(dev);
 		break;
 	default:
 		pr_err("Invalid device type\n");
@@ -1412,23 +1411,6 @@ int pld_is_qmi_disable(struct device *dev)
 	}
 
 	return ret;
-}
-
-/**
- * pld_is_fw_down() - Check WLAN fw is down or not
- *
- * This is a SNOC specific API. This API will be called
- * to check if WLAN FW is down or not. dev is not passed
- * in this API as it could be called during driver unloading
- * when all the information driver stored will be gone.
- *
- *  Return: 1 FW is down
- *          0 FW is not down
- *          Non zero failure code for errors
- */
-int pld_is_fw_down(void)
-{
-	return pld_snoc_is_fw_down();
 }
 
 /**

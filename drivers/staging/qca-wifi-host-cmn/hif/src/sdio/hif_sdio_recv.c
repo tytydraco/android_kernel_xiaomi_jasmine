@@ -283,6 +283,10 @@ QDF_STATUS hif_dev_alloc_and_prepare_rx_packets(struct hif_sdio_device *pdev,
 		}
 
 		if (QDF_IS_STATUS_ERROR(status)) {
+			if (QDF_STATUS_E_RESOURCES == status) {
+				/* this is actually okay */
+				status = QDF_STATUS_SUCCESS;
+			}
 			break;
 		}
 
@@ -290,9 +294,7 @@ QDF_STATUS hif_dev_alloc_and_prepare_rx_packets(struct hif_sdio_device *pdev,
 
 	UNLOCK_HIF_DEV_RX(pdev);
 
-	/* for NO RESOURCE error, no need to flush data queue */
-	if (QDF_IS_STATUS_ERROR(status)
-		&& (status != QDF_STATUS_E_RESOURCES)) {
+	if (QDF_IS_STATUS_ERROR(status)) {
 		while (!HTC_QUEUE_EMPTY(queue))
 			packet = htc_packet_dequeue(queue);
 	}
@@ -1005,11 +1007,8 @@ QDF_STATUS hif_dev_recv_message_pending_handler(struct hif_sdio_device *pdev,
 				hif_dev_process_recv_header(pdev, packet,
 							    look_aheads,
 							    &num_look_aheads);
-			if (QDF_IS_STATUS_ERROR(status)) {
-				HTC_PACKET_ENQUEUE_TO_HEAD(&sync_completed_pkts_queue,
-					packet);
+			if (QDF_IS_STATUS_ERROR(status))
 				break;
-			}
 
 			netbuf = (qdf_nbuf_t) packet->pNetBufContext;
 			/* set data length */
@@ -1027,13 +1026,8 @@ QDF_STATUS hif_dev_recv_message_pending_handler(struct hif_sdio_device *pdev,
 								pipeid);
 			}
 		}
-
-		if (QDF_IS_STATUS_ERROR(status)) {
-			if (!HTC_QUEUE_EMPTY(&sync_completed_pkts_queue))
-				hif_dev_free_recv_pkt_queue(
-						&sync_completed_pkts_queue);
+		if (QDF_IS_STATUS_ERROR(status))
 			break;
-		}
 
 		if (num_look_aheads == 0) {
 			/* no more look aheads */

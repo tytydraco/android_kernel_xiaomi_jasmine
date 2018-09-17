@@ -58,7 +58,8 @@ enum spectral_scan_msg_type {
 
 struct spectral_scan_msg {
 	uint32_t msg_type;
-	uint32_t pid;
+	uint32_t buf_len;
+	uint8_t  *buf;
 };
 
 #define FEATURE_SPECTRAL_SCAN_VENDOR_COMMANDS \

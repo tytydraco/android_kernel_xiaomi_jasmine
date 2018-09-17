@@ -538,18 +538,6 @@ void __qdf_nbuf_init_replenish_timer(void);
 void __qdf_nbuf_deinit_replenish_timer(void);
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
-#define qdf_nbuf_users_inc atomic_inc
-#define qdf_nbuf_users_dec atomic_dec
-#define qdf_nbuf_users_set atomic_set
-#define qdf_nbuf_users_read atomic_read
-#else
-#define qdf_nbuf_users_inc refcount_inc
-#define qdf_nbuf_users_dec refcount_dec
-#define qdf_nbuf_users_set refcount_set
-#define qdf_nbuf_users_read refcount_read
-#endif /* KERNEL_VERSION(4, 13, 0) */
-
 /**
  * __qdf_to_status() - OS to QDF status conversion
  * @error : OS error
@@ -1517,9 +1505,45 @@ static inline size_t __qdf_nbuf_tcp_tso_size(struct sk_buff *skb)
  */
 static inline void __qdf_nbuf_init(__qdf_nbuf_t nbuf)
 {
-	qdf_nbuf_users_set(&nbuf->users, 1);
+	atomic_set(&nbuf->users, 1);
 	nbuf->data = nbuf->head + NET_SKB_PAD;
 	skb_reset_tail_pointer(nbuf);
+}
+
+/**
+ * __qdf_nbuf_set_rx_info() - set rx info
+ * @nbuf: sk buffer
+ * @info: rx info
+ * @len: length
+ *
+ * Return: none
+ */
+static inline void
+__qdf_nbuf_set_rx_info(__qdf_nbuf_t nbuf, void *info, uint32_t len)
+{
+	/* Customer may have skb->cb size increased, e.g. to 96 bytes,
+	 * then len's large enough to save the rs status info struct
+	 */
+	uint8_t offset = sizeof(struct qdf_nbuf_cb);
+	uint32_t max = sizeof(((struct sk_buff *)0)->cb)-offset;
+
+	len = (len > max ? max : len);
+
+	memcpy(((uint8_t *)(nbuf->cb) + offset), info, len);
+}
+
+/**
+ * __qdf_nbuf_get_rx_info() - get rx info
+ * @nbuf: sk buffer
+ *
+ * Return: rx_info
+ */
+static inline void *
+__qdf_nbuf_get_rx_info(__qdf_nbuf_t nbuf)
+{
+	uint8_t offset = sizeof(struct qdf_nbuf_cb);
+
+	return (void *)((uint8_t *)(nbuf->cb) + offset);
 }
 
 /*

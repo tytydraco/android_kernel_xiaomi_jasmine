@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -104,7 +104,6 @@ sch_append_addn_ie(tpAniSirGlobal mac_ctx, tpPESession session,
 	uint8_t *p2p_ie = NULL;
 	uint8_t noa_len = 0;
 	uint8_t noa_strm[SIR_MAX_NOA_ATTR_LEN + SIR_P2P_IE_HEADER_LEN];
-	uint8_t ext_p2p_ie[DOT11F_IE_P2PBEACON_MAX_LEN + 2];
 	bool valid_ie;
 
 	valid_ie = (addn_ielen <= WNI_CFG_PROBE_RSP_BCN_ADDNIE_DATA_LEN &&
@@ -113,26 +112,7 @@ sch_append_addn_ie(tpAniSirGlobal mac_ctx, tpPESession session,
 	if (!valid_ie)
 		return status;
 
-	qdf_mem_zero(&ext_p2p_ie[0], DOT11F_IE_P2PBEACON_MAX_LEN + 2);
-	/*
-	 * P2P IE extracted in wlan_hdd_add_hostapd_conf_vsie may not
-	 * be at the end of additional IE buffer. The buffer sent to WMA
-	 * expect P2P IE at the end of beacon buffer and will result in
-	 * beacon corruption if P2P IE is not at end of beacon buffer.
-	 */
-	status = lim_strip_ie(mac_ctx, addn_ie, &addn_ielen, SIR_MAC_EID_VENDOR,
-			      ONE_BYTE, SIR_MAC_P2P_OUI, SIR_MAC_P2P_OUI_SIZE,
-			      ext_p2p_ie, DOT11F_IE_P2PBEACON_MAX_LEN);
-
 	qdf_mem_copy(&add_ie[0], addn_ie, addn_ielen);
-
-	if (status == eSIR_SUCCESS && ext_p2p_ie[0] == SIR_MAC_EID_VENDOR &&
-	    !qdf_mem_cmp(&ext_p2p_ie[2], SIR_MAC_P2P_OUI,
-	    SIR_MAC_P2P_OUI_SIZE)) {
-		qdf_mem_copy(&add_ie[addn_ielen], ext_p2p_ie,
-			     ext_p2p_ie[1] + 2);
-		addn_ielen += ext_p2p_ie[1] + 2;
-	}
 
 	p2p_ie = limGetP2pIEPtr(mac_ctx, &add_ie[0], addn_ielen);
 	if ((p2p_ie != NULL) && !mac_ctx->beacon_offload) {
@@ -574,7 +554,6 @@ tSirRetStatus lim_update_probe_rsp_template_ie_bitmap_beacon1(tpAniSirGlobal pMa
 {
 	uint32_t *DefProbeRspIeBitmap;
 	tDot11fProbeResponse *prb_rsp;
-
 	if (!psessionEntry) {
 		pe_debug("PESession is null!");
 		return eSIR_FAILURE;
@@ -887,7 +866,6 @@ void sch_generate_tim(tpAniSirGlobal pMac, uint8_t **pPtr, uint16_t *timLength,
 	/* Generate partial virtual bitmap */
 	uint8_t N1 = minAid / 8;
 	uint8_t N2 = maxAid / 8;
-
 	if (N1 & 1)
 		N1--;
 
@@ -910,7 +888,7 @@ void sch_generate_tim(tpAniSirGlobal pMac, uint8_t **pPtr, uint16_t *timLength,
 	*ptr++ = 0xFF;
 	ptr += (N2 - N1 + 1);
 
-	*pPtr = ptr;
+	* pPtr = ptr;
 }
 /* -------------------------------------------------------------------- */
 /**
@@ -966,7 +944,6 @@ void sch_process_pre_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 			&psessionEntry->pSchBeaconFrameBegin[psessionEntry->
 							     schBeaconOffsetBegin];
 		uint16_t timLength = 0;
-
 		if (psessionEntry->statypeForBss == STA_ENTRY_SELF) {
 			sch_generate_tim(pMac, &ptr, &timLength,
 					 psessionEntry->dtimPeriod);

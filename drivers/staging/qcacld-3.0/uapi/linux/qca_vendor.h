@@ -108,13 +108,13 @@
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_STARTED: Indicate that driver
  *	started CAC on DFS channel
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_FINISHED: Indicate that driver
- *	completed the CAC check on DFS channel
+ * 	completed the CAC check on DFS channel
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_ABORTED: Indicate that the CAC
- *	check was aborted by the driver
+ * 	check was aborted by the driver
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_CAC_NOP_FINISHED: Indicate that the
- *	driver completed NOP
+ * 	driver completed NOP
  * @QCA_NL80211_VENDOR_SUBCMD_DFS_OFFLOAD_RADAR_DETECTED: Indicate that the
- *	driver detected radar signal on the current operating channel
+ * 	driver detected radar signal on the current operating channel
  * @QCA_NL80211_VENDOR_SUBCMD_GET_WIFI_INFO: get wlan driver information
  * @QCA_NL80211_VENDOR_SUBCMD_WIFI_LOGGER_START: start wifi logger
  * @QCA_NL80211_VENDOR_SUBCMD_WIFI_LOGGER_MEMORY_DUMP: memory dump request
@@ -233,12 +233,6 @@
  *      information indicating the reason that triggered this detection. The
  *      attributes for this command are defined in
  *      enum qca_wlan_vendor_attr_hang.
- * @QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS: Get the Specific Absorption Rate
- *	(SAR) power limits. This is a companion to the command
- *	@QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS and is used to retrieve the
- *	settings currently in use. The attributes returned by this command are
- *	defined by enum qca_vendor_attr_sar_limits.
- *
  */
 
 enum qca_nl80211_vendor_subcmds {
@@ -436,7 +430,6 @@ enum qca_nl80211_vendor_subcmds {
 	QCA_NL80211_VENDOR_SUBCMD_SPECTRAL_SCAN_STOP = 155,
 	QCA_NL80211_VENDOR_SUBCMD_ACTIVE_TOS = 156,
 	QCA_NL80211_VENDOR_SUBCMD_HANG = 157,
-	QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS = 164,
 };
 
 /**
@@ -631,9 +624,10 @@ enum qca_wlan_vendor_attr_get_station_info {
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_RX_STBC,
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_CH_WIDTH,
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_SGI_ENABLE,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_PAD,
-#endif
+	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_RX_RETRY_COUNT,
+	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_REMOTE_RX_BC_MC_COUNT,
+
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_GET_STATION_INFO_MAX =
@@ -3295,25 +3289,10 @@ enum qca_wlan_vendor_attr_config {
 	 * 1 - Enable , 0 - Disable.
 	 */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_LRO = 50,
-	/*
-	 * 8 bit unsigned value to globally enable/disable scan
-	 * 1 - Enable, 0 - Disable.
-	 */
-	QCA_WLAN_VENDOR_ATTR_CONFIG_SCAN_ENABLE = 51,
 
 	/* 8-bit unsigned value to set the total beacon miss count */
 	QCA_WLAN_VENDOR_ATTR_CONFIG_TOTAL_BEACON_MISS_COUNT = 52,
 
-	/* Unsigned 32-bit value to configure the number of continuous
-	 * Beacon Miss which shall be used by the firmware to penalize
-	 * the RSSI for BTC.
-	 */
-	QCA_WLAN_VENDOR_ATTR_CONFIG_PENALIZE_AFTER_NCONS_BEACON_MISS_BTC = 53,
-
-	/* 8-bit unsigned value to configure the driver and below layers to
-	 * enable/disable all fils features.
-	 * 0-enable, 1-disable */
-	QCA_WLAN_VENDOR_ATTR_CONFIG_DISABLE_FILS = 54,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_CONFIG_MAX =
 	QCA_WLAN_VENDOR_ATTR_CONFIG_AFTER_LAST - 1,
@@ -4644,9 +4623,7 @@ enum qca_wlan_vendor_tdls_trigger_mode {
  *
  * This enumerates the valid set of values that may be supplied for
  * attribute %QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT in an instance of
- * the %QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command or in
- * the response to an instance of the
- * %QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS vendor command.
+ * the %QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor command.
  */
 enum qca_vendor_attr_sar_limits_selections {
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SELECT_BDF0 = 0,
@@ -4670,8 +4647,7 @@ enum qca_vendor_attr_sar_limits_selections {
  * attribute %QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_MODULATION in an
  * instance of attribute %QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC in an
  * instance of the %QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS vendor
- * command or in the response to an instance of the
- * %QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS vendor command.
+ * command.
  */
 enum qca_vendor_attr_sar_limits_spec_modulations {
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_SPEC_MODULATION_CCK = 0,
@@ -4728,8 +4704,7 @@ enum qca_vendor_attr_sar_limits_spec_modulations {
  *	value to specify the actual power limit value in steps of 0.5
  *	dbm.
  *
- * These attributes are used with %QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS
- * and %QCA_NL80211_VENDOR_SUBCMD_GET_SAR_LIMITS.
+ * These attributes are used with %QCA_NL80211_VENDOR_SUBCMD_SET_SAR_LIMITS.
  */
 enum qca_vendor_attr_sar_limits {
 	QCA_WLAN_VENDOR_ATTR_SAR_LIMITS_INVALID = 0,
@@ -5197,8 +5172,8 @@ enum qca_wlan_vendor_attr_spectral_scan {
 		QCA_WLAN_VENDOR_ATTR_SPECTRAL_SCAN_CONFIG_AFTER_LAST - 1,
 };
 
-#if !(defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) &&	\
-	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) &&	\
+#if !(defined (SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) &&	\
+	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) && 	\
 	!(defined(WITH_BACKPORTS))
 
 static inline struct sk_buff *

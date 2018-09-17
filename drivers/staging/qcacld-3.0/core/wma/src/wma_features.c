@@ -1120,7 +1120,7 @@ QDF_STATUS wma_get_peer_info(WMA_HANDLE handle,
 		WMITLV_TAG_STRUC_wmi_request_stats_cmd_fixed_param,
 		WMITLV_GET_STRUCT_TLVLEN(wmi_request_stats_cmd_fixed_param));
 
-	cmd->stats_id = WMI_REQUEST_PEER_STAT;
+	cmd->stats_id = WMI_REQUEST_PEER_STAT | WMI_REQUEST_PEER_EXTD_STAT;
 	cmd->vdev_id = peer_info_req->sessionid;
 	WMI_CHAR_ARRAY_TO_MAC_ADDR(peer_info_req->peer_macaddr.bytes,
 				&cmd->peer_macaddr);
@@ -1541,184 +1541,6 @@ static int wma_lphb_handler(tp_wma_handle wma, uint8_t *event)
 }
 #endif /* FEATURE_WLAN_LPHB */
 
-/**
- * wma_is_ptrn_id_per_vdev() - Determine whether pattern id is unique per vdev
- * @wma: wma handle
- *
- * Some legacy firmware can't set same pattern id to different
- * vdevs, othwise overwrite each other, while some can set same
- * pattern id to different vdevs, we happen to have this flag to
- * differentiate them: WMI_SERVICE_UNIFIED_WOW_CAPABILITY
- *
- * Return: true if pattern id should unique per vdev,
- *         false if pattern id should unique per pdev
- */
-static inline bool wma_is_ptrn_id_per_vdev(tp_wma_handle wma)
-{
-	return WMI_SERVICE_IS_ENABLED(wma->wmi_service_bitmap,
-			WMI_SERVICE_UNIFIED_WOW_CAPABILITY);
-}
-
-/**
- * wma_get_wow_default_ptrn() - Get default wow pattern count/id
- * @wma: wma handle
- * @vdev_id: vdev id
- *
- * API to get latest default pattern id to be set to vdev, and also the count
- * of default patterns already set. If pattern id should be unique among vdevs,
- * then ignore vdev_id and use a wma counter
- *
- * Return: default pattern count/id per vdev/pdev
- */
-static uint8_t wma_get_wow_default_ptrn(tp_wma_handle wma, uint8_t vdev_id)
-{
-	struct wma_txrx_node *iface;
-
-	if (wma_is_ptrn_id_per_vdev(wma)) {
-		iface = &wma->interfaces[vdev_id];
-		return iface->num_wow_default_patterns;
-	} else {
-		return wma->wma_ptrn_id_def;
-	}
-}
-
-/**
- * wma_get_and_increment_wow_default_ptrn - Get and increase wow default
- *                                          pattern count/id
- * @wma: wma handle
- * @vdev_id: vdev id
- *
- * API to get latest default pattern id to be set to vdev, and then increase
- * the vdev default pattern counter. If pattern id should be unique among
- * vdevs, ignore vdev_id and use a wma counter
- *
- * Return: default pattern count/id per vdev/pdev
- */
-static uint8_t
-wma_get_and_increment_wow_default_ptrn(tp_wma_handle wma, uint8_t vdev_id)
-{
-	uint8_t count;
-	struct wma_txrx_node *iface;
-
-	if (wma_is_ptrn_id_per_vdev(wma)) {
-		iface = &wma->interfaces[vdev_id];
-		count = iface->num_wow_default_patterns++;
-	} else {
-		count = wma->wma_ptrn_id_def++;
-	}
-	return count;
-}
-
-/**
- * wma_decrement_wow_default_ptrn() - Decrease default wow pattern count/id
- * @wma: wma handle
- * @vdev_id: vdev id
- *
- * API to decrease default wow pattern id of vdev. If pattern id should be
- * unique among vdevs, ignore vdev_id and use a wma counter
- *
- * Return: None
- */
-static void wma_decrement_wow_default_ptrn(tp_wma_handle wma, uint8_t vdev_id)
-{
-	struct wma_txrx_node *iface;
-
-	if (wma_is_ptrn_id_per_vdev(wma)) {
-		iface = &wma->interfaces[vdev_id];
-		iface->num_wow_default_patterns--;
-	} else {
-		wma->wma_ptrn_id_def--;
-	}
-}
-
-/**
- * wma_zero_wow_default_ptrn() - Set wow default pattern count zero
- * @wma: wma handle
- * @vdev_id: vdev id
- *
- * API to set zero of wow default pattern count. If pattern id should be
- * unique among vdevs, ignore vdev_id and use a wma counter
- *
- * Return: None
- */
-static void wma_zero_wow_default_ptrn(tp_wma_handle wma, uint8_t vdev_id)
-{
-	struct wma_txrx_node *iface;
-
-	if (wma_is_ptrn_id_per_vdev(wma)) {
-		iface = &wma->interfaces[vdev_id];
-		iface->num_wow_default_patterns = 0;
-	} else {
-		wma->wma_ptrn_id_def = 0;
-	}
-}
-
-/**
- * wma_decrement_wow_user_ptrn() - Decrease wow user pattern count
- * @wma: wma handle
- * @vdev_id: vdev id
- *
- * API to decrease wow user pattern count. If pattern id should be
- * unique among vdevs, ignore vdev_id and use a wma counter
- *
- * Return: None
- */
-static void wma_decrement_wow_user_ptrn(tp_wma_handle wma, uint8_t vdev_id)
-{
-	struct wma_txrx_node *iface;
-
-	if (wma_is_ptrn_id_per_vdev(wma)) {
-		iface = &wma->interfaces[vdev_id];
-		iface->num_wow_user_patterns--;
-	} else {
-		wma->wma_ptrn_id_usr--;
-	}
-}
-
-/**
- * wma_increment_wow_user_ptrn() - Increase wow user pattern count
- * @wma: wma handle
- * @vdev_id: vdev id
- *
- * API to increase wow user pattern count. If pattern id should be
- * unique among vdevs, ignore vdev_id and use a wma counter
- *
- * Return: None
- */
-static void wma_increment_wow_user_ptrn(tp_wma_handle wma, uint8_t vdev_id)
-{
-	struct wma_txrx_node *iface;
-
-	if (wma_is_ptrn_id_per_vdev(wma)) {
-		iface = &wma->interfaces[vdev_id];
-		iface->num_wow_user_patterns++;
-	} else {
-		wma->wma_ptrn_id_usr++;
-	}
-}
-
-/**
- * wma_get_wow_user_ptrn() - Get wow user pattern count
- * @wma: wma handle
- * @vdev_id: vdev id
- *
- * API to get wow user pattern count set. If pattern id should be
- * unique among vdevs, ignore vdev_id and use a wma counter
- *
- * Return: wow user pattern count of vdev/pdev
- */
-static uint8_t wma_get_wow_user_ptrn(tp_wma_handle wma, uint8_t vdev_id)
-{
-	struct wma_txrx_node *iface;
-
-	if (wma_is_ptrn_id_per_vdev(wma)) {
-		iface = &wma->interfaces[vdev_id];
-		return iface->num_wow_user_patterns;
-	} else {
-		return wma->wma_ptrn_id_usr;
-	}
-}
-
 #ifdef FEATURE_WLAN_RA_FILTERING
 /**
  * wma_wow_sta_ra_filter() - set RA filter pattern in fw
@@ -1736,7 +1558,7 @@ static QDF_STATUS wma_wow_sta_ra_filter(tp_wma_handle wma, uint8_t vdev_id)
 
 	iface = &wma->interfaces[vdev_id];
 
-	default_pattern = wma_get_and_increment_wow_default_ptrn(wma, vdev_id);
+	default_pattern = iface->num_wow_default_patterns++;
 
 	WMA_LOGD("%s: send RA rate limit [%d] to fw vdev = %d", __func__,
 		 wma->RArateLimitInterval, vdev_id);
@@ -1745,7 +1567,7 @@ static QDF_STATUS wma_wow_sta_ra_filter(tp_wma_handle wma, uint8_t vdev_id)
 				   default_pattern, wma->RArateLimitInterval);
 	if (ret) {
 		WMA_LOGE("%s: Failed to send RA rate limit to fw", __func__);
-		wma_decrement_wow_default_ptrn(wma, vdev_id);
+		iface->num_wow_default_patterns--;
 		return QDF_STATUS_E_FAILURE;
 	}
 
@@ -1754,33 +1576,6 @@ static QDF_STATUS wma_wow_sta_ra_filter(tp_wma_handle wma, uint8_t vdev_id)
 }
 #endif /* FEATURE_WLAN_RA_FILTERING */
 
-/**
- * wma_wow_set_wake_time() - set timer pattern tlv, so that firmware will wake
- * up host after specified time is elapsed
- * @wma_handle: wma handle
- * @vdev_id: vdev id
- * @cookie: value to identify reason why host set up wake call.
- * @time: time in ms
- *
- * Return: QDF status
- */
-QDF_STATUS wma_wow_set_wake_time(WMA_HANDLE wma_handle, uint8_t vdev_id,
-				 uint32_t cookie, uint32_t time)
-{
-	int ret;
-	tp_wma_handle wma = (tp_wma_handle)wma_handle;
-
-	WMA_LOGD(FL("send timer patter with time: %d and vdev = %d to fw"),
-		 time, vdev_id);
-	ret = wmi_unified_wow_timer_pattern_cmd(wma->wmi_handle, vdev_id,
-						cookie, time);
-	if (ret) {
-		WMA_LOGE(FL("Failed to send timer patter to fw"));
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	return QDF_STATUS_SUCCESS;
-}
 /**
  * wmi_unified_nat_keepalive_enable() - enable NAT keepalive filter
  * @wma: wma handle
@@ -2155,11 +1950,6 @@ static QDF_STATUS dfs_phyerr_offload_event_handler(void *handle,
 		WMA_LOGE("%s: dfs is  NULL ", __func__);
 		return QDF_STATUS_E_FAILURE;
 	}
-
-	if (!is_dfs_radar_enable(ic)) {
-		WMA_LOGD("%s: DFS_AR_EN not enabled", __func__);
-		return QDF_STATUS_E_FAILURE;
-	}
 	/*
 	 * This parameter holds the number
 	 * of phyerror interrupts to the host
@@ -2197,7 +1987,7 @@ static QDF_STATUS dfs_phyerr_offload_event_handler(void *handle,
 			is_ch_dfs = true;
 	}
 	if (!is_ch_dfs) {
-		WMA_LOGD("%s: Invalid DFS Phyerror event. Channel=%d is Non-DFS",
+		WMA_LOGE("%s: Invalid DFS Phyerror event. Channel=%d is Non-DFS",
 			__func__, chan->ic_ieee);
 		qdf_spin_unlock_bh(&ic->chan_lock);
 		return QDF_STATUS_E_FAILURE;
@@ -2372,9 +2162,8 @@ static QDF_STATUS dfs_phyerr_no_offload_event_handler(void *handle,
 		max_dfs_buf_length = DFS_MAX_BUF_LENGTH;
 
 	if (pe_hdr->buf_len > max_dfs_buf_length) {
-		wma_log_rate_limit_err(
-		16, "%s: Invalid Phyerr evt buf len %d Max allowed buf len %d",
-		__func__, pe_hdr->buf_len, max_dfs_buf_length);
+		WMA_LOGE("%s: Received Invalid Phyerror event buffer length = %d Maximum allowed buf length = %d",
+			__func__, pe_hdr->buf_len, max_dfs_buf_length);
 
 		return QDF_STATUS_E_FAILURE;
 	}
@@ -4680,11 +4469,6 @@ int wma_d0_wow_disable_ack_event(void *handle, u_int8_t *event,
 int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 			      uint32_t len)
 {
-	uint8_t *bssid;
-	uint8_t peer_id;
-	ol_txrx_peer_handle peer;
-	ol_txrx_pdev_handle pdev;
-	tpDeleteStaContext del_sta_ctx;
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	struct wma_txrx_node *wma_vdev = NULL;
 	WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *param_buf;
@@ -4695,7 +4479,6 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	uint8_t *wow_buf_data = NULL;
 	int tlv_ok_status;
 
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 	param_buf = (WMI_WOW_WAKEUP_HOST_EVENTID_param_tlvs *) event;
 	if (!param_buf) {
 		WMA_LOGE("Invalid wow wakeup host event buf");
@@ -4703,8 +4486,6 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 	}
 
 	wake_info = param_buf->fixed_param;
-	bssid = wma->interfaces[wake_info->vdev_id].bssid;
-	peer = ol_txrx_find_peer_by_addr(pdev, bssid, &peer_id);
 
 	/* unspecified means apps-side wakeup, so there won't be a vdev */
 	if (wake_info->wake_reason != WOW_REASON_UNSPECIFIED) {
@@ -4969,27 +4750,6 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 		/* Just update stats and exit */
 		WMA_LOGD("Host woken up because of chip power save failure");
 		break;
-	case WOW_REASON_TIMER_INTR_RECV:
-		/*
-		 * Right now firmware is not returning any cookie host has
-		 * programmed. So do not check for cookie.
-		 */
-		WMA_LOGE("WOW_REASON_TIMER_INTR_RECV received, indicating key exchange did not finish. Initiate disconnect");
-
-		del_sta_ctx = (tpDeleteStaContext) qdf_mem_malloc(sizeof(*del_sta_ctx));
-		if (!del_sta_ctx) {
-			WMA_LOGE("%s: mem alloc failed ", __func__);
-			break;
-		}
-		del_sta_ctx->is_tdls = false;
-		del_sta_ctx->vdev_id = wake_info->vdev_id;
-		del_sta_ctx->staId = peer_id;
-		qdf_mem_copy(del_sta_ctx->addr2, bssid, IEEE80211_ADDR_LEN);
-		qdf_mem_copy(del_sta_ctx->bssId, bssid, IEEE80211_ADDR_LEN);
-		del_sta_ctx->reasonCode = HAL_DEL_STA_REASON_CODE_KEEP_ALIVE;
-		wma_send_msg(wma, SIR_LIM_DELETE_STA_CONTEXT_IND,
-			     (void *)del_sta_ctx, 0);
-		break;
 	default:
 		break;
 	}
@@ -5113,12 +4873,12 @@ static QDF_STATUS wma_send_wow_patterns_to_fw(tp_wma_handle wma,
 				mask_len, user, 0);
 	if (ret) {
 		if (!user)
-			wma_decrement_wow_default_ptrn(wma, vdev_id);
+			iface->num_wow_default_patterns--;
 		return QDF_STATUS_E_FAILURE;
 	}
 
 	if (user)
-		wma_increment_wow_user_ptrn(wma, vdev_id);
+		iface->num_wow_user_patterns++;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -5137,6 +4897,7 @@ static QDF_STATUS wma_wow_ap(tp_wma_handle wma, uint8_t vdev_id)
 	QDF_STATUS ret;
 	uint8_t arp_offset = 20;
 	uint8_t mac_mask[IEEE80211_ADDR_LEN];
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 
 	/*
 	 * Setup unicast pkt pattern
@@ -5145,10 +4906,10 @@ static QDF_STATUS wma_wow_ap(tp_wma_handle wma, uint8_t vdev_id)
 	 */
 	qdf_mem_set(&mac_mask, IEEE80211_ADDR_LEN, 0xFF);
 	ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
-			wma_get_and_increment_wow_default_ptrn(wma, vdev_id),
-			wma->interfaces[vdev_id].addr,
-			IEEE80211_ADDR_LEN, 0, mac_mask,
-			IEEE80211_ADDR_LEN, false);
+				iface->num_wow_default_patterns++,
+				wma->interfaces[vdev_id].addr,
+				IEEE80211_ADDR_LEN, 0, mac_mask,
+				IEEE80211_ADDR_LEN, false);
 	if (ret != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("Failed to add WOW unicast pattern ret %d", ret);
 		return ret;
@@ -5159,7 +4920,7 @@ static QDF_STATUS wma_wow_ap(tp_wma_handle wma, uint8_t vdev_id)
 	 * is zero. Pattern ID should be unique per vdev.
 	 */
 	ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
-			wma_get_and_increment_wow_default_ptrn(wma, vdev_id),
+			iface->num_wow_default_patterns++,
 			arp_ptrn, 0, arp_offset, arp_mask, 0, false);
 	if (ret != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("Failed to add WOW ARP pattern ret %d", ret);
@@ -5182,15 +4943,16 @@ static QDF_STATUS wma_configure_wow_ssdp(tp_wma_handle wma, uint8_t vdev_id)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	uint8_t discvr_offset = 30;
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 
 	/*
 	 * WoW pattern ID should be unique for each vdev
 	 * Different WoW patterns can use same pattern ID
 	 */
 	 status = wma_send_wow_patterns_to_fw(wma, vdev_id,
-			wma_get_and_increment_wow_default_ptrn(wma, vdev_id),
-			discvr_ptrn, sizeof(discvr_ptrn), discvr_offset,
-			discvr_mask, sizeof(discvr_ptrn), false);
+				iface->num_wow_default_patterns++,
+				discvr_ptrn, sizeof(discvr_ptrn), discvr_offset,
+				discvr_mask, sizeof(discvr_ptrn), false);
 
 	if (status != QDF_STATUS_SUCCESS)
 		WMA_LOGE("Failed to add WOW mDNS/SSDP/LLMNR pattern");
@@ -5358,6 +5120,7 @@ static QDF_STATUS wma_wow_sta(tp_wma_handle wma, uint8_t vdev_id)
 	uint8_t arp_offset = 12;
 	uint8_t mac_mask[IEEE80211_ADDR_LEN];
 	QDF_STATUS ret = QDF_STATUS_SUCCESS;
+	struct wma_txrx_node *iface = &wma->interfaces[vdev_id];
 
 	qdf_mem_set(&mac_mask, IEEE80211_ADDR_LEN, 0xFF);
 	/*
@@ -5366,10 +5129,10 @@ static QDF_STATUS wma_wow_sta(tp_wma_handle wma, uint8_t vdev_id)
 	 * Different WoW patterns can use same pattern ID
 	 */
 	ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
-			wma_get_and_increment_wow_default_ptrn(wma, vdev_id),
-			wma->interfaces[vdev_id].addr,
-			IEEE80211_ADDR_LEN, 0, mac_mask,
-			IEEE80211_ADDR_LEN, false);
+				iface->num_wow_default_patterns++,
+				wma->interfaces[vdev_id].addr,
+				IEEE80211_ADDR_LEN, 0, mac_mask,
+				IEEE80211_ADDR_LEN, false);
 	if (ret != QDF_STATUS_SUCCESS) {
 		WMA_LOGE("Failed to add WOW unicast pattern ret %d", ret);
 		return ret;
@@ -5387,9 +5150,9 @@ static QDF_STATUS wma_wow_sta(tp_wma_handle wma, uint8_t vdev_id)
 		/* Setup all ARP pkt pattern */
 		WMA_LOGD("ARP offload is disabled in INI enable WoW for ARP");
 		ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
-			wma_get_and_increment_wow_default_ptrn(wma, vdev_id),
-			arp_ptrn, sizeof(arp_ptrn), arp_offset,
-			arp_mask, sizeof(arp_mask), false);
+				iface->num_wow_default_patterns++,
+				arp_ptrn, sizeof(arp_ptrn), arp_offset,
+				arp_mask, sizeof(arp_mask), false);
 		if (ret != QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to add WOW ARP pattern");
 			return ret;
@@ -5401,9 +5164,9 @@ static QDF_STATUS wma_wow_sta(tp_wma_handle wma, uint8_t vdev_id)
 		/* Setup all NS pkt pattern */
 		WMA_LOGD("NS offload is disabled in INI enable WoW for NS");
 		ret = wma_send_wow_patterns_to_fw(wma, vdev_id,
-			wma_get_and_increment_wow_default_ptrn(wma, vdev_id),
-			ns_ptrn, sizeof(arp_ptrn), arp_offset,
-			arp_mask, sizeof(arp_mask), false);
+				iface->num_wow_default_patterns++,
+				ns_ptrn, sizeof(arp_ptrn), arp_offset,
+				arp_mask, sizeof(arp_mask), false);
 		if (ret != QDF_STATUS_SUCCESS) {
 			WMA_LOGE("Failed to add WOW NS pattern");
 			return ret;
@@ -5490,8 +5253,7 @@ void wma_register_wow_wakeup_events(WMA_HANDLE handle,
 
 		if ((wma->interfaces[vdev_id].in_bmps == true ||
 		     wma->in_imps == true) &&
-		    (wma->auto_power_save_enabled ==
-		     CDS_FW_TO_SEND_WOW_IND_ON_PWR_FAILURE))
+		     wma->auto_power_save_enabled)
 			wma_set_wow_event_bitmap(
 					 WOW_CHIP_POWER_FAILURE_DETECT_EVENT,
 					 WMI_WOW_MAX_EVENT_BM_LEN,
@@ -5796,15 +5558,17 @@ static QDF_STATUS wma_wow_delete_pattern(tp_wma_handle wma, uint8_t ptrn_id,
 					uint8_t vdev_id, bool user)
 {
 
+	struct wma_txrx_node *iface;
 	int ret;
 
+	iface = &wma->interfaces[vdev_id];
 	ret = wmi_unified_wow_delete_pattern_cmd(wma->wmi_handle, ptrn_id,
 				   vdev_id);
 	if (ret)
 		return QDF_STATUS_E_FAILURE;
 
 	if (user)
-		wma_decrement_wow_user_ptrn(wma, vdev_id);
+		iface->num_wow_user_patterns--;
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -5825,8 +5589,9 @@ static QDF_STATUS wma_wow_delete_pattern(tp_wma_handle wma, uint8_t ptrn_id,
  */
 QDF_STATUS wma_wow_add_pattern(tp_wma_handle wma, struct wow_add_pattern *ptrn)
 {
-	uint8_t id, vdev_id;
+	uint8_t id;
 	uint8_t bit_to_check, pos;
+	struct wma_txrx_node *iface;
 	QDF_STATUS ret = QDF_STATUS_SUCCESS;
 	uint8_t new_mask[SIR_WOWL_BCAST_PATTERN_MAX_SIZE];
 
@@ -5835,13 +5600,13 @@ QDF_STATUS wma_wow_add_pattern(tp_wma_handle wma, struct wow_add_pattern *ptrn)
 		return QDF_STATUS_E_INVAL;
 	}
 
-	vdev_id = ptrn->session_id;
+	iface = &wma->interfaces[ptrn->session_id];
 
 	/* clear all default patterns cofigured by wma */
-	for (id = 0; id < wma_get_wow_default_ptrn(wma, vdev_id); id++)
-		wma_wow_delete_pattern(wma, id, vdev_id, false);
+	for (id = 0; id < iface->num_wow_default_patterns; id++)
+		wma_wow_delete_pattern(wma, id, ptrn->session_id, false);
 
-	wma_zero_wow_default_ptrn(wma, vdev_id);
+	iface->num_wow_default_patterns = 0;
 
 	WMA_LOGD("Add user passed wow pattern id %d vdev id %d",
 		ptrn->pattern_id, ptrn->session_id);
@@ -5897,29 +5662,29 @@ QDF_STATUS wma_wow_add_pattern(tp_wma_handle wma, struct wow_add_pattern *ptrn)
 QDF_STATUS wma_wow_delete_user_pattern(tp_wma_handle wma,
 					struct wow_delete_pattern *pattern)
 {
-	uint8_t vdev_id, count;
+	struct wma_txrx_node *iface;
 
 	if (pattern->session_id >= wma->max_bssid) {
 		WMA_LOGE("Invalid vdev id %d", pattern->session_id);
 		return QDF_STATUS_E_INVAL;
 	}
 
-	vdev_id = pattern->session_id;
-	count = wma_get_wow_user_ptrn(wma, vdev_id);
-	if (count <= 0) {
+	iface = &wma->interfaces[pattern->session_id];
+	if (iface->num_wow_user_patterns <= 0) {
 		WMA_LOGE("No valid user pattern. Num user pattern %u vdev %d",
-			count, vdev_id);
+			iface->num_wow_user_patterns, pattern->session_id);
 		return QDF_STATUS_E_INVAL;
 	}
 
 	WMA_LOGD("Delete user passed wow pattern id %d total user pattern %d",
-		pattern->pattern_id, count);
+		pattern->pattern_id, iface->num_wow_user_patterns);
 
-	wma_wow_delete_pattern(wma, pattern->pattern_id, vdev_id, true);
+	wma_wow_delete_pattern(wma, pattern->pattern_id,
+				pattern->session_id, true);
 
 	/* configure default patterns once all user patterns are deleted */
-	if (!wma_get_wow_user_ptrn(wma, vdev_id))
-		wma_register_wow_default_patterns(wma, vdev_id);
+	if (!iface->num_wow_user_patterns)
+		wma_register_wow_default_patterns(wma, pattern->session_id);
 
 	return QDF_STATUS_SUCCESS;
 }
@@ -6329,8 +6094,7 @@ static void wma_configure_dynamic_wake_events(tp_wma_handle wma)
 		      WMI_UNIFIED_VDEV_SUBTYPE_P2P_DEVICE ||
 		      wma->interfaces[vdev_id].sub_type ==
 		      WMI_UNIFIED_VDEV_SUBTYPE_P2P_CLIENT))) &&
-		     (wma->auto_power_save_enabled ==
-		      CDS_FW_TO_SEND_WOW_IND_ON_PWR_FAILURE)) {
+		     wma->auto_power_save_enabled) {
 			wma_set_wow_event_bitmap(EV_PWR,
 						 BM_LEN,
 						 enable_mask);
@@ -8344,7 +8108,7 @@ void wma_send_regdomain_info_to_fw(uint32_t reg_dmn, uint16_t regdmn2G,
 	if (status == QDF_STATUS_E_NOMEM)
 		return;
 
-	if ((((reg_dmn & ~CTRY_FLAG) == CTRY_JAPAN15) ||
+	if ((((reg_dmn & ~CTRY_FLAG) == CTRY_JAPAN14) ||
 	     ((reg_dmn & ~CTRY_FLAG) == CTRY_KOREA_ROC)) &&
 	    (true == wma->tx_chain_mask_cck))
 		cck_mask_val = 1;
@@ -8430,45 +8194,6 @@ failure:
 }
 
 /**
- * wma_check_and_set_wake_timer(): checks all interfaces and if any interface
- * has install_key pending, sets timer pattern in fw to wake up host after
- * specified time has elapsed.
- * @wma: wma handle
- * @time: time after which host wants to be awaken.
- *
- * Return: None
- */
-static void wma_check_and_set_wake_timer(tp_wma_handle wma, uint32_t time)
-{
-	int i;
-	bool is_set_key_in_progress = false;
-	struct wma_txrx_node *iface;
-
-	if (!WMI_SERVICE_EXT_IS_ENABLED(wma->wmi_service_bitmap,
-		wma->wmi_service_ext_bitmap,
-		WMI_SERVICE_WOW_WAKEUP_BY_TIMER_PATTERN)) {
-		WMA_LOGD("TIME_PATTERN is not enabled");
-		return;
-	}
-
-	for (i = 0; i < wma->max_bssid; i++) {
-		iface = &wma->interfaces[i];
-		if (iface->is_vdev_valid && iface->is_waiting_for_key) {
-			/*
-			 * right now cookie is dont care, since FW disregards
-			 * that.
-			 */
-			is_set_key_in_progress = true;
-			wma_wow_set_wake_time((WMA_HANDLE)wma, i, 0, time);
-			break;
-		}
-	}
-
-	if (!is_set_key_in_progress)
-		WMA_LOGD("set key not in progress for any vdev");
-}
-
-/**
  * __wma_bus_suspend(): handles bus suspend for wma
  * @type: is this suspend part of runtime suspend or system suspend?
  * @wow_flags: bitmap of WMI WOW flags to pass to FW
@@ -8532,7 +8257,6 @@ static int __wma_bus_suspend(enum qdf_suspend_type type, uint32_t wow_flags)
 		return qdf_status_to_os_return(status);
 	}
 
-	wma_check_and_set_wake_timer(handle, SIR_INSTALL_KEY_TIMEOUT_MS);
 	status = wma_enable_wow_in_fw(handle, wow_flags);
 
 	return qdf_status_to_os_return(status);
@@ -8688,8 +8412,6 @@ static inline void wma_suspend_target_timeout(bool is_self_recovery_enabled)
 	else if (cds_is_driver_in_bad_state())
 		WMA_LOGE("%s: Module in bad state; Ignoring suspend timeout",
 			 __func__);
-	else if (cds_is_fw_down())
-		WMA_LOGE(FL("FW is down; Ignoring suspend timeout"));
 	else
 		cds_trigger_recovery(CDS_SUSPEND_TIMEOUT);
 }
@@ -8795,7 +8517,6 @@ void wma_handle_initial_wake_up(void)
 int wma_is_target_wake_up_received(void)
 {
 	tp_wma_handle wma = cds_get_context(QDF_MODULE_ID_WMA);
-	int32_t event_count;
 
 	if (NULL == wma) {
 		WMA_LOGE("%s: wma is NULL", __func__);
@@ -8804,13 +8525,6 @@ int wma_is_target_wake_up_received(void)
 
 	if (wma->wow_initial_wake_up) {
 		WMA_LOGE("Target initial wake up received try again");
-		return -EAGAIN;
-	}
-
-	event_count = qdf_atomic_read(&wma->critical_events_in_flight);
-	if (event_count) {
-		WMA_LOGE("%d critical event(s) in flight; Try again",
-			 event_count);
 		return -EAGAIN;
 	}
 
@@ -10358,98 +10072,6 @@ QDF_STATUS wma_enable_disable_caevent_ind(tp_wma_handle wma, uint8_t val)
 	return QDF_STATUS_SUCCESS;
 }
 
-static wma_sar_cb sar_callback;
-static void *sar_context;
-
-static int wma_sar_event_handler(void *handle, uint8_t *evt_buf, uint32_t len)
-{
-	tp_wma_handle wma_handle;
-	wmi_unified_t wmi_handle;
-	struct sar_limit_event event;
-	wma_sar_cb callback;
-	QDF_STATUS status;
-
-	WMA_LOGI(FL("handle:%pK event:%pK len:%u"), handle, evt_buf, len);
-
-	wma_handle = handle;
-	if (!wma_handle) {
-		WMA_LOGE(FL("NULL wma_handle"));
-		return QDF_STATUS_E_INVAL;
-	}
-
-	wmi_handle = wma_handle->wmi_handle;
-	if (!wmi_handle) {
-		WMA_LOGE(FL("NULL wmi_handle"));
-		return QDF_STATUS_E_INVAL;
-	}
-
-	status = wmi_unified_extract_sar_limit_event(wmi_handle,
-						     evt_buf, &event);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		WMA_LOGE(FL("Event extract failure: %d"), status);
-		return QDF_STATUS_E_INVAL;
-	}
-
-	callback = sar_callback;
-	sar_callback = NULL;
-	if (callback)
-		callback(sar_context, &event);
-
-	return 0;
-}
-
-QDF_STATUS wma_sar_register_event_handlers(WMA_HANDLE handle)
-{
-	tp_wma_handle wma_handle = handle;
-	wmi_unified_t wmi_handle;
-
-	if (!wma_handle) {
-		WMA_LOGE(FL("NULL wma_handle"));
-		return QDF_STATUS_E_INVAL;
-	}
-
-	wmi_handle = wma_handle->wmi_handle;
-	if (!wmi_handle) {
-		WMA_LOGE(FL("NULL wmi_handle"));
-		return QDF_STATUS_E_INVAL;
-	}
-
-	return wmi_unified_register_event_handler(wmi_handle,
-						  WMI_SAR_GET_LIMITS_EVENTID,
-						  wma_sar_event_handler,
-						  WMA_RX_WORK_CTX);
-}
-
-QDF_STATUS wma_get_sar_limit(WMA_HANDLE handle,
-			     wma_sar_cb callback, void *context)
-{
-	tp_wma_handle wma_handle = handle;
-	wmi_unified_t wmi_handle;
-	QDF_STATUS status;
-
-	if (!wma_handle) {
-		WMA_LOGE(FL("NULL wma_handle"));
-		return QDF_STATUS_E_INVAL;
-	}
-
-	wmi_handle = wma_handle->wmi_handle;
-	if (!wmi_handle) {
-		WMA_LOGE(FL("NULL wmi_handle"));
-		return QDF_STATUS_E_INVAL;
-	}
-
-	sar_callback = callback;
-	sar_context = context;
-	status = wmi_unified_get_sar_limit_cmd(wmi_handle);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		WMA_LOGE(FL("wmi_unified_get_sar_limit_cmd() error: %u"),
-			 status);
-		sar_callback = NULL;
-	}
-
-	return status;
-}
-
 QDF_STATUS wma_set_sar_limit(WMA_HANDLE handle,
 		struct sar_limit_cmd_params *sar_limit_params)
 {
@@ -10564,7 +10186,9 @@ int wma_encrypt_decrypt_msg_handler(void *handle, uint8_t *data,
 	encrypt_decrypt_rsp_params.vdev_id = data_event->vdev_id;
 	encrypt_decrypt_rsp_params.status = data_event->status;
 
-	if (data_event->data_length > param_buf->num_enc80211_frame) {
+	if ((data_event->data_length > param_buf->num_enc80211_frame) ||
+	    (data_event->data_length > WMI_SVC_MSG_MAX_SIZE - WMI_TLV_HDR_SIZE -
+	     sizeof(*data_event))) {
 		WMA_LOGE("FW msg data_len %d more than TLV hdr %d",
 			 data_event->data_length,
 			 param_buf->num_enc80211_frame);
@@ -10661,8 +10285,7 @@ int wma_get_arp_stats_handler(void *handle, uint8_t *data,
 			connect_stats_event->icmpv4_rsp_recvd);
 	}
 
-	mac->sme.get_arp_stats_cb(mac->hHdd, &rsp,
-				  mac->sme.get_arp_stats_context);
+	mac->sme.get_arp_stats_cb(mac->hHdd, &rsp);
 
 	EXIT();
 

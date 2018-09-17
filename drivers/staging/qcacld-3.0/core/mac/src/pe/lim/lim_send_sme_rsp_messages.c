@@ -60,7 +60,6 @@
 #include "nan_datapath.h"
 #include "lim_assoc_utils.h"
 #include "lim_process_fils.h"
-#include "wma.h"
 
 static void lim_handle_join_rsp_status(tpAniSirGlobal mac_ctx,
 	tpPESession session_entry, tSirResultCodes result_code,
@@ -897,7 +896,7 @@ lim_send_sme_disassoc_ntf(tpAniSirGlobal pMac,
 	tpPESession session = NULL;
 	uint16_t i, assoc_id;
 	tpDphHashNode sta_ds = NULL;
-	QDF_STATUS status;
+	struct sir_sme_discon_done_ind *sir_sme_dis_ind;
 
 	pe_debug("Disassoc Ntf with trigger : %d reasonCode: %d",
 		disassocTrigger, reasonCode);
@@ -921,8 +920,6 @@ lim_send_sme_disassoc_ntf(tpAniSirGlobal pMac,
 				sta_ds = dph_lookup_hash_entry(pMac,
 						peerMacAddr, &assoc_id,
 						&session->dph.dphHashTable);
-				if (sta_ds)
-					break;
 			}
 		}
 		if (sta_ds
@@ -985,13 +982,36 @@ lim_send_sme_disassoc_ntf(tpAniSirGlobal pMac,
 
 	case eLIM_PEER_ENTITY_DISASSOC:
 	case eLIM_LINK_MONITORING_DISASSOC:
-		status = lim_prepare_disconnect_done_ind(pMac, &pMsg,
-						smesessionId,
-						reasonCode, &peerMacAddr[0]);
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			pe_err("Failed to prepare message");
+		sir_sme_dis_ind =
+			qdf_mem_malloc(sizeof(*sir_sme_dis_ind));
+		if (!sir_sme_dis_ind) {
+			pe_err("call to AllocateMemory failed for disconnect indication");
 			return;
 		}
+
+		pe_debug("send  eWNI_SME_DISCONNECT_DONE_IND with retCode: %d",
+				reasonCode);
+
+		sir_sme_dis_ind->message_type =
+			eWNI_SME_DISCONNECT_DONE_IND;
+		sir_sme_dis_ind->length =
+			sizeof(*sir_sme_dis_ind);
+		qdf_mem_copy(sir_sme_dis_ind->peer_mac, peerMacAddr,
+			     sizeof(tSirMacAddr));
+		sir_sme_dis_ind->session_id   = smesessionId;
+		sir_sme_dis_ind->reason_code  = reasonCode;
+		/*
+		 * Instead of sending deauth reason code as 505 which is
+		 * internal value(eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
+		 * Send reason code as zero to Supplicant
+		 */
+		if (reasonCode == eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
+			sir_sme_dis_ind->reason_code = 0;
+		else
+			sir_sme_dis_ind->reason_code = reasonCode;
+
+		pMsg = (uint32_t *)sir_sme_dis_ind;
+
 		break;
 
 	default:
@@ -1348,45 +1368,6 @@ void lim_send_sme_tdls_event_notify(tpAniSirGlobal pMac, uint16_t msgType,
 }
 #endif /* FEATURE_WLAN_TDLS */
 
-QDF_STATUS lim_prepare_disconnect_done_ind(tpAniSirGlobal mac_ctx,
-					   uint32_t **msg,
-					   uint8_t session_id,
-					   tSirResultCodes reason_code,
-					   uint8_t *peer_mac_addr)
-{
-	struct sir_sme_discon_done_ind *sir_sme_dis_ind;
-
-	sir_sme_dis_ind = qdf_mem_malloc(sizeof(*sir_sme_dis_ind));
-	if (!sir_sme_dis_ind) {
-		pe_err("Failed to allocate memory");
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	pe_debug("Prepare eWNI_SME_DISCONNECT_DONE_IND withretCode: %d",
-		 reason_code);
-
-	sir_sme_dis_ind->message_type = eWNI_SME_DISCONNECT_DONE_IND;
-	sir_sme_dis_ind->length = sizeof(*sir_sme_dis_ind);
-	sir_sme_dis_ind->session_id = session_id;
-	if (peer_mac_addr)
-		qdf_mem_copy(sir_sme_dis_ind->peer_mac,
-			     peer_mac_addr, ETH_ALEN);
-
-	/*
-	 * Instead of sending deauth reason code as 505 which is
-	 * internal value(eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-	 * Send reason code as zero to Supplicant
-	 */
-	if (reason_code == eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-		sir_sme_dis_ind->reason_code = 0;
-	else
-		sir_sme_dis_ind->reason_code = reason_code;
-
-	*msg = (uint32_t *)sir_sme_dis_ind;
-
-	return QDF_STATUS_SUCCESS;
-}
-
 /**
  * lim_send_sme_deauth_ntf()
  *
@@ -1425,8 +1406,8 @@ lim_send_sme_deauth_ntf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 	tSirSmeDeauthInd *pSirSmeDeauthInd;
 	tpPESession psessionEntry;
 	uint8_t sessionId;
-	uint32_t *pMsg = NULL;
-	QDF_STATUS status;
+	uint32_t *pMsg;
+	struct sir_sme_discon_done_ind *sir_sme_dis_ind;
 
 	psessionEntry = pe_find_session_by_bssid(pMac, peerMacAddr, &sessionId);
 	switch (deauthTrigger) {
@@ -1462,14 +1443,38 @@ lim_send_sme_deauth_ntf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 
 	case eLIM_PEER_ENTITY_DEAUTH:
 	case eLIM_LINK_MONITORING_DEAUTH:
-		status = lim_prepare_disconnect_done_ind(pMac, &pMsg,
-						smesessionId, reasonCode,
-						&peerMacAddr[0]);
-		if (!QDF_IS_STATUS_SUCCESS(status)) {
-			pe_err("Failed to prepare message");
+		sir_sme_dis_ind =
+			qdf_mem_malloc(sizeof(*sir_sme_dis_ind));
+		if (!sir_sme_dis_ind) {
+			pe_err("call to AllocateMemory failed for disconnect indication");
 			return;
 		}
+
+		pe_debug("send eWNI_SME_DISCONNECT_DONE_IND withretCode: %d",
+				reasonCode);
+
+		sir_sme_dis_ind->message_type =
+			eWNI_SME_DISCONNECT_DONE_IND;
+		sir_sme_dis_ind->length =
+			sizeof(*sir_sme_dis_ind);
+		sir_sme_dis_ind->session_id = smesessionId;
+		sir_sme_dis_ind->reason_code = reasonCode;
+		qdf_mem_copy(sir_sme_dis_ind->peer_mac, peerMacAddr,
+			 ETH_ALEN);
+		/*
+		 * Instead of sending deauth reason code as 505 which is
+		 * internal value(eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
+		 * Send reason code as zero to Supplicant
+		 */
+		if (reasonCode == eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
+			sir_sme_dis_ind->reason_code = 0;
+		else
+			sir_sme_dis_ind->reason_code = reasonCode;
+
+		pMsg = (uint32_t *)sir_sme_dis_ind;
+
 		break;
+
 	default:
 		/**
 		 * Deauthentication indication due to Deauthentication
@@ -2059,7 +2064,7 @@ lim_send_sme_ibss_peer_ind(tpAniSirGlobal pMac,
  *
  * Return: None
  */
-static QDF_STATUS lim_process_csa_wbw_ie(tpAniSirGlobal mac_ctx,
+static void lim_process_csa_wbw_ie(tpAniSirGlobal mac_ctx,
 		struct csa_offload_params *csa_params,
 		tLimWiderBWChannelSwitchInfo *chnl_switch_info,
 		tpPESession session_entry)
@@ -2068,27 +2073,8 @@ static QDF_STATUS lim_process_csa_wbw_ie(tpAniSirGlobal mac_ctx,
 	uint8_t ap_new_ch_width;
 	bool new_ch_width_dfn = false;
 	uint8_t center_freq_diff;
-	uint32_t fw_vht_ch_wd = wma_get_vht_ch_width() + 1;
 
 	ap_new_ch_width = csa_params->new_ch_width + 1;
-
-	pe_info("new channel: %d new_ch_width: %d seg0: %d seg1: %d",
-			csa_params->channel, ap_new_ch_width,
-			csa_params->new_ch_freq_seg1,
-			csa_params->new_ch_freq_seg2);
-
-	if ((ap_new_ch_width != CH_WIDTH_80MHZ) &&
-			(ap_new_ch_width != CH_WIDTH_160MHZ) &&
-			(ap_new_ch_width != CH_WIDTH_80P80MHZ)) {
-		pe_err("CSA wide BW IE has wrong ch_width %d",
-				csa_params->new_ch_width);
-		return QDF_STATUS_E_INVAL;
-	}
-
-	if (!csa_params->new_ch_freq_seg1 && !csa_params->new_ch_freq_seg2) {
-		pe_err("CSA wide BW IE has invalid center freq");
-		return QDF_STATUS_E_INVAL;
-	}
 	if ((ap_new_ch_width == CH_WIDTH_80MHZ) &&
 			csa_params->new_ch_freq_seg2) {
 		new_ch_width_dfn = true;
@@ -2110,55 +2096,12 @@ static QDF_STATUS lim_process_csa_wbw_ie(tpAniSirGlobal mac_ctx,
 		eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY;
 	if ((ap_new_ch_width == CH_WIDTH_160MHZ) &&
 			!new_ch_width_dfn) {
-		if (csa_params->new_ch_freq_seg1 != csa_params->channel +
-				CH_TO_CNTR_FREQ_DIFF_160MHz) {
-			pe_err("CSA wide BW IE has invalid center freq");
-			return QDF_STATUS_E_INVAL;
-		}
-
-		if (ap_new_ch_width > fw_vht_ch_wd) {
-			pe_info("New BW is not supported, setting BW to %d",
-					fw_vht_ch_wd);
-			ap_new_ch_width = fw_vht_ch_wd;
-		}
-		ch_params.ch_width = ap_new_ch_width ;
+		ch_params.ch_width = CH_WIDTH_160MHZ;
 		cds_set_channel_params(csa_params->channel, 0,
 				&ch_params);
 		ap_new_ch_width = ch_params.ch_width;
 		csa_params->new_ch_freq_seg1 = ch_params.center_freq_seg0;
 		csa_params->new_ch_freq_seg2 = ch_params.center_freq_seg1;
-	} else if (!new_ch_width_dfn) {
-		if (ap_new_ch_width > fw_vht_ch_wd) {
-			pe_info("New BW is not supported, setting BW to %d",
-					fw_vht_ch_wd);
-			ap_new_ch_width = fw_vht_ch_wd;
-		}
-		if (csa_params->new_ch_freq_seg1 != csa_params->channel +
-				CH_TO_CNTR_FREQ_DIFF_80MHz) {
-			pe_err("CSA wide BW IE has invalid center freq");
-			return QDF_STATUS_E_INVAL;
-		}
-		csa_params->new_ch_freq_seg2 = 0;
-	}
-	if (new_ch_width_dfn) {
-		if (csa_params->new_ch_freq_seg1 != csa_params->channel +
-				CH_TO_CNTR_FREQ_DIFF_80MHz) {
-			pe_err("CSA wide BW IE has invalid center freq");
-			return QDF_STATUS_E_INVAL;
-		}
-		if (ap_new_ch_width > fw_vht_ch_wd) {
-			pe_info("New width is not supported, setting BW to %d",
-					fw_vht_ch_wd);
-			ap_new_ch_width = fw_vht_ch_wd;
-		}
-		if ((ap_new_ch_width == CH_WIDTH_160MHZ) &&
-				(csa_params->new_ch_freq_seg1 !=
-				 csa_params->channel +
-				 CH_TO_CNTR_FREQ_DIFF_160MHz)) {
-			pe_err("wide BW IE has invalid 160M center freq");
-			csa_params->new_ch_freq_seg2 = 0;
-			ap_new_ch_width = CH_WIDTH_80MHZ;
-		}
 	}
 	chnl_switch_info->newChanWidth = ap_new_ch_width;
 	chnl_switch_info->newCenterChanFreq0 = csa_params->new_ch_freq_seg1;
@@ -2180,10 +2123,7 @@ prnt_log:
 			chnl_switch_info->newChanWidth,
 			chnl_switch_info->newCenterChanFreq0,
 			chnl_switch_info->newCenterChanFreq1);
-
-	return QDF_STATUS_SUCCESS;
 }
-
 /**
  * lim_handle_csa_offload_msg() - Handle CSA offload message
  * @mac_ctx:         pointer to global adapter context
@@ -2259,13 +2199,12 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 	chnl_switch_info =
 		&session_entry->gLimWiderBWChannelSwitch;
 
-	pe_info("vht: %d ht: %d flag: %x chan: %d, sec_ch_offset %d",
+	pe_debug("vht: %d ht: %d flag: %x chan: %d",
 			session_entry->vhtCapability,
 			session_entry->htSupportedChannelWidthSet,
 			csa_params->ies_present_flag,
-			csa_params->channel,
-			csa_params->sec_chan_offset);
-	pe_info("seg1: %d seg2: %d width: %d country: %s class: %d",
+			csa_params->channel);
+	pe_debug("seg1: %d seg2: %d width: %d country: %s class: %d",
 			csa_params->new_ch_freq_seg1,
 			csa_params->new_ch_freq_seg2,
 			csa_params->new_ch_width,
@@ -2274,11 +2213,10 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 
 	if (session_entry->vhtCapability &&
 			session_entry->htSupportedChannelWidthSet) {
-		if ((csa_params->ies_present_flag & lim_wbw_ie_present) &&
-			(QDF_STATUS_SUCCESS == lim_process_csa_wbw_ie(mac_ctx,
-					csa_params, chnl_switch_info,
-					session_entry))) {
-			pe_debug("CSA wide BW IE process successful");
+		if (csa_params->ies_present_flag & lim_wbw_ie_present &&
+				csa_params->new_ch_width) {
+			lim_process_csa_wbw_ie(mac_ctx, csa_params,
+					chnl_switch_info, session_entry);
 			lim_ch_switch->sec_ch_offset =
 				PHY_SINGLE_CHANNEL_CENTERED;
 			if (chnl_switch_info->newChanWidth) {
@@ -2408,12 +2346,6 @@ void lim_handle_csa_offload_msg(tpAniSirGlobal mac_ctx, tpSirMsgQ msg)
 		pe_err("Ignore CSA, no change in ch and bw");
 		goto err;
 	}
-
-	/* Send RSO Stop to FW before triggering the vdev restart for CSA */
-	if (mac_ctx->lim.stop_roaming_callback)
-		mac_ctx->lim.stop_roaming_callback(mac_ctx,
-						   session_entry->smeSessionId,
-						   eCsrDriverDisabled);
 
 	lim_prepare_for11h_channel_switch(mac_ctx, session_entry);
 	csa_offload_ind = qdf_mem_malloc(sizeof(tSmeCsaOffloadInd));
@@ -2555,7 +2487,6 @@ void
 lim_send_sme_dfs_event_notify(tpAniSirGlobal pMac, uint16_t msgType, void *event)
 {
 	tSirMsgQ mmhMsg;
-
 	mmhMsg.type = eWNI_SME_DFS_RADAR_FOUND;
 	mmhMsg.bodyptr = event;
 	mmhMsg.bodyval = 0;
@@ -2709,6 +2640,14 @@ lim_process_beacon_tx_success_ind(tpAniSirGlobal pMac, uint16_t msgType, void *e
 
 	if (LIM_IS_AP_ROLE(psessionEntry) &&
 	    true == psessionEntry->dfsIncludeChanSwIe) {
+
+		if (psessionEntry->gLimChannelSwitch.switchCount) {
+			/* Decrement the beacon switch count */
+			psessionEntry->gLimChannelSwitch.switchCount--;
+			pe_debug("current beacon count %d",
+				psessionEntry->gLimChannelSwitch.switchCount);
+		}
+
 		/* Send only 5 beacons with CSA IE Set in when a radar is detected */
 		if (psessionEntry->gLimChannelSwitch.switchCount > 0) {
 			/*
@@ -2723,8 +2662,6 @@ lim_process_beacon_tx_success_ind(tpAniSirGlobal pMac, uint16_t msgType, void *e
 				lim_send_chan_switch_action_frame(pMac,
 					ch, ch_width, psessionEntry);
 
-			/* Decrement the IE count */
-			psessionEntry->gLimChannelSwitch.switchCount--;
 		} else {
 			/* Done with CSA IE update, send response back to SME */
 			psessionEntry->gLimChannelSwitch.switchCount = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -153,7 +153,6 @@ void ol_free_remaining_tso_segs(ol_txrx_vdev_handle vdev,
 			}
 
 			next_seg = free_seg->next;
-			free_seg->force_free = 1;
 			ol_tso_free_segment(pdev, free_seg);
 			free_seg = next_seg;
 		}
@@ -164,7 +163,6 @@ void ol_free_remaining_tso_segs(ol_txrx_vdev_handle vdev,
 		 */
 		while (free_seg) {
 			next_seg = free_seg->next;
-			free_seg->force_free = 1;
 			ol_tso_free_segment(pdev, free_seg);
 			free_seg = next_seg;
 		}
@@ -301,8 +299,6 @@ qdf_nbuf_t ol_tx_send_ipa_data_frame(void *vdev,
 	qdf_nbuf_t ret;
 
 	if (qdf_unlikely(!pdev)) {
-		qdf_net_buf_debug_acquire_skb(skb, __FILE__, __LINE__);
-
 		ol_txrx_err("%s: pdev is NULL", __func__);
 		return skb;
 	}
@@ -314,13 +310,6 @@ qdf_nbuf_t ol_tx_send_ipa_data_frame(void *vdev,
 
 	/* Terminate the (single-element) list of tx frames */
 	qdf_nbuf_set_next(skb, NULL);
-
-	/*
-	 * Add SKB to internal tracking table before further processing
-	 * in WLAN driver.
-	 */
-	qdf_net_buf_debug_acquire_skb(skb, __FILE__, __LINE__);
-
 	ret = OL_TX_SEND((struct ol_txrx_vdev_t *)vdev, skb);
 	if (ret) {
 		ol_txrx_dbg("%s: Failed to tx", __func__);
@@ -467,6 +456,8 @@ qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 				msdu_info.tso_info.curr_seg =
 					 msdu_info.tso_info.curr_seg->next;
 			}
+
+			qdf_nbuf_reset_num_frags(msdu);
 
 			if (msdu_info.tso_info.is_tso) {
 				TXRX_STATS_TSO_INC_SEG(vdev->pdev,
@@ -704,7 +695,6 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 	struct ol_txrx_msdu_info_t msdu_info;
 	uint32_t tso_msdu_stats_idx = 0;
 
-	qdf_mem_zero(&msdu_info, sizeof(msdu_info));
 	msdu_info.htt.info.l2_hdr_type = vdev->pdev->htt_pkt_type;
 	msdu_info.htt.action.tx_comp_req = 0;
 	/*
@@ -722,7 +712,7 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 		msdu_info.peer = NULL;
 
 		if (qdf_unlikely(ol_tx_prepare_tso(vdev, msdu, &msdu_info))) {
-			ol_txrx_err("ol_tx_prepare_tso failed\n");
+			ol_txrx_dbg("ol_tx_prepare_tso failed\n");
 			TXRX_STATS_MSDU_LIST_INCR(vdev->pdev,
 				 tx.dropped.host_reject, msdu);
 			return msdu;
@@ -781,8 +771,6 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 			TXRX_STATS_MSDU_INCR(pdev, tx.from_stack, msdu);
 
 			if (qdf_likely(tx_desc)) {
-				struct qdf_tso_seg_elem_t *next_seg;
-
 
 				/*
 				 * if this is a jumbo nbuf, then increment the
@@ -810,17 +798,6 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 					  sizeof(struct htt_tx_msdu_desc_ext_t);
 
 				htt_tx_desc_display(tx_desc->htt_tx_desc);
-
-				/* mark the relevant tso_seg free-able */
-				if (msdu_info.tso_info.curr_seg) {
-					msdu_info.tso_info.curr_seg->
-						sent_to_target = 1;
-					next_seg = msdu_info.tso_info.
-						curr_seg->next;
-				} else {
-					next_seg = NULL;
-				}
-
 				if ((0 == ce_send_fast(pdev->ce_tx_hdl, msdu,
 						ep_id, pkt_download_len))) {
 					struct qdf_tso_info_t *tso_info =
@@ -831,7 +808,8 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 					 */
 					if (tx_desc->pkt_type ==
 							OL_TX_FRM_TSO) {
-						tso_info->curr_seg = next_seg;
+						tso_info->curr_seg =
+						tso_info->curr_seg->next;
 						ol_free_remaining_tso_segs(vdev,
 							&msdu_info, true);
 					}
@@ -846,11 +824,13 @@ ol_tx_ll_fast(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 						htt_tx_status_download_fail);
 					return msdu;
 				}
-				if (msdu_info.tso_info.curr_seg)
-					msdu_info.tso_info.curr_seg = next_seg;
-
+				if (msdu_info.tso_info.curr_seg) {
+					msdu_info.tso_info.curr_seg =
+					msdu_info.tso_info.curr_seg->next;
+				}
 
 				if (msdu_info.tso_info.is_tso) {
+					qdf_nbuf_reset_num_frags(msdu);
 					TXRX_STATS_TSO_INC_SEG(vdev->pdev,
 						tso_msdu_stats_idx);
 					TXRX_STATS_TSO_INC_SEG_IDX(vdev->pdev,
@@ -1001,12 +981,7 @@ ol_tx_ll_wrapper(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 
-#ifdef FEATURE_WLAN_LL_LEGACY_TX_FLOW_CT
-#define OL_TX_VDEV_PAUSE_QUEUE_SEND_MARGIN 0
-#else
 #define OL_TX_VDEV_PAUSE_QUEUE_SEND_MARGIN 400
-#endif
-
 #define OL_TX_VDEV_PAUSE_QUEUE_SEND_PERIOD_MS 5
 static void ol_tx_vdev_ll_pause_queue_send_base(struct ol_txrx_vdev_t *vdev)
 {
@@ -1063,11 +1038,9 @@ static void ol_tx_vdev_ll_pause_queue_send_base(struct ol_txrx_vdev_t *vdev)
 	}
 	if (vdev->ll_pause.txq.depth) {
 		qdf_timer_stop(&vdev->ll_pause.timer);
-		if (!qdf_atomic_read(&vdev->delete.detaching)) {
-			qdf_timer_start(&vdev->ll_pause.timer,
+		qdf_timer_start(&vdev->ll_pause.timer,
 					OL_TX_VDEV_PAUSE_QUEUE_SEND_PERIOD_MS);
-			vdev->ll_pause.is_q_timer_on = true;
-		}
+		vdev->ll_pause.is_q_timer_on = true;
 		if (vdev->ll_pause.txq.depth >= vdev->ll_pause.max_q_depth)
 			vdev->ll_pause.q_overflow_cnt++;
 	}
@@ -1107,11 +1080,9 @@ ol_tx_vdev_pause_queue_append(struct ol_txrx_vdev_t *vdev,
 
 	if (start_timer) {
 		qdf_timer_stop(&vdev->ll_pause.timer);
-		if (!qdf_atomic_read(&vdev->delete.detaching)) {
-			qdf_timer_start(&vdev->ll_pause.timer,
+		qdf_timer_start(&vdev->ll_pause.timer,
 					OL_TX_VDEV_PAUSE_QUEUE_SEND_PERIOD_MS);
-			vdev->ll_pause.is_q_timer_on = true;
-		}
+		vdev->ll_pause.is_q_timer_on = true;
 	}
 	qdf_spin_unlock_bh(&vdev->ll_pause.mutex);
 
@@ -1283,8 +1254,7 @@ void ol_tx_vdev_ll_pause_queue_send(void *context)
 	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)context;
 	struct ol_txrx_pdev_t *pdev = vdev->pdev;
 
-	if (pdev &&
-	    pdev->tx_throttle.current_throttle_level != THROTTLE_LEVEL_0 &&
+	if (pdev->tx_throttle.current_throttle_level != THROTTLE_LEVEL_0 &&
 	    pdev->tx_throttle.current_throttle_phase == THROTTLE_PHASE_OFF)
 		return;
 	ol_tx_vdev_ll_pause_queue_send_base(vdev);
@@ -2240,7 +2210,7 @@ void ol_tso_seg_list_init(struct ol_txrx_pdev_t *pdev, uint32_t num_seg)
 		c_element->cookie = TSO_SEG_MAGIC_COOKIE;
 #ifdef TSOSEG_DEBUG
 		c_element->dbg.txdesc = NULL;
-		qdf_atomic_init(&c_element->dbg.cur); /* history empty */
+		c_element->dbg.cur    = -1; /* history empty */
 		qdf_tso_seg_dbg_record(c_element, TSOSEG_LOC_INIT1);
 #endif /* TSOSEG_DEBUG */
 		c_element->next =
@@ -2264,8 +2234,7 @@ void ol_tso_seg_list_init(struct ol_txrx_pdev_t *pdev, uint32_t num_seg)
 	c_element->cookie = TSO_SEG_MAGIC_COOKIE;
 #ifdef TSOSEG_DEBUG
 	c_element->dbg.txdesc = NULL;
-	qdf_atomic_init(&c_element->dbg.cur); /* history empty */
-	// c_element->dbg.cur    = -1; /* history empty */
+	c_element->dbg.cur    = -1; /* history empty */
 	qdf_tso_seg_dbg_record(c_element, TSOSEG_LOC_INIT2);
 #endif /* TSOSEG_DEBUG */
 	c_element->next = NULL;
@@ -2305,10 +2274,11 @@ void ol_tso_seg_list_deinit(struct ol_txrx_pdev_t *pdev)
 	while (i-- > 0 && c_element) {
 		temp = c_element->next;
 		if (c_element->on_freelist != 1) {
-			qdf_tso_seg_dbg_bug("seg already freed (double?)");
+			qdf_tso_seg_dbg_bug("this seg already freed (double?)");
 			return;
 		} else if (c_element->cookie != TSO_SEG_MAGIC_COOKIE) {
-			qdf_tso_seg_dbg_bug("seg cookie is bad (corruption?)");
+			qdf_print("this seg cookie is bad (memory corruption?)");
+			QDF_BUG(0);
 			return;
 		}
 		/* free this seg, so reset the cookie value*/

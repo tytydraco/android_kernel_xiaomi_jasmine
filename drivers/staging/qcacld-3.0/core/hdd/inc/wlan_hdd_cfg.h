@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1844,9 +1844,9 @@ enum hdd_dot11_mode {
  * </ini>
  */
 #define CFG_11AG_NUM_TX_CHAIN_NAME      "g11agNumTxChains"
-#define CFG_11AG_NUM_TX_CHAIN_MIN       (0)
-#define CFG_11AG_NUM_TX_CHAIN_MAX       (2)
-#define CFG_11AG_NUM_TX_CHAIN_DEFAULT   (0)
+#define CFG_11AG_NUM_TX_CHAIN_MIN       (1)
+#define CFG_11AG_NUM_TX_CHAIN_MAX       (4)
+#define CFG_11AG_NUM_TX_CHAIN_DEFAULT   (1)
 
 /*
  * <ini>
@@ -2064,28 +2064,6 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
- * enable_ftopen - enable/disable FT open feature
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * This INI is used to enable/disable FT open feature
- *
- * Related: None
- *
- * Supported Feature: Roaming
- *
- * Usage: External
- *
- * </ini>
- */
-#define CFG_ROAM_FT_OPEN_ENABLE_NAME                "enable_ftopen"
-#define CFG_ROAM_FT_OPEN_ENABLE_MIN                 (0)
-#define CFG_ROAM_FT_OPEN_ENABLE_MAX                 (1)
-#define CFG_ROAM_FT_OPEN_ENABLE_DEFAULT             (1)
-
-/*
- * <ini>
  * groam_dense_min_aps - Sets minimum number of AP for dense roam
  * @Min: 1
  * @Max: 5
@@ -2170,6 +2148,53 @@ enum hdd_dot11_mode {
 
 /*
  * <ini>
+ * min_delay_btw_roam_scans - Min duration (in sec) allowed btw two
+ * consecutive roam scans
+ * @Min: 0
+ * @Max: 60
+ * @Default: 10
+ *
+ * Roam scan is not allowed if duration between two consecutive
+ * roam scans is less than this time.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_NAME    "min_delay_btw_roam_scans"
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_MIN     (0)
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_MAX     (60)
+#define CFG_MIN_DELAY_BTW_ROAM_SCAN_DEFAULT (10)
+
+/*
+ * <ini>
+ * roam_trigger_reason_bitmask - Contains roam_trigger_reasons
+ * @Min: 0
+ * @Max: 0xFFFFFFFF
+ * @Default: 0xDA
+ *
+ * Bitmask containing roam_trigger_reasons for which
+ * min_delay_btw_roam_scans constraint should be applied.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_NAME "roam_trigger_reason_bitmask"
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MIN     (0)
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_MAX     (0xFFFFFFFF)
+#define CFG_ROAM_SCAN_TRIGGER_REASON_BITMASK_DEFAULT (0xDA)
+
+/*
+ * <ini>
  * roam_bad_rssi_thresh_offset_2g - RSSI threshold offset for 2G to 5G roam
  * @Min: 0
  * @Max: 86
@@ -2197,6 +2222,56 @@ enum hdd_dot11_mode {
 #define CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MIN     (0)
 #define CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_MAX     (86)
 #define CFG_ROAM_BG_SCAN_BAD_RSSI_OFFSET_2G_DEFAULT (40)
+
+/*
+ * <ini>
+ * ho_delay_for_rx - Delay Hand-off (In msec) by this duration to receive
+ * pending rx frames from current BSS
+ * @Min: 0
+ * @Max: 200
+ * @Default: 0
+ *
+ * For LFR 3.0 roaming scenario, once roam candidate is found, firmware
+ * waits for minimum this much duration to receive pending rx frames from
+ * current BSS before switching to new channel for handoff to new AP.
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_HO_DELAY_FOR_RX_NAME    "ho_delay_for_rx"
+#define CFG_ROAM_HO_DELAY_FOR_RX_MIN     (0)
+#define CFG_ROAM_HO_DELAY_FOR_RX_MAX     (200)
+#define CFG_ROAM_HO_DELAY_FOR_RX_DEFAULT (0)
+
+/*
+ * <ini>
+ * roam_force_rssi_trigger - To set roam scan mode
+ * irrespective of channel list
+ * @Min: 0
+ * @Max: 1
+ * @Default: 1
+ *
+ * This ini is used to set roam scan mode
+ * WMI_ROAM_SCAN_MODE_RSSI_CHANGE, irrespective of whether
+ * channel list type is CHANNEL_LIST_STATIC or not
+ *
+ * Related: None
+ *
+ * Supported Feature: Roaming
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_NAME  "roam_force_rssi_trigger"
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_MIN     (0)
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_MAX     (1)
+#define CFG_ROAM_FORCE_RSSI_TRIGGER_DEFAULT (1)
 
 /*
  * <ini>
@@ -2235,7 +2310,7 @@ enum hdd_dot11_mode {
 #define CFG_INTERFACE_CHANGE_WAIT_NAME    "gInterfaceChangeWait"
 #define CFG_INTERFACE_CHANGE_WAIT_MIN     (10)
 #define CFG_INTERFACE_CHANGE_WAIT_MAX     (500000)
-#define CFG_INTERFACE_CHANGE_WAIT_DEFAULT (10000)
+#define CFG_INTERFACE_CHANGE_WAIT_DEFAULT (15000)
 
 /*
  * <ini>
@@ -4264,141 +4339,10 @@ enum station_keepalive_method {
 #define CFG_ESE_FEATURE_ENABLED_DEFAULT                     (0) /* disabled */
 #endif /* FEATURE_WLAN_ESE */
 
-/*
- * <ini>
- * MAWCEnabled - Enable/Disable Motion Aided Wireless Connectivity Global
- * @Min: 0 - Disabled
- * @Max: 1 - Enabled
- * @Default: 1
- *
- * This ini is used to controls the MAWC feature globally.
- * MAWC is Motion Aided Wireless Connectivity.
- *
- * Related: mawc_roam_enabled.
- *
- * Supported Feature: Roaming and PNO/NLO
- *
- * Usage: Internal/External
- *
- * </ini>
- */
 #define CFG_LFR_MAWC_FEATURE_ENABLED_NAME                   "MAWCEnabled"
 #define CFG_LFR_MAWC_FEATURE_ENABLED_MIN                    (0)
 #define CFG_LFR_MAWC_FEATURE_ENABLED_MAX                    (1)
-#define CFG_LFR_MAWC_FEATURE_ENABLED_DEFAULT                (1)
-
-/*
- * <ini>
- * mawc_roam_enabled - Enable/Disable MAWC during roaming
- * @Min: 0 - Disabled
- * @Max: 1 - Enabled
- * @Default: 1
- *
- * This ini is used to control MAWC during roaming.
- *
- * Related: MAWCEnabled.
- *
- * Supported Feature: MAWC Roaming
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_ROAM_ENABLED_NAME            "mawc_roam_enabled"
-#define CFG_MAWC_ROAM_ENABLED_MIN             (0)
-#define CFG_MAWC_ROAM_ENABLED_MAX             (1)
-#define CFG_MAWC_ROAM_ENABLED_DEFAULT         (1)
-
-/*
- * <ini>
- * mawc_roam_traffic_threshold - Configure traffic threshold
- * @Min: 0
- * @Max: 0xFFFFFFFF
- * @Default: 300
- *
- * This ini is used to configure the data traffic load in kBps to
- * register CMC.
- *
- * Related: mawc_roam_enabled.
- *
- * Supported Feature: MAWC Roaming
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_ROAM_TRAFFIC_THRESHOLD_NAME       "mawc_roam_traffic_threshold"
-#define CFG_MAWC_ROAM_TRAFFIC_THRESHOLD_MIN        (0)
-#define CFG_MAWC_ROAM_TRAFFIC_THRESHOLD_MAX        (0xFFFFFFFF)
-#define CFG_MAWC_ROAM_TRAFFIC_THRESHOLD_DEFAULT    (300)
-
-/*
- * <ini>
- * mawc_roam_ap_rssi_threshold - Best AP RSSI threshold
- * @Min: -120
- * @Max: 0
- * @Default: -66
- *
- * This ini is used to specify the RSSI threshold to scan for the AP.
- *
- * Related: mawc_roam_enabled.
- *
- * Supported Feature: MAWC Roaming
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_ROAM_AP_RSSI_THRESHOLD_NAME       "mawc_roam_ap_rssi_threshold"
-#define CFG_MAWC_ROAM_AP_RSSI_THRESHOLD_MIN        (-120)
-#define CFG_MAWC_ROAM_AP_RSSI_THRESHOLD_MAX        (0)
-#define CFG_MAWC_ROAM_AP_RSSI_THRESHOLD_DEFAULT    (-66)
-
-/*
- * <ini>
- * mawc_roam_rssi_high_adjust - Adjust MAWC roam high RSSI
- * @Min: 3
- * @Max: 5
- * @Default: 5
- *
- * This ini is used for high RSSI threshold adjustment in stationary state
- * to suppress the scan.
- *
- * Related: mawc_roam_enabled.
- *
- * Supported Feature: MAWC Roaming
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_ROAM_RSSI_HIGH_ADJUST_NAME        "mawc_roam_rssi_high_adjust"
-#define CFG_MAWC_ROAM_RSSI_HIGH_ADJUST_MIN         (3)
-#define CFG_MAWC_ROAM_RSSI_HIGH_ADJUST_MAX         (5)
-#define CFG_MAWC_ROAM_RSSI_HIGH_ADJUST_DEFAULT     (5)
-
-/*
- * <ini>
- * mawc_roam_rssi_high_adjust - Adjust MAWC roam low RSSI
- * @Min: 3
- * @Max: 5
- * @Default: 5
- *
- * This ini is used for low RSSI threshold adjustment in stationary state
- * to suppress the scan.
- *
- * Related: mawc_roam_enabled.
- *
- * Supported Feature: MAWC Roaming
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_ROAM_RSSI_LOW_ADJUST_NAME        "mawc_roam_rssi_low_adjust"
-#define CFG_MAWC_ROAM_RSSI_LOW_ADJUST_MIN         (3)
-#define CFG_MAWC_ROAM_RSSI_LOW_ADJUST_MAX         (5)
-#define CFG_MAWC_ROAM_RSSI_LOW_ADJUST_DEFAULT     (5)
+#define CFG_LFR_MAWC_FEATURE_ENABLED_DEFAULT                (0) /* disabled */
 
 /*This parameter is used to set Wireless Extended Security Mode.*/
 #define CFG_ENABLE_WES_MODE_NAME                            "gWESModeEnabled"
@@ -4896,27 +4840,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MIN           (0)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_MAX           (2)
 #define CFG_VHT_ENABLE_TX_MCS2x2_8_9_DEFAULT       (0)
-
-/*
- * <ini>
- * enable_vht20_mcs9 - Enables VHT MCS9 in 20M BW operation
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * Related: NA
- *
- * Supported Feature: 11AC
- *
- * Usage: External
- *
- * </ini>
- */
-
-#define CFG_ENABLE_VHT20_MCS9               "enable_vht20_mcs9"
-#define CFG_ENABLE_VHT20_MCS9_MIN           (0)
-#define CFG_ENABLE_VHT20_MCS9_MAX           (1)
-#define CFG_ENABLE_VHT20_MCS9_DEFAULT       (1)
 
 /*
  * <ini>
@@ -5618,27 +5541,17 @@ enum hdd_link_speed_rpt_type {
  * <ini>
  * gEnableRTSProfiles - It will use configuring different RTS profiles
  * @Min: 0
- * @Max: 66
+ * @Max: 34
  * @Default: 33
  *
  * This ini used for configuring different RTS profiles
  * to firmware.
- * Following are the valid values for the rts profile:
- * RTSCTS_DISABLED				0
- * NOT_ALLOWED					1
- * NOT_ALLOWED					2
- * RTSCTS_DISABLED				16
- * RTSCTS_ENABLED_4_SECOND_RATESERIES		17
- * CTS2SELF_ENABLED_4_SECOND_RATESERIES		18
- * RTSCTS_DISABLED				32
- * RTSCTS_ENABLED_4_SWRETRIES			33
- * CTS2SELF_ENABLED_4_SWRETRIES			34
- * NOT_ALLOWED					48
- * NOT_ALLOWED					49
- * NOT_ALLOWED					50
- * RTSCTS_DISABLED				64
- * RTSCTS_ENABLED_4_ALL_RATESERIES		65
- * CTS2SELF_ENABLED_4_ALL_RATESERIES		66
+ * Following are the valid values for the rtsprofile:
+ * RTSCTS_DISABLED                           0
+ * RTSCTS_ENABLED_4_SECOND_RATESERIES        17
+ * CTS2SELF_ENABLED_4_SECOND_RATESERIES      18
+ * RTSCTS_ENABLED_4_SWRETRIES                33
+ * CTS2SELF_ENABLED_4_SWRETRIES              34
  *
  * Related: None
  *
@@ -5651,7 +5564,7 @@ enum hdd_link_speed_rpt_type {
 
 #define CFG_ENABLE_FW_RTS_PROFILE              "gEnableRTSProfiles"
 #define CFG_ENABLE_FW_RTS_PROFILE_MIN          (0)
-#define CFG_ENABLE_FW_RTS_PROFILE_MAX          (66)
+#define CFG_ENABLE_FW_RTS_PROFILE_MAX          (34)
 #define CFG_ENABLE_FW_RTS_PROFILE_DEFAULT      (33)
 
 #ifdef FEATURE_GREEN_AP
@@ -6972,7 +6885,7 @@ enum hdd_link_speed_rpt_type {
 #define CFG_TDLS_SCAN_ENABLE                       "gEnableTDLSScan"
 #define CFG_TDLS_SCAN_ENABLE_MIN                   (0)
 #define CFG_TDLS_SCAN_ENABLE_MAX                   (1)
-#define CFG_TDLS_SCAN_ENABLE_DEFAULT               (1)
+#define CFG_TDLS_SCAN_ENABLE_DEFAULT               (0)
 
 /*
  * <ini>
@@ -7989,29 +7902,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_DEFAULT (100)
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MIN     (0)
 #define CFG_BUS_BANDWIDTH_COMPUTE_INTERVAL_MAX     (10000)
-
-/*
- * <ini>
- * gEnableTcpLimitOutput - Control to enable TCP limit output byte
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * This ini is used to enable dynamic configuration of TCP limit output bytes
- * tcp_limit_output_bytes param. Enabling this will let driver post message to
- * cnss-daemon, accordingly cnss-daemon will modify the tcp_limit_output_bytes.
- *
- * Supported Feature: Tcp limit output bytes
- *
- * Usage: Internal
- *
- * </ini>
- */
-#define CFG_ENABLE_TCP_LIMIT_OUTPUT                      "gTcpLimitOutputEnable"
-#define CFG_ENABLE_TCP_LIMIT_OUTPUT_DEFAULT              (1)
-#define CFG_ENABLE_TCP_LIMIT_OUTPUT_MIN                  (0)
-#define CFG_ENABLE_TCP_LIMIT_OUTPUT_MAX                  (1)
-
 /*
  * <ini>
  * gTcpAdvWinScaleEnable - Control to enable  TCP adv window scaling
@@ -8153,25 +8043,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_TCP_TX_HIGH_TPUT_THRESHOLD_DEFAULT      (500)
 #define CFG_TCP_TX_HIGH_TPUT_THRESHOLD_MIN          (0)
 #define CFG_TCP_TX_HIGH_TPUT_THRESHOLD_MAX          (16000)
-
-/*
- * <ini>
- * periodic_stats_display_time - time(seconds) after which stats will be printed
- * @Min: 0
- * @Max: 256
- * @Default: 10
- *
- * This values specifies the recurring time period after which stats will be
- * printed in wlan driver logs.
- *
- * Usage: Internal / External
- *
- * </ini>
- */
-#define CFG_PERIODIC_STATS_DISPLAY_TIME_NAME       "periodic_stats_display_time"
-#define CFG_PERIODIC_STATS_DISPLAY_TIME_DEFAULT    (10)
-#define CFG_PERIODIC_STATS_DISPLAY_TIME_MIN        (0)
-#define CFG_PERIODIC_STATS_DISPLAY_TIME_MAX        (256)
 
 #endif /* MSM_PLATFORM */
 
@@ -8607,12 +8478,7 @@ enum hdd_link_speed_rpt_type {
 #define CFG_MULTICAST_HOST_FW_MSGS          "gMulticastHostFwMsgs"
 #define CFG_MULTICAST_HOST_FW_MSGS_MIN      (0)
 #define CFG_MULTICAST_HOST_FW_MSGS_MAX      (1)
-#if defined(MDM_PLATFORM) && !defined(FEATURE_MULTICAST_HOST_FW_MSGS)
-#define CFG_MULTICAST_HOST_FW_MSGS_DEFAULT  (0)
-#else
 #define CFG_MULTICAST_HOST_FW_MSGS_DEFAULT  (1)
-#endif
-
 
 /*
  * <ini>
@@ -8661,15 +8527,15 @@ enum hdd_link_speed_rpt_type {
 
 /*
  * <ini>
- * LROEnable - Control to enable LRO
+ * LROEnable - Control to enable lro feature
  *
- * @Min: 0 Disable LRO
+ * @Min: 0
  * @Max: 1
  * @Default: 0
  *
- * This ini is used to enable/disable LRO
- * If this is enabled make sure to disable GRO.
- * LRO and GRO are mutually exclusive.
+ * This ini is used to enable LRO feature
+ *
+ * Supported Feature: LRO
  *
  * Usage: Internal
  *
@@ -8679,27 +8545,6 @@ enum hdd_link_speed_rpt_type {
 #define CFG_LRO_ENABLED_MIN            (0)
 #define CFG_LRO_ENABLED_MAX            (1)
 #define CFG_LRO_ENABLED_DEFAULT        (0)
-
-/*
- * <ini>
- * GROEnable - Control to enable GRO
- *
- * @Min: 0 Disable GRO
- * @Max: 1
- * @Default: 0
- *
- * This ini is used to enable/disable GRO
- * If this is enabled make sure to disable LRO.
- * LRO and GRO are mutually exclusive.
- *
- * Usage: Internal
- *
- * </ini>
- */
-#define CFG_GRO_ENABLED_NAME           "GROEnable"
-#define CFG_GRO_ENABLED_MIN            (0)
-#define CFG_GRO_ENABLED_MAX            (1)
-#define CFG_GRO_ENABLED_DEFAULT        (0)
 
 /*
  * Enable Rx traffic flow steering to enable Rx interrupts on multiple CEs based
@@ -9053,6 +8898,7 @@ enum dot11p_mode {
 
 /*
  * <ini>
+
  * g_sta_sap_scc_on_dfs_chan - Allow STA+SAP SCC on DFS channel with
  * master mode support disabled.
  * @Min: 0
@@ -9127,18 +8973,6 @@ enum dot11p_mode {
 #define CFG_SET_TSF_GPIO_PIN_MAX                   (254)
 #define TSF_GPIO_PIN_INVALID                       (255)
 #define CFG_SET_TSF_GPIO_PIN_DEFAULT               (TSF_GPIO_PIN_INVALID)
-
-#ifdef WLAN_FEATURE_TSF_PLUS
-/* PTP options */
-#define CFG_SET_TSF_PTP_OPT_NAME                  "gtsf_ptp_options"
-#define CFG_SET_TSF_PTP_OPT_MIN                   (0)
-#define CFG_SET_TSF_PTP_OPT_MAX                   (0xff)
-#define CFG_SET_TSF_PTP_OPT_RX                    (0x1)
-#define CFG_SET_TSF_PTP_OPT_TX                    (0x2)
-#define CFG_SET_TSF_PTP_OPT_RAW                   (0x4)
-#define CFG_SET_TSF_DBG_FS                        (0x8)
-#define CFG_SET_TSF_PTP_OPT_DEFAULT               (0xf)
-#endif
 
 /*
  * Dense traffic threshold
@@ -10024,7 +9858,7 @@ enum restart_beaconing_on_ch_avoid_rule {
  * fw_timeout_crash - Enable/Disable BUG ON
  * @Min: 0
  * @Max: 1
- * @Default: 1
+ * @Default: 0
  *
  * This ini is used to Trigger host crash when firmware fails to send the
  * response to host
@@ -10042,7 +9876,7 @@ enum restart_beaconing_on_ch_avoid_rule {
 #define CFG_CRASH_FW_TIMEOUT_NAME       "fw_timeout_crash"
 #define CFG_CRASH_FW_TIMEOUT_DISABLE    (0)
 #define CFG_CRASH_FW_TIMEOUT_ENABLE     (1)
-#define CFG_CRASH_FW_TIMEOUT_DEFAULT    (1)
+#define CFG_CRASH_FW_TIMEOUT_DEFAULT    (0)
 
 /* Hold wakelock for unicast RX packets for the specified duration  */
 #define CFG_RX_WAKELOCK_TIMEOUT_NAME     "rx_wakelock_timeout"
@@ -10580,7 +10414,7 @@ enum restart_beaconing_on_ch_avoid_rule {
  * gAutoBmpsTimerValue - Set Auto BMPS Timer value
  * @Min: 0
  * @Max: 120
- * @Default: 5
+ * @Default: 0
  *
  * This ini is used to set Auto BMPS Timer value in seconds
  *
@@ -10595,7 +10429,7 @@ enum restart_beaconing_on_ch_avoid_rule {
 #define CFG_AUTO_PS_ENABLE_TIMER_NAME          "gAutoBmpsTimerValue"
 #define CFG_AUTO_PS_ENABLE_TIMER_MIN           (0)
 #define CFG_AUTO_PS_ENABLE_TIMER_MAX           (120)
-#define CFG_AUTO_PS_ENABLE_TIMER_DEFAULT       (5)
+#define CFG_AUTO_PS_ENABLE_TIMER_DEFAULT       (0)
 
 #ifdef WLAN_ICMP_DISABLE_PS
 /*
@@ -11156,9 +10990,7 @@ enum hw_filter_mode {
  * @Max: 1
  * @Default: 1
  *
- * This ini is used to enable/disable broadcast probe response.
- * If this is disabled then OCE ini oce_sta_enable will also be
- * disabled and OCE IE will not be sent in frames.
+ * This ini is used to enable/disable broadcast probe response
  *
  * Related: None
  *
@@ -11803,7 +11635,7 @@ enum hw_filter_mode {
 /*
  * <ini>
  * gActionOUIITOExtension - Used to extend in-activity time for specified APs
- * @Default: 00037F 06 01010000FF7F FC 01 000AEB 02 0100 C0 01 000B86 03 010408 E0 01
+ * @Default: 00037F 06 01010000FF7F FC 01 000AEB 02 0100 C0 01
  * Note: User should strictly add new action OUIs at the end of this
  * default value.
  *
@@ -11820,12 +11652,6 @@ enum hw_filter_mode {
  *   OUI data Mask: C0 - 11000000
  *   Info Mask : 01 - only OUI present in Info mask
  *
- * OUI 3: 000B86
- *   OUI data Len: 03
- *   OUI Data: 010408
- *   OUI data Mask: E0 - 11100000
- *   Info Mask : 01 - only OUI present in Info mask
- *
  * This ini is used to specify AP OUIs using which station's in-activity time
  * can be extended with the respective APs
  *
@@ -11838,7 +11664,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_ACTION_OUI_ITO_EXTENSION_NAME    "gActionOUIITOExtension"
-#define CFG_ACTION_OUI_ITO_EXTENSION_DEFAULT "00037F 06 01010000FF7F FC 01 000AEB 02 0100 C0 01 000B86 03 010408 E0 01"
+#define CFG_ACTION_OUI_ITO_EXTENSION_DEFAULT "00037F 06 01010000FF7F FC 01 000AEB 02 0100 C0 01"
 
 /*
  * <ini>
@@ -11877,15 +11703,15 @@ enum hw_filter_mode {
  */
 #define CFG_SAP_CH_SWITCH_BEACON_CNT         "g_sap_chanswitch_beacon_cnt"
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_MIN     (1)
-#define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (5)
+#define CFG_SAP_CH_SWITCH_BEACON_CNT_MAX     (10)
 #define CFG_SAP_CH_SWITCH_BEACON_CNT_DEFAULT (5)
 
 /*
  * <ini>
  * g_auto_detect_power_failure_mode - auto detect power save failure mode
- * @Min: CDS_FW_TO_CRASH_ON_PWR_FAILURE
- * @Max: CDS_AUTO_PWR_FAILURE_DETECT_DISABLE
- * @Default: CDS_FW_TO_CRASH_ON_PWR_FAILURE
+ * @Min: 0 : Recovery
+ * @Max: 1 : WMI
+ * @Default: 0
  *
  * This ini specifies the behavior of FW in case of
  * CHIP_POWER_SAVE_FAIL_DETECTED event
@@ -11894,10 +11720,10 @@ enum hw_filter_mode {
  *
  * </ini>
  */
-#define CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME    "g_auto_detect_power_failure_mode"
-#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MIN     (CDS_FW_TO_CRASH_ON_PWR_FAILURE)
-#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MAX     (CDS_AUTO_PWR_FAILURE_DETECT_DISABLE)
-#define CFG_AUTO_DETECT_POWER_FAIL_MODE_DEFAULT (CDS_FW_TO_CRASH_ON_PWR_FAILURE)
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_NAME "g_auto_detect_power_failure_mode"
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MIN             (0)
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_MAX             (1)
+#define CFG_AUTO_DETECT_POWER_FAIL_MODE_DEFAULT         (0)
 
 /*
  * <ini>
@@ -12117,91 +11943,6 @@ enum hw_filter_mode {
 #define CFG_SCAN_BACKOFF_MULTIPLIER_MIN		(0)
 #define CFG_SCAN_BACKOFF_MULTIPLIER_MAX		(255)
 #define CFG_SCAN_BACKOFF_MULTIPLIER_DEFAULT	(0)
-
-/*
- * <ini>
- * mawc_nlo_enabled - For NLO/PNO, enable MAWC based scan
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * Enable/Disable the Motion Aided Wireless Connectivity
- * based NLO using this parameter
- *
- * Related: NLO, PNO
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_NLO_ENABLED_NAME	"mawc_nlo_enabled"
-#define CFG_MAWC_NLO_ENABLED_MIN	(0)
-#define CFG_MAWC_NLO_ENABLED_MAX	(1)
-#define CFG_MAWC_NLO_ENABLED_DEFAULT	(1)
-
-/*
- * <ini>
- * mawc_nlo_exp_backoff_ratio - Exponential back off ratio
- * @Min: 0
- * @Max: 300
- * @Default: 3
- *
- * Configure the exponential back off ratio using this
- * parameter for MAWC based NLO
- * ratio of exponential backoff, next = current + current*ratio/100
- *
- * Related: NLO, PNO
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_NLO_EXP_BACKOFF_RATIO_NAME     "mawc_nlo_exp_backoff_ratio"
-#define CFG_MAWC_NLO_EXP_BACKOFF_RATIO_MIN      (0)
-#define CFG_MAWC_NLO_EXP_BACKOFF_RATIO_MAX      (300)
-#define CFG_MAWC_NLO_EXP_BACKOFF_RATIO_DEFAULT  (3)
-
-/*
- * <ini>
- * mawc_nlo_init_scan_interval - Initial Scan Interval
- * @Min: 1000
- * @Max: 0xFFFFFFFF
- * @Default: 10000
- *
- * Configure the initial scan interval  using this
- * parameter for MAWC based NLO (Units in Milliseconds)
- *
- * Related: NLO, PNO
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_NLO_INIT_SCAN_INTERVAL_NAME     "mawc_nlo_init_scan_interval"
-#define CFG_MAWC_NLO_INIT_SCAN_INTERVAL_MIN      (1000)
-#define CFG_MAWC_NLO_INIT_SCAN_INTERVAL_MAX      (0xFFFFFFFF)
-#define CFG_MAWC_NLO_INIT_SCAN_INTERVAL_DEFAULT  (10000)
-
-/*
- * <ini>
- * mawc_nlo_max_scan_interval - Maximum Scan Interval
- * @Min: 1000
- * @Max: 0xFFFFFFFF
- * @Default: 60000
- *
- * Configure the maximum scan interval  using this
- * parameter for MAWC based NLO (Units in Milliseconds)
- *
- * Related: NLO, PNO
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_MAWC_NLO_MAX_SCAN_INTERVAL_NAME     "mawc_nlo_max_scan_interval"
-#define CFG_MAWC_NLO_MAX_SCAN_INTERVAL_MIN      (1000)
-#define CFG_MAWC_NLO_MAX_SCAN_INTERVAL_MAX      (0xFFFFFFFF)
-#define CFG_MAWC_NLO_MAX_SCAN_INTERVAL_DEFAULT  (60000)
 
 /*
  * <ini>
@@ -13078,7 +12819,7 @@ enum hw_filter_mode {
  * esp_qbss_score_idx7_to_4 - percentage for  esp/qbss load for slots 4-7
  * @Min: 0x00000000
  * @Max: 0x64646464
- * @Default: 0x00000019
+ * @Default: 0x0000000A
  *
  * This INI give percentage value of channel_congestion_weightage to be used as
  * index in which the load value falls. Used only if num_esp_qbss_slots is
@@ -13100,7 +12841,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_ESP_QBSS_SCORE_IDX7_TO_4_NAME      "esp_qbss_score_idx7_to_4"
-#define CFG_ESP_QBSS_SCORE_IDX7_TO_4_DEFAULT   (0x00000019)
+#define CFG_ESP_QBSS_SCORE_IDX7_TO_4_DEFAULT   (0x0000000A)
 #define CFG_ESP_QBSS_SCORE_IDX7_TO_4_MIN       (0x00000000)
 #define CFG_ESP_QBSS_SCORE_IDX7_TO_4_MAX       (0x64646464)
 
@@ -13324,7 +13065,7 @@ enum hw_filter_mode {
  *
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to enable/disable scoring logic in FW for candidate
  * selection during roaming.
@@ -13337,7 +13078,7 @@ enum hw_filter_mode {
  * </ini>
  */
 #define CFG_ENABLE_SCORING_FOR_ROAM_NAME     "enable_scoring_for_roam"
-#define CFG_ENABLE_SCORING_FOR_ROAM_DEFAULT  (0)
+#define CFG_ENABLE_SCORING_FOR_ROAM_DEFAULT  (1)
 #define CFG_ENABLE_SCORING_FOR_ROAM_MIN      (0)
 #define CFG_ENABLE_SCORING_FOR_ROAM_MAX      (1)
 
@@ -13370,190 +13111,207 @@ enum hw_filter_mode {
 #define CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_MAX     (1)
 #define CFG_CHAN_SWITCH_HOSTAPD_RATE_ENABLED_DEFAULT (0)
 
+
+#define OFFLOAD_11K_BITMASK_NEIGHBOR_REPORT_REQUEST  0x1
+
 /*
  * <ini>
- * oce_enable_rssi_assoc_reject - Enable/disable rssi based assoc rejection
+ * 11k_offload_enable_bitmask - Bitmask to enable 11k offload to FW
  * @Min: 0
  * @Max: 1
  * @Default: 1
  *
- * This ini is used to enable/disable rssi based assoc rejection. If this is
- * disabled then OCE ini oce_sta_enable will also be disabled and OCE IE will
- * not be sent in frames.
+ * This ini is used to set which of the 11k features is offloaded to FW
+ * Currently Neighbor Report Request is supported for offload and is enabled
+ * by default
+ * B0: Offload 11k neighbor report requests
+ * B1-B31: Reserved
  *
- * Related: None
- *
- * Supported Feature: OCE
+ * Related : None
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_NAME \
-	"oce_enable_rssi_assoc_reject"
-#define CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_MIN     (0)
-#define CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_MAX     (1)
-#define CFG_OCE_ENABLE_RSSI_BASED_ASSOC_REJECT_DEFAULT (1)
+
+#define CFG_OFFLOAD_11K_ENABLE_BITMASK_NAME    "11k_offload_enable_bitmask"
+#define CFG_OFFLOAD_11K_ENABLE_BITMASK_MIN     (0)
+#define CFG_OFFLOAD_11K_ENABLE_BITMASK_MAX     (1)
+#define CFG_OFFLOAD_11K_ENABLE_BITMASK_DEFAULT (1)
 
 /*
  * <ini>
- * oce_enable_probe_req_rate - Set probe request rate
+ * nr_offload_params_bitmask - bitmask to specify which of the
+ * neighbor report offload params are valid in the ini
+ * frame
  * @Min: 0
- * @Max: 1
- * @Default: 0
+ * @Max: 63
+ * @Default: 63
  *
- * This ini is used to set probe request rate to 5.5Mbps as per OCE requirement
- * in 2.4G band
+ * This ini specifies which of the neighbor report offload params are valid
+ * and should be considered by the FW. The bitmask is as follows
+ * B0: nr_offload_time_offset
+ * B1: nr_offload_low_rssi_offset
+ * B2: nr_offload_bmiss_count_trigger
+ * B3: nr_offload_per_threshold_offset
+ * B4: nr_offload_cache_timeout
+ * B5: nr_offload_max_req_cap
+ * B6-B7: Reserved
  *
- * Related: None
- *
- * Supported Feature: OCE
+ * Related : 11k_offload_enable_bitmask
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_OCE_PROBE_REQ_RATE_NAME    "oce_enable_probe_req_rate"
-#define CFG_OCE_PROBE_REQ_RATE_MIN     (0)
-#define CFG_OCE_PROBE_REQ_RATE_MAX     (1)
-#define CFG_OCE_PROBE_REQ_RATE_DEFAULT (0)
+
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_NAME \
+	"nr_offload_params_bitmask"
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_MIN      (0)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_MAX      (63)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PARAMS_BITMASK_DEFAULT  (63)
 
 /*
  * <ini>
- * oce_enable_probe_resp_rate - Set probe response rate
+ * nr_offload_time_offset - time interval in seconds after the
+ * neighbor report offload command to send the first neighbor report request
+ * frame
  * @Min: 0
- * @Max: 1
- * @Default: 0
+ * @Max: 3600
+ * @Default: 30
  *
- * This ini is used to set probe response rate to 5.5Mbps as per OCE requirement
- * in 2.4G band
- *
- * Related: None
- *
- * Supported Feature: OCE
+ * Related : nr_offload_params_bitmask
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_OCE_PROBE_RSP_RATE_NAME    "oce_enable_probe_resp_rate"
-#define CFG_OCE_PROBE_RSP_RATE_MIN     (0)
-#define CFG_OCE_PROBE_RSP_RATE_MAX     (1)
-#define CFG_OCE_PROBE_RSP_RATE_DEFAULT (0)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_NAME \
+	"nr_offload_time_offset"
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_MIN      (0)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_MAX      (3600)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_TIME_OFFSET_DEFAULT  (30)
 
 /*
  * <ini>
- * oce_enable_beacon_rate - Set beacon rate
- * @Min: 0
- * @Max: 1
- * @Default: 0
+ * nr_offload_low_rssi_offset - offset from the roam RSSI threshold
+ * to trigger the neighbor report request frame (in dBm)
+ * @Min: 4
+ * @Max: 10
+ * @Default: 4
  *
- * This ini is used to set beacon rate to 5.5Mbps as per OCE requirement in
- * 2.4G band
- *
- * Related: None
- *
- * Supported Feature: OCE
+ * Related : nr_offload_params_bitmask
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_OCE_BEACON_RATE_NAME    "oce_enable_beacon_rate"
-#define CFG_OCE_BEACON_RATE_MIN     (0)
-#define CFG_OCE_BEACON_RATE_MAX     (1)
-#define CFG_OCE_BEACON_RATE_DEFAULT (0)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_NAME \
+	"nr_offload_low_rssi_offset"
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_MIN     (4)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_MAX     (10)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_LOW_RSSI_OFFSET_DEFAULT (4)
 
 /*
  * <ini>
- * oce_enable_probe_req_deferral - Enable/disable probe request deferral
- * @Min: 0
- * @Max: 1
- * @Default: 0
+ * nr_offload_bmiss_count_trigger - Number of beacon miss events to
+ * trigger a neighbor report request frame
+ * @Min: 1
+ * @Max: 5
+ * @Default: 1
  *
- * This ini is used to enable/disable probe request deferral as per OCE spec
- *
- * Related: None
- *
- * Supported Feature: OCE
+ * Related : nr_offload_params_bitmask
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_ENABLE_PROBE_REQ_DEFERRAL_NAME    "oce_enable_probe_req_deferral"
-#define CFG_ENABLE_PROBE_REQ_DEFERRAL_MIN     (0)
-#define CFG_ENABLE_PROBE_REQ_DEFERRAL_MAX     (1)
-#define CFG_ENABLE_PROBE_REQ_DEFERRAL_DEFAULT (0)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_NAME \
+	"nr_offload_bmiss_count_trigger"
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_MIN     (1)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_MAX     (5)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_BMISS_COUNT_TRIGGER_DEFAULT (1)
 
 /*
  * <ini>
- * oce_enable_fils_discovery_sap - Enable/disable fils discovery in sap mode
- * @Min: 0
- * @Max: 1
- * @Default: 0
+ * nr_offload_per_threshold_offset - offset from PER threshold to
+ * trigger a neighbor report request frame (in %)
+ * @Min: 5
+ * @Max: 20
+ * @Default: 5
  *
- * This ini is used to enable/disable fils discovery in sap mode
+ * This ini is used to set the neighbor report offload parameter:
  *
- * Related: None
- *
- * Supported Feature: FILS
+ * Related : nr_offload_params_bitmask
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_ENABLE_FILS_DISCOVERY_SAP_NAME    "oce_enable_fils_discovery_sap"
-#define CFG_ENABLE_FILS_DISCOVERY_SAP_MIN     (0)
-#define CFG_ENABLE_FILS_DISCOVERY_SAP_MAX     (1)
-#define CFG_ENABLE_FILS_DISCOVERY_SAP_DEFAULT (0)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_NAME \
+	"nr_offload_per_threshold_offset"
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_MIN     (5)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_MAX     (20)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_PER_THRESHOLD_OFFSET_DEFAULT (5)
 
 /*
  * <ini>
- * enable_esp_for_roam - Enable/disable esp feature
- * @Min: 0
- * @Max: 1
- * @Default: 0
+ * nr_offload_cache_timeout - time in seconds after which the
+ * neighbor report cache is marked as timed out and any of the triggers would
+ * cause a neighbor report request frame to be sent.
+ * @Min: 5
+ * @Max: 86400
+ * @Default: 1200
  *
- * This ini is used to enable/disable ESP(Estimated service parameters) IE
- * parsing and decides whether firmware will include this in its scoring algo.
- *
- * Related: None
- *
- * Supported Feature: STA
+ * Related : nr_offload_params_bitmask
  *
  * Usage: External
  *
  * </ini>
  */
-#define CFG_ENABLE_ESP_FEATURE_NAME    "enable_esp_for_roam"
-#define CFG_ENABLE_ESP_FEATURE_MIN     (0)
-#define CFG_ENABLE_ESP_FEATURE_MAX     (1)
-#define CFG_ENABLE_ESP_FEATURE_DEFAULT (0)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_NAME \
+	"nr_offload_cache_timeout"
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_MIN     (5)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_MAX     (86400)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_CACHE_TIMEOUT_DEFAULT (1200)
 
 /*
  * <ini>
- * gcmp_enabled - ini to enable/disable GCMP
- * @Min: 0
- * @Max: 1
- * @Default: 0
+ * nr_offload_max_req_cap - Max number of neighbor
+ * report requests that can be sent to a connected peer in the current session.
+ * This counter is reset once a successful roam happens or at cache timeout
+ * @Min: 3
+ * @Max: 300
+ * @Default: 3
  *
- * Currently Firmware update the sequence number for each TID with 2^3
- * because of security issues. But with this PN mechanism, throughput drop
- * is observed. With this ini FW takes the decision to trade off between
- * security and throughput
- *
- * Supported Feature: STA/SAP/P2P
+ * Related : nr_offload_params_bitmask
  *
  * Usage: External
  *
  * </ini>
  */
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_NAME \
+	"nr_offload_max_req_cap"
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_MIN     (3)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_MAX     (300)
+#define CFG_OFFLOAD_NEIGHBOR_REPORT_MAX_REQ_CAP_DEFAULT (3)
 
-#define CFG_ENABLE_GCMP_NAME    "gcmp_enabled"
-#define CFG_ENABLE_GCMP_MIN     (0)
-#define CFG_ENABLE_GCMP_MAX     (1)
-#define CFG_ENABLE_GCMP_DEFAULT (0)
+/*
+ * <ini>
+ * gTxSchDelay - Enable/Disable Tx sch delay
+ * @Min: 0
+ * @Max: 5
+ * @Default: 2
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_TX_SCH_DELAY_NAME          "gTxSchDelay"
+#define CFG_TX_SCH_DELAY_MIN           (0)
+#define CFG_TX_SCH_DELAY_MAX           (5)
+#define CFG_TX_SCH_DELAY_DEFAULT       (2)
 
 /*
  * <ini>
@@ -13570,7 +13328,6 @@ enum hw_filter_mode {
 #define CFG_ENABLE_UNIT_TEST_FRAMEWORK_MIN     (0)
 #define CFG_ENABLE_UNIT_TEST_FRAMEWORK_MAX     (1)
 #define CFG_ENABLE_UINT_TEST_FRAMEWORK_DEFAULT (0)
-
 
 /*---------------------------------------------------------------------------
    Type declarations
@@ -13719,11 +13476,6 @@ struct hdd_config {
 	uint32_t InfraUapsdBkSuspIntv;
 	bool isFastRoamIniFeatureEnabled;
 	bool MAWCEnabled;
-	bool mawc_roam_enabled;
-	uint32_t mawc_roam_traffic_threshold;
-	int8_t mawc_roam_ap_rssi_threshold;
-	uint8_t mawc_roam_rssi_high_adjust;
-	uint8_t mawc_roam_rssi_low_adjust;
 #ifdef FEATURE_WLAN_ESE
 	uint32_t InfraInactivityInterval;
 	bool isEseIniFeatureEnabled;
@@ -13885,7 +13637,6 @@ struct hdd_config {
 	uint8_t vhtTxMCS;
 	bool enableTxBF;
 	bool enable_txbf_sap_mode;
-	bool enable_vht20_mcs9;
 	uint8_t txBFCsnValue;
 	bool enable_su_tx_bformer;
 	uint8_t vhtRxMCS2x2;
@@ -14065,13 +13816,11 @@ struct hdd_config {
 	uint32_t busBandwidthLowThreshold;
 	uint32_t busBandwidthComputeInterval;
 	uint32_t enable_tcp_delack;
-	bool     enable_tcp_limit_output;
 	uint32_t enable_tcp_adv_win_scale;
 	uint32_t tcpDelackThresholdHigh;
 	uint32_t tcpDelackThresholdLow;
 	uint32_t tcp_tx_high_tput_thres;
 	uint32_t tcp_delack_timer_count;
-	uint8_t  periodic_stats_disp_time;
 #endif /* MSM_PLATFORM */
 
 	/* FW debug log parameters */
@@ -14175,7 +13924,6 @@ struct hdd_config {
 	bool sendDeauthBeforeCon;
 	bool tso_enable;
 	bool lro_enable;
-	bool gro_enable;
 	bool flow_steering_enable;
 	uint8_t max_msdus_per_rxinorderind;
 	bool active_mode_offload;
@@ -14234,10 +13982,6 @@ struct hdd_config {
 	uint8_t inform_bss_rssi_raw;
 #ifdef WLAN_FEATURE_TSF
 	uint32_t tsf_gpio_pin;
-
-#ifdef WLAN_FEATURE_TSF_PLUS
-	uint8_t tsf_ptp_options;
-#endif /* WLAN_FEATURE_TSF_PLUS */
 #endif
 	uint32_t roam_dense_traffic_thresh;
 	uint32_t roam_dense_rssi_thresh_offset;
@@ -14245,6 +13989,9 @@ struct hdd_config {
 	uint32_t roam_dense_min_aps;
 	int8_t roam_bg_scan_bad_rssi_thresh;
 	uint8_t roam_bad_rssi_thresh_offset_2g;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	uint32_t roam_bg_scan_client_bitmap;
 	bool enable_edca_params;
 	uint32_t edca_vo_cwmin;
@@ -14381,10 +14128,6 @@ struct hdd_config {
 	bool tx_orphan_enable;
 	uint8_t dfs_beacon_tx_enhanced;
 	uint8_t scan_backoff_multiplier;
-	bool mawc_nlo_enabled;
-	uint32_t mawc_nlo_exp_backoff_ratio;
-	uint32_t mawc_nlo_init_scan_interval;
-	uint32_t mawc_nlo_max_scan_interval;
 	bool is_force_1x1;
 	uint16_t num_11b_tx_chains;
 	uint16_t num_11ag_tx_chains;
@@ -14440,16 +14183,18 @@ struct hdd_config {
 	uint32_t oce_wan_score_slots15_to_12;
 	bool enable_scoring_for_roam;
 	bool chan_switch_hostapd_rate_enabled;
-	bool rssi_assoc_reject_enabled;
-	bool oce_probe_req_rate_enabled;
-	bool oce_probe_resp_rate_enabled;
-	bool oce_beacon_rate_enabled;
-	bool probe_req_deferral_enabled;
-	bool fils_discovery_sap_enabled;
-	bool esp_for_roam_enabled;
-	bool gcmp_enabled;
+	bool is_11k_offload_supported;
+	uint32_t offload_11k_enable_bitmask;
+	uint32_t neighbor_report_offload_params_bitmask;
+	uint32_t neighbor_report_offload_time_offset;
+	uint32_t neighbor_report_offload_low_rssi_offset;
+	uint32_t neighbor_report_offload_bmiss_count_trigger;
+	uint32_t neighbor_report_offload_per_threshold_offset;
+	uint32_t neighbor_report_offload_cache_timeout;
+	uint32_t neighbor_report_offload_max_req_cap;
+	uint8_t enable_tx_sch_delay;
+	bool roam_force_rssi_trigger;
 	bool is_unit_test_framework_enabled;
-	bool enable_ftopen;
 };
 
 #define VAR_OFFSET(_Struct, _Var) (offsetof(_Struct, _Var))

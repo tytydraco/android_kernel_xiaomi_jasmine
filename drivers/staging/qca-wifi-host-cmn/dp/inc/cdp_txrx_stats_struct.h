@@ -78,7 +78,6 @@ struct ol_txrx_stats {
 			 * an ack for
 			 */
 			ol_txrx_stats_elem no_ack;
-
 			/* MSDUs dropped in NSS-FW */
 			ol_txrx_stats_elem nss_ol_dropped;
 		} dropped;

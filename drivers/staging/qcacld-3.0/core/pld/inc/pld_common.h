@@ -45,10 +45,6 @@
 #define PLD_EPPING_FILE              "epping.bin"
 #define PLD_EVICTED_FILE             ""
 
-#ifdef CONFIG_WCNSS_MEM_PRE_ALLOC
-#include <net/cnss_prealloc.h>
-#endif
-
 /**
  * enum pld_bus_type - bus type
  * @PLD_BUS_TYPE_NONE: invalid bus type, only return in error cases
@@ -542,48 +538,8 @@ int pld_smmu_map(struct device *dev, phys_addr_t paddr,
 		 uint32_t *iova_addr, size_t size);
 unsigned int pld_socinfo_get_serial_number(struct device *dev);
 int pld_is_qmi_disable(struct device *dev);
-int pld_is_fw_down(void);
 int pld_force_assert_target(struct device *dev);
 bool pld_is_fw_dump_skipped(struct device *dev);
 void pld_set_cc_source(struct device *dev, enum pld_cc_src cc_source);
 enum pld_cc_src pld_get_cc_source(struct device *dev);
-
-#if defined(CONFIG_WCNSS_MEM_PRE_ALLOC) && defined(FEATURE_SKB_PRE_ALLOC)
-
-/**
- * pld_nbuf_pre_alloc() - get allocated nbuf from platform driver.
- * @size: Netbuf requested size
- *
- * Return: nbuf or NULL if no memory
- */
-static inline struct sk_buff *pld_nbuf_pre_alloc(size_t size)
-{
-	struct sk_buff *skb = NULL;
-
-	if (size >= WCNSS_PRE_SKB_ALLOC_GET_THRESHOLD)
-		skb = wcnss_skb_prealloc_get(size);
-
-	return skb;
-}
-
-/**
- * pld_nbuf_pre_alloc_free() - free the nbuf allocated in platform driver.
- * @skb: Pointer to network buffer
- *
- * Return: TRUE if the nbuf is freed
- */
-static inline int pld_nbuf_pre_alloc_free(struct sk_buff *skb)
-{
-	return wcnss_skb_prealloc_put(skb);
-}
-#else
-static inline struct sk_buff *pld_nbuf_pre_alloc(size_t size)
-{
-	return NULL;
-}
-static inline int pld_nbuf_pre_alloc_free(struct sk_buff *skb)
-{
-	return 0;
-}
-#endif
 #endif

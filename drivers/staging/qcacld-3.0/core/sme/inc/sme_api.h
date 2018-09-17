@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -47,7 +47,6 @@
 #include "cds_regdomain.h"
 #include "sme_internal.h"
 #include "wma_tgt_cfg.h"
-#include "wma_sar_public_structs.h"
 
 #include "sme_rrm_internal.h"
 #include "sir_types.h"
@@ -290,13 +289,6 @@ QDF_STATUS sme_close_session(tHalHandle hHal, uint8_t sessionId,
 		bool flush_all_sme_cmds,
 		csr_roamSessionCloseCallback callback,
 		void *pContext);
-/**
- * sme_print_commands(): Print active, pending sme and scan commands
- * @hal_handle: The handle returned by mac_open
- *
- * Return: None
- */
-void sme_print_commands(tHalHandle hal_handle);
 QDF_STATUS sme_update_roam_params(tHalHandle hHal, uint8_t session_id,
 		struct roam_ext_params *roam_params_src, int update_param);
 #ifdef FEATURE_WLAN_SCAN_PNO
@@ -396,6 +388,18 @@ QDF_STATUS sme_roam_set_pmkid_cache(tHalHandle hHal, uint8_t sessionId,
 		tPmkidCacheInfo *pPMKIDCache,
 		uint32_t numItems,
 		bool update_entire_cache);
+
+/**
+ * sme_get_pmk_info(): A wrapper function to request CSR to save PMK
+ * @hal: Global structure
+ * @session_id: SME session_id
+ * @pmk_cache: pointer to a structure of pmk
+ *
+ * Return: none
+ */
+void sme_get_pmk_info(tHalHandle hal, uint8_t session_id,
+		      tPmkidCacheInfo *pmk_cache);
+
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 QDF_STATUS sme_roam_set_psk_pmk(tHalHandle hHal, uint8_t sessionId,
 		uint8_t *pPSK_PMK, size_t pmk_len);
@@ -645,8 +649,8 @@ QDF_STATUS sme_receive_filter_clear_filter(tHalHandle hHal,
 #endif /* WLAN_FEATURE_PACKET_FILTERING */
 bool sme_is_channel_valid(tHalHandle hHal, uint8_t channel);
 QDF_STATUS sme_set_freq_band(tHalHandle hHal, uint8_t sessionId,
-		tSirRFBand eBand);
-QDF_STATUS sme_get_freq_band(tHalHandle hHal, tSirRFBand *pBand);
+		eCsrBand eBand);
+QDF_STATUS sme_get_freq_band(tHalHandle hHal, eCsrBand *pBand);
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 QDF_STATUS sme_set_gtk_offload(tHalHandle hal_ctx,
 		tpSirGtkOffloadParams request,
@@ -659,7 +663,7 @@ uint16_t sme_chn_to_freq(uint8_t chanNum);
 bool sme_is_channel_valid(tHalHandle hHal, uint8_t channel);
 QDF_STATUS sme_set_max_tx_power(tHalHandle hHal, struct qdf_mac_addr pBssid,
 		struct qdf_mac_addr pSelfMacAddress, int8_t dB);
-QDF_STATUS sme_set_max_tx_power_per_band(tSirRFBand band, int8_t db);
+QDF_STATUS sme_set_max_tx_power_per_band(eCsrBand band, int8_t db);
 QDF_STATUS sme_set_tx_power(tHalHandle hHal, uint8_t sessionId,
 		struct qdf_mac_addr bssid,
 		enum tQDF_ADAPTER_MODE dev_mode, int power);
@@ -1101,16 +1105,6 @@ QDF_STATUS sme_wifi_start_logger(tHalHandle hal,
 bool sme_neighbor_middle_of_roaming(tHalHandle hHal,
 						uint8_t sessionId);
 
-/*
- * sme_is_any_session_in_middle_of_roaming() - check if roaming is in progress
- * @hal: HAL Handle
- *
- * Checks if any SME session is in middle of roaming
- *
- * Return : true if roaming is in progress else false
- */
-bool sme_is_any_session_in_middle_of_roaming(tHalHandle hal);
-
 QDF_STATUS sme_enable_uapsd_for_ac(void *cds_ctx, uint8_t sta_id,
 				      sme_ac_enum_type ac, uint8_t tid,
 				      uint8_t pri, uint32_t srvc_int,
@@ -1378,7 +1372,7 @@ QDF_STATUS sme_issue_same_ap_reassoc_cmd(uint8_t session_id);
 void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
-		uint32_t vdev_type_nss, tSirRFBand band);
+		uint32_t vdev_type_nss, eCsrBand band);
 void sme_update_hw_dbs_capable(tHalHandle hal, uint8_t hw_dbs_capable);
 void sme_register_p2p_lo_event(tHalHandle hHal, void *context,
 					p2p_lo_callback callback);
@@ -1425,16 +1419,6 @@ QDF_STATUS sme_set_default_scan_ie(tHalHandle hal, uint16_t session_id,
 QDF_STATUS sme_update_session_param(tHalHandle hal, uint8_t session_id,
 		uint32_t param_type, uint32_t param_val);
 
-/**
- * sme_update_fils_setting() - API to update PE FILS setting
- * @hal: HAL handle for device
- * @session_id: Session ID
- * @param_val: Param value to be update
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS sme_update_fils_setting(tHalHandle hal, uint8_t session_id,
-				   uint8_t param_val);
 #ifdef WLAN_FEATURE_DISA
 /**
  * sme_encrypt_decrypt_msg_register_callback() - Registers
@@ -1544,19 +1528,6 @@ QDF_STATUS sme_power_debug_stats_req(tHalHandle hal, void (*callback_fn)
 				(struct  power_stats_response *response,
 				void *context), void *power_stats_context);
 #endif
-
-/**
- * sme_get_sar_power_limits() - get SAR limits
- * @hal: HAL handle
- * @callback: Callback function to invoke with the results
- * @context: Opaque context to pass back to caller in the callback
- *
- * Return: QDF_STATUS_SUCCESS if the request is successfully sent
- * to firmware for processing, otherwise an error status.
- */
-QDF_STATUS sme_get_sar_power_limits(tHalHandle hal,
-				    wma_sar_cb callback, void *context);
-
 /**
  * sme_set_sar_power_limits() - set sar limits
  * @hal: HAL handle
@@ -1566,7 +1537,6 @@ QDF_STATUS sme_get_sar_power_limits(tHalHandle hal,
  */
 QDF_STATUS sme_set_sar_power_limits(tHalHandle hal,
 				    struct sar_limit_cmd_params *sar_limit_cmd);
-
 void sme_set_cc_src(tHalHandle hal_handle, enum country_src);
 
 
@@ -1581,8 +1551,7 @@ QDF_STATUS sme_get_nud_debug_stats(tHalHandle hal,
 				   struct get_arp_stats_params
 				   *get_stats_param);
 QDF_STATUS sme_set_nud_debug_stats_cb(tHalHandle hal,
-			void (*cb)(void *, struct rsp_stats *, void *context),
-			void *context);
+				      void (*cb)(void *, struct rsp_stats *));
 
 
 #ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
@@ -2003,24 +1972,6 @@ void sme_display_disconnect_stats(tHalHandle hal, uint8_t session_id);
  */
 QDF_STATUS sme_set_vc_mode_config(uint32_t vc_bitmap);
 
-/*
- * sme_send_limit_off_channel_params() - send limit off channel parameters
- * @hal: global hal handle
- * @vdev_id: vdev id
- * @is_tos_active: tos active or inactive
- * @max_off_chan_time: max off channel time
- * @rest_time: rest time
- * @skip_dfs_chan: skip dfs channel
- *
- * This function sends command to WMA for setting limit off channel command
- * parameters.
- *
- * Return: QDF_STATUS enumeration.
- */
-QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
-		bool is_tos_active, uint32_t max_off_chan_time,
-		uint32_t rest_time, bool skip_dfs_chan);
-
 /**
  * sme_is_sta_key_exchange_in_progress() - checks whether the STA/P2P client
  * session has key exchange in progress
@@ -2032,6 +1983,21 @@ QDF_STATUS sme_send_limit_off_channel_params(tHalHandle hal, uint8_t vdev_id,
  *         false - if not in progress
  */
 bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id);
+
+/**
+ * sme_fast_reassoc() - invokes FAST REASSOC command
+ * @hal: handle returned by mac_open
+ * @profile: current connected profile
+ * @bssid: bssid to look for in scan cache
+ * @channel: channel on which reassoc should be send
+ * @vdev_id: vdev id
+ * @connected_bssid: bssid of currently connected profile
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS sme_fast_reassoc(tHalHandle hal, tCsrRoamProfile *profile,
+			    const tSirMacAddr bssid, int channel,
+			    uint8_t vdev_id, const tSirMacAddr connected_bssid);
 
 /*
  * sme_validate_channel_list() - Validate the given channel list

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -256,18 +256,6 @@ QDF_STATUS csr_process_same_ap_reassoc_cmd(tpAniSirGlobal mac_ctx,
 					tSmeCmd *sme_cmd);
 QDF_STATUS csr_process_scan_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 QDF_STATUS csr_roam_process_command(tpAniSirGlobal pMac, tSmeCmd *pCommand);
-
-/**
- * csr_roam_wm_status_change_complete() - Remove WM status change command
- *                                        from SME active command list
- * @mac_ctx: global mac context
- *
- * This API removes WM status change command from SME active command list
- * if present.
- *
- * Return: void
- */
-void csr_roam_wm_status_change_complete(tpAniSirGlobal mac_ctx);
 void csr_roam_process_wm_status_change_command(tpAniSirGlobal pMac,
 		tSmeCmd *pCommand);
 void csr_reinit_roam_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
@@ -337,7 +325,7 @@ QDF_STATUS csr_create_roam_scan_channel_list(tpAniSirGlobal pMac,
 		uint8_t sessionId,
 		uint8_t *pChannelList,
 		uint8_t numChannels,
-		const tSirRFBand eBand);
+		const eCsrBand eBand);
 #endif
 
 QDF_STATUS p2p_process_remain_on_channel_cmd(tpAniSirGlobal pMac,

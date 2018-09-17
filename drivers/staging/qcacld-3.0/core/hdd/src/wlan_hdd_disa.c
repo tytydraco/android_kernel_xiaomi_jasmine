@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -190,8 +190,8 @@ static int hdd_fill_encrypt_decrypt_params(struct encrypt_decrypt_req_params
 	uint8_t *tmp;
 	uint8_t fc[2];
 
-	if (hdd_nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ENCRYPTION_TEST_MAX,
-			  data, data_len, encrypt_decrypt_policy)) {
+	if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ENCRYPTION_TEST_MAX,
+		      data, data_len, encrypt_decrypt_policy)) {
 		hdd_err("Invalid ATTR");
 		return -EINVAL;
 	}
@@ -479,11 +479,6 @@ static int __wlan_hdd_cfg80211_encrypt_decrypt_msg(struct wiphy *wiphy,
 		return ret;
 
 	adapter = WLAN_HDD_GET_PRIV_PTR(dev);
-
-	if (hdd_ctx->config->is_ps_enabled) {
-		hdd_debug("DISA is not supported when PS is enabled");
-		return -EINVAL;
-	}
 
 	ret = hdd_encrypt_decrypt_msg(adapter, hdd_ctx, data, data_len);
 

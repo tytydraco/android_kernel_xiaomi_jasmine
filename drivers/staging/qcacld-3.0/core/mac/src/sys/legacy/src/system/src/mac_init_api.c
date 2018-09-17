@@ -86,7 +86,6 @@ tSirRetStatus mac_start(tHalHandle hHal, void *pHalMacStartParams)
 QDF_STATUS mac_stop(tHalHandle hHal, tHalStopType stopType)
 {
 	tpAniSirGlobal pMac = (tpAniSirGlobal) hHal;
-
 	pe_stop(pMac);
 	cfg_cleanup(pMac);
 

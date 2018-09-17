@@ -19,9 +19,6 @@
 #ifndef __PLD_SDIO_H__
 #define __PLD_SDIO_H__
 
-#ifdef CONFIG_PLD_SDIO_CNSS
-#include <net/cnss.h>
-#endif
 #include "pld_common.h"
 
 #ifdef MULTI_IF_NAME
@@ -116,11 +113,6 @@ static inline bool pld_sdio_is_fw_dump_skipped(void)
 {
 	return cnss_get_restart_level() == CNSS_RESET_SUBSYS_COUPLED;
 }
-
-static inline void pld_sdio_device_self_recovery(struct device *dev)
-{
-	cnss_common_device_self_recovery(dev);
-}
 #else
 static inline void *pld_sdio_get_virt_ramdump_mem(struct device *dev,
 		unsigned long *size)
@@ -136,9 +128,6 @@ static inline bool pld_sdio_is_fw_dump_skipped(void)
 	return false;
 }
 
-static inline void pld_sdio_device_self_recovery(struct device *dev)
-{
-}
 #endif
 void *pld_hif_sdio_get_virt_ramdump_mem(struct device *dev,
 						unsigned long *size);

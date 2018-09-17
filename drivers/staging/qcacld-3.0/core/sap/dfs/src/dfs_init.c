@@ -183,7 +183,6 @@ void dfs_reset_delayline(struct dfs_delayline *dl)
 void dfs_reset_radarq(struct ath_dfs *dfs)
 {
 	struct dfs_event *event;
-
 	if (dfs == NULL) {
 		DFS_DPRINTK(dfs, ATH_DEBUG_DFS, "%s: sc_dfs is NULL", __func__);
 		return;
@@ -311,7 +310,6 @@ int dfs_init_radar_filters(struct ieee80211com *ic,
 				max_pulsedur = ft->ft_maxdur;
 			for (i = ft->ft_mindur; i <= ft->ft_maxdur; i++) {
 				uint32_t stop = 0, tableindex = 0;
-
 				while ((tableindex < DFS_MAX_RADAR_OVERLAP)
 				       && (!stop)) {
 					if ((dfs->
@@ -488,7 +486,6 @@ bad4:
 void dfs_clear_stats(struct ieee80211com *ic)
 {
 	struct ath_dfs *dfs = (struct ath_dfs *)ic->ic_dfs;
-
 	if (dfs == NULL)
 		return;
 	OS_MEMZERO(&dfs->ath_dfs_stats, sizeof(struct dfs_stats));

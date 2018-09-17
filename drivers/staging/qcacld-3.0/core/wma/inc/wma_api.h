@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -40,7 +40,6 @@
 #include "lim_global.h"
 #include "cds_concurrency.h"
 #include "cds_utils.h"
-#include "wma_sar_public_structs.h"
 
 typedef void *WMA_HANDLE;
 
@@ -294,7 +293,9 @@ struct wma_lro_config_cmd_t {
 	uint32_t toeplitz_hash_ipv6[LRO_IPV6_SEED_ARR_SZ];
 };
 
+#if defined(FEATURE_LRO)
 int wma_lro_init(struct wma_lro_config_cmd_t *lro_config);
+#endif
 bool wma_is_scan_simultaneous_capable(void);
 
 QDF_STATUS wma_remove_beacon_filter(WMA_HANDLE wma,
@@ -381,20 +382,6 @@ QDF_STATUS wma_set_cts2self_for_p2p_go(void *wma_handle,
 		uint32_t cts2self_for_p2p_go);
 QDF_STATUS wma_set_tx_rx_aggregation_size
 	(struct sir_set_tx_rx_aggregation_size *tx_rx_aggregation_size);
-
-/**
- * wma_get_sar_limit() - get SAR limits from the target
- * @handle: wma handle
- * @callback: Callback function to invoke with the results
- * @context: Opaque context to pass back to caller in the callback
- *
- *  This function sends WMI command to get SAR limits.
- *
- *  Return: QDF_STATUS enumeration
- */
-QDF_STATUS wma_get_sar_limit(WMA_HANDLE handle,
-			     wma_sar_cb callback, void *context);
-
 /**
  * wma_set_sar_limit() - set sar limits in the target
  * @handle: wma handle
@@ -406,7 +393,6 @@ QDF_STATUS wma_get_sar_limit(WMA_HANDLE handle,
  */
 QDF_STATUS wma_set_sar_limit(WMA_HANDLE handle,
 		struct sar_limit_cmd_params *sar_limit_params);
-
 /**
  * wma_set_qpower_config() - update qpower config in wma
  * @vdev_id:	the Id of the vdev to configure
@@ -503,27 +489,13 @@ static inline void wma_spectral_scan_config(WMA_HANDLE wma_handle,
 }
 #endif
 
-QDF_STATUS wma_crash_inject(WMA_HANDLE wma_handle, uint32_t type,
-			    uint32_t delay_time_ms);
-
 /**
- * wma_wow_set_wake_time() - set timer pattern tlv, so that firmware will wake
- * up host after specified time is elapsed
- * @wma_handle: wma handle
- * @vdev_id: vdev id
- * @cookie: value to identify reason why host set up wake call.
- * @time: time in ms
+ * wma_cleanup_vdev_resp_and_hold_req() - cleaunup the vdev resp and hold req
+ * queue
+ * @priv : WMA handle
  *
- * Return: QDF status
+ * Return: None
  */
-QDF_STATUS wma_wow_set_wake_time(WMA_HANDLE wma_handle, uint8_t vdev_id,
-				 uint32_t cookie, uint32_t time);
-
-/**
- * wma_wmi_stop() - send wmi stop cmd
- *
- *  Return: None
- */
-void wma_wmi_stop(void);
+void wma_cleanup_vdev_resp_and_hold_req(void *priv);
 
 #endif

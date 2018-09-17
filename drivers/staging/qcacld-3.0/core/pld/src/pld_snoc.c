@@ -271,14 +271,8 @@ static int pld_snoc_uevent(struct device *dev,
 	return 0;
 }
 
-#ifdef MULTI_IF_NAME
-#define PLD_SNOC_OPS_NAME "pld_snoc_" MULTI_IF_NAME
-#else
-#define PLD_SNOC_OPS_NAME "pld_snoc"
-#endif
-
 struct icnss_driver_ops pld_snoc_ops = {
-	.name       = PLD_SNOC_OPS_NAME,
+	.name       = "pld_snoc",
 	.probe      = pld_snoc_probe,
 	.remove     = pld_snoc_remove,
 	.shutdown   = pld_snoc_shutdown,
@@ -437,7 +431,7 @@ int pld_snoc_get_soc_info(struct device *dev, struct pld_soc_info *info)
 		return -ENODEV;
 
 	ret = icnss_get_soc_info(dev, &icnss_info);
-	if (0 != ret)
+	if (ret)
 		return ret;
 
 	memcpy(info, &icnss_info, sizeof(*info));
@@ -453,7 +447,7 @@ int pld_snoc_get_soc_info(struct device *dev, struct pld_soc_info *info)
 		return -ENODEV;
 
 	ret = icnss_get_soc_info(&icnss_info);
-	if (0 != ret)
+	if (ret)
 		return ret;
 
 	memcpy(info, &icnss_info, sizeof(*info));

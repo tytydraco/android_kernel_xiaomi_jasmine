@@ -261,7 +261,6 @@ static void __lim_init_vars(tpAniSirGlobal pMac)
 static void __lim_init_assoc_vars(tpAniSirGlobal pMac)
 {
 	uint32_t val;
-
 	if (wlan_cfg_get_int(pMac, WNI_CFG_ASSOC_STA_LIMIT, &val)
 		!= eSIR_SUCCESS)
 		pe_err("cfg get assoc sta limit failed");
@@ -552,6 +551,9 @@ tSirRetStatus lim_initialize(tpAniSirGlobal pMac)
 
 	rrm_initialize(pMac);
 
+	qdf_mutex_create(&pMac->lim.lim_frame_register_lock);
+	qdf_list_create(&pMac->lim.gLimMgmtFrameRegistratinQueue, 0);
+
 	/* Initialize the configurations needed by PE */
 	if (eSIR_FAILURE == __lim_init_config(pMac)) {
 		/* We need to undo everything in lim_start */
@@ -591,7 +593,24 @@ tSirRetStatus lim_initialize(tpAniSirGlobal pMac)
 void lim_cleanup(tpAniSirGlobal pMac)
 {
 	uint8_t i;
+	/*
+	 * Before destroying the list making sure all the nodes have been
+	 * deleted Which should be the normal case, but a memory leak has been
+	 * reported
+	 */
 
+	struct mgmt_frm_reg_info *pLimMgmtRegistration = NULL;
+
+	qdf_mutex_acquire(&pMac->lim.lim_frame_register_lock);
+	while (qdf_list_remove_front(
+			&pMac->lim.gLimMgmtFrameRegistratinQueue,
+			(qdf_list_node_t **) &pLimMgmtRegistration) ==
+			QDF_STATUS_SUCCESS) {
+		qdf_mem_free(pLimMgmtRegistration);
+	}
+	qdf_mutex_release(&pMac->lim.lim_frame_register_lock);
+	qdf_list_destroy(&pMac->lim.gLimMgmtFrameRegistratinQueue);
+	qdf_mutex_destroy(&pMac->lim.lim_frame_register_lock);
 	qdf_mem_free(pMac->lim.gpLimRemainOnChanReq);
 	pMac->lim.gpLimRemainOnChanReq = NULL;
 	lim_cleanup_mlm(pMac);
@@ -633,17 +652,6 @@ void lim_cleanup(tpAniSirGlobal pMac)
 		qdf_mem_free(pMac->lim.gpLimMlmScanReq);
 		pMac->lim.gpLimMlmScanReq = NULL;
 	}
-
-	if (pMac->lim.limDisassocDeauthCnfReq.pMlmDisassocReq) {
-		qdf_mem_free(pMac->lim.limDisassocDeauthCnfReq.pMlmDisassocReq);
-		pMac->lim.limDisassocDeauthCnfReq.pMlmDisassocReq = NULL;
-	}
-
-	if (pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq) {
-		qdf_mem_free(pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq);
-		pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq = NULL;
-	}
-
 	/* Now, finally reset the deferred message queue pointers */
 	lim_reset_deferred_msg_q(pMac);
 
@@ -782,18 +790,8 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 	if (!QDF_IS_STATUS_SUCCESS(qdf_mutex_create(&pMac->lim.lkPeGlobalLock))) {
 		pe_err("pe lock init failed!");
 		status = eSIR_FAILURE;
-		goto pe_open_lock_1_fail;
+		goto pe_open_lock_fail;
 	}
-
-	if (QDF_IS_STATUS_ERROR(qdf_mutex_create(
-				&pMac->lim.lim_frame_register_lock))) {
-		pe_err("pe lock init failed!");
-		status = eSIR_FAILURE;
-		goto pe_open_lock_2_fail;
-	}
-
-	qdf_list_create(&pMac->lim.gLimMgmtFrameRegistratinQueue, 0);
-
 	pMac->lim.retry_packet_cnt = 0;
 	pMac->lim.ibss_retry_cnt = 0;
 
@@ -814,9 +812,7 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 
 	return status; /* status here will be eSIR_SUCCESS */
 
-pe_open_lock_2_fail:
-	qdf_mutex_destroy(&pMac->lim.lkPeGlobalLock);
-pe_open_lock_1_fail:
+pe_open_lock_fail:
 	qdf_mem_free(pMac->lim.gpSession);
 	pMac->lim.gpSession = NULL;
 pe_open_psession_fail:
@@ -836,21 +832,9 @@ pe_open_psession_fail:
 tSirRetStatus pe_close(tpAniSirGlobal pMac)
 {
 	uint8_t i;
-	qdf_list_node_t *lst_node;
 
 	if (ANI_DRIVER_TYPE(pMac) == QDF_DRIVER_TYPE_MFG)
 		return eSIR_SUCCESS;
-	/*
-	 * Before destroying the list making sure all the nodes have been
-	 * deleted
-	 */
-	while (qdf_list_remove_front(
-			&pMac->lim.gLimMgmtFrameRegistratinQueue,
-			&lst_node) == QDF_STATUS_SUCCESS) {
-		qdf_mem_free(lst_node);
-	}
-	qdf_list_destroy(&pMac->lim.gLimMgmtFrameRegistratinQueue);
-	qdf_mutex_destroy(&pMac->lim.lim_frame_register_lock);
 
 	if (pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq) {
 		qdf_mem_free(pMac->lim.limDisassocDeauthCnfReq.pMlmDeauthReq);
@@ -903,17 +887,6 @@ void pe_stop(tpAniSirGlobal pMac)
 	return;
 }
 
-static void pe_free_nested_messages(tSirMsgQ *msg)
-{
-	switch (msg->type) {
-	case WMA_SET_LINK_STATE_RSP:
-		qdf_mem_free(((tpLinkStateParams) msg->bodyptr)->callbackArg);
-		break;
-	default:
-		break;
-	}
-}
-
 /** -------------------------------------------------------------
    \fn pe_free_msg
    \brief Called by CDS scheduler (function cds_sched_flush_mc_mqs)
@@ -932,7 +905,6 @@ void pe_free_msg(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 				cds_pkt_return_packet((cds_pkt_t *) pMsg->
 						      bodyptr);
 			} else {
-				pe_free_nested_messages(pMsg);
 				qdf_mem_free((void *)pMsg->bodyptr);
 			}
 		}
@@ -1288,7 +1260,6 @@ lim_update_overlap_sta_param(tpAniSirGlobal pMac, tSirMacAddr bssId,
 			     tpLimProtStaParams pStaParams)
 {
 	int i;
-
 	if (!pStaParams->numSta) {
 		qdf_mem_copy(pMac->lim.protStaOverlapCache[0].addr,
 			     bssId, sizeof(tSirMacAddr));
@@ -1419,7 +1390,6 @@ lim_handle_ibss_coalescing(tpAniSirGlobal pMac,
 		uint32_t ieLen;
 		uint16_t tsfLater;
 		uint8_t *pIEs;
-
 		ieLen = WMA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
 		tsfLater = WMA_GET_RX_TSF_LATER(pRxPacketInfo);
 		pIEs = WMA_GET_RX_MPDU_DATA(pRxPacketInfo);
@@ -1789,7 +1759,6 @@ void lim_ps_offload_handle_missed_beacon_ind(tpAniSirGlobal pMac, tpSirMsgQ pMsg
 void lim_fill_join_rsp_ht_caps(tpPESession session, tpSirSmeJoinRsp join_rsp)
 {
 	tSirSmeHTProfile *ht_profile;
-
 	if (session == NULL) {
 		pe_err("Invalid Session");
 		return;
@@ -1830,7 +1799,6 @@ static void sir_parse_bcn_fixed_fields(tpAniSirGlobal mac_ctx,
 					uint8_t *buf)
 {
 	tDot11fFfCapabilities dst;
-
 	beacon_struct->timeStamp[0] = lim_get_u32(buf);
 	beacon_struct->timeStamp[1] = lim_get_u32(buf + 4);
 	buf += 8;
@@ -2034,7 +2002,6 @@ static inline void lim_copy_and_free_hlp_data_from_session(
  * @mac_ctx: MAC Context
  * @roam_sync_ind_ptr: Roam synch indication buffer pointer
  * @bss_desc: BSS Descriptor pointer
- * @reason: Reason for calling callback which decides the action to be taken.
  *
  * This is a PE level callback called from WMA to complete the roam synch
  * propagation at PE level and also fill the BSS descriptor which will be
@@ -2044,7 +2011,7 @@ static inline void lim_copy_and_free_hlp_data_from_session(
  */
 QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 	roam_offload_synch_ind *roam_sync_ind_ptr,
-	tpSirBssDescription  bss_desc, enum sir_roam_op_code reason)
+	tpSirBssDescription  bss_desc)
 {
 	tpPESession session_ptr;
 	tpPESession ft_session_ptr;
@@ -2059,54 +2026,20 @@ QDF_STATUS pe_roam_synch_callback(tpAniSirGlobal mac_ctx,
 		pe_err("LFR3:roam_sync_ind_ptr is NULL");
 		return status;
 	}
+	pe_debug("LFR3:Received WMA_ROAM_OFFLOAD_SYNCH_IND LFR3:auth: %d vdevId: %d",
+		roam_sync_ind_ptr->authStatus, roam_sync_ind_ptr->roamedVdevId);
+	lim_print_mac_addr(mac_ctx, roam_sync_ind_ptr->bssid.bytes,
+			QDF_TRACE_LEVEL_DEBUG);
 	session_ptr = pe_find_session_by_sme_session_id(mac_ctx,
 				roam_sync_ind_ptr->roamedVdevId);
 	if (session_ptr == NULL) {
 		pe_err("LFR3:Unable to find session");
 		return status;
 	}
-
 	if (!LIM_IS_STA_ROLE(session_ptr)) {
 		pe_err("LFR3:session is not in STA mode");
 		return status;
 	}
-
-	pe_debug("LFR3: PE callback reason: %d", reason);
-	switch (reason) {
-	case SIR_ROAMING_START:
-		session_ptr->fw_roaming_started = true;
-		return QDF_STATUS_SUCCESS;
-	case SIR_ROAMING_ABORT:
-		session_ptr->fw_roaming_started = false;
-		/*
-		 * If there was a disassoc or deauth that was received
-		 * during roaming and it was not honored, then we have
-		 * to internally initiate a disconnect because with
-		 * ROAM_ABORT we come back to original AP.
-		 */
-		if (session_ptr->recvd_deauth_while_roaming)
-			lim_perform_deauth(mac_ctx, session_ptr,
-					   session_ptr->deauth_disassoc_rc,
-					   session_ptr->bssId, 0);
-		if (session_ptr->recvd_disassoc_while_roaming) {
-			lim_disassoc_tdls_peers(mac_ctx, session_ptr,
-						session_ptr->bssId);
-			lim_perform_disassoc(mac_ctx, 0,
-					     session_ptr->deauth_disassoc_rc,
-					     session_ptr, session_ptr->bssId);
-		}
-		return QDF_STATUS_SUCCESS;
-	case SIR_ROAM_SYNCH_PROPAGATION:
-		session_ptr->fw_roaming_started = false;
-		break;
-	default:
-		return status;
-	}
-
-	pe_debug("LFR3:Received WMA_ROAM_OFFLOAD_SYNCH_IND LFR3:auth: %d vdevId: %d",
-		roam_sync_ind_ptr->authStatus, roam_sync_ind_ptr->roamedVdevId);
-	lim_print_mac_addr(mac_ctx, roam_sync_ind_ptr->bssid.bytes,
-			QDF_TRACE_LEVEL_DEBUG);
 	/*
 	 * If deauth from AP already in progress, ignore Roam Synch Indication
 	 * from firmware.
@@ -2451,7 +2384,6 @@ QDF_STATUS pe_acquire_global_lock(tAniSirLim *psPe)
 QDF_STATUS pe_release_global_lock(tAniSirLim *psPe)
 {
 	QDF_STATUS status = QDF_STATUS_E_INVAL;
-
 	if (psPe) {
 		if (QDF_IS_STATUS_SUCCESS
 			    (qdf_mutex_release(&psPe->lkPeGlobalLock))) {
@@ -2512,6 +2444,11 @@ QDF_STATUS lim_update_ext_cap_ie(tpAniSirGlobal mac_ctx,
 		return QDF_STATUS_E_FAILURE;
 	}
 
+	if ((*local_ie_len) > (MAX_DEFAULT_SCAN_IE_LEN - EXT_CAP_IE_HDR_LEN)) {
+		pe_err("Invalid Scan IE length");
+		return QDF_STATUS_E_FAILURE;
+	}
+
 	/* copy ie prior to ext cap to local buffer */
 	qdf_mem_copy(local_ie_buf, ie_data, (*local_ie_len));
 
@@ -2528,6 +2465,11 @@ QDF_STATUS lim_update_ext_cap_ie(tpAniSirGlobal mac_ctx,
 		pe_err("Failed %d to create ext cap IE. Use default value instead",
 				status);
 		local_ie_buf[*local_ie_len + 1] = DOT11F_IE_EXTCAP_MAX_LEN;
+		if ((*local_ie_len) > (MAX_DEFAULT_SCAN_IE_LEN -
+		    (DOT11F_IE_EXTCAP_MAX_LEN + EXT_CAP_IE_HDR_LEN))) {
+			pe_err("Invalid Scan IE length");
+			return QDF_STATUS_E_FAILURE;
+		}
 		(*local_ie_len) += EXT_CAP_IE_HDR_LEN;
 		qdf_mem_copy(local_ie_buf + (*local_ie_len),
 				default_scan_ext_cap.bytes,
@@ -2537,6 +2479,12 @@ QDF_STATUS lim_update_ext_cap_ie(tpAniSirGlobal mac_ctx,
 	}
 	lim_merge_extcap_struct(&driver_ext_cap, &default_scan_ext_cap, true);
 	local_ie_buf[*local_ie_len + 1] = driver_ext_cap.num_bytes;
+
+	if ((*local_ie_len) > (MAX_DEFAULT_SCAN_IE_LEN -
+	    (EXT_CAP_IE_HDR_LEN + driver_ext_cap.num_bytes))) {
+		pe_err("Invalid Scan IE length");
+		return QDF_STATUS_E_FAILURE;
+	}
 	(*local_ie_len) += EXT_CAP_IE_HDR_LEN;
 	qdf_mem_copy(local_ie_buf + (*local_ie_len),
 			driver_ext_cap.bytes, driver_ext_cap.num_bytes);

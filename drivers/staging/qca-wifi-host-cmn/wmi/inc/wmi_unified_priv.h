@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -408,9 +408,6 @@ QDF_STATUS (*send_reset_passpoint_network_list_cmd)(wmi_unified_t wmi_handle,
 QDF_STATUS (*send_roam_scan_offload_rssi_thresh_cmd)(wmi_unified_t wmi_handle,
 				struct roam_offload_scan_rssi_params *roam_req);
 
-QDF_STATUS (*send_roam_mawc_params_cmd)(wmi_unified_t wmi_handle,
-		struct wmi_mawc_roam_params *params);
-
 QDF_STATUS (*send_roam_scan_filter_cmd)(wmi_unified_t wmi_handle,
 				struct roam_scan_filter_params *roam_req);
 
@@ -465,9 +462,6 @@ QDF_STATUS (*send_pno_start_cmd)(wmi_unified_t wmi_handle,
 		   struct pno_scan_req_params *pno,
 		   uint32_t *gchannel_freq_list);
 #endif
-
-QDF_STATUS (*send_nlo_mawc_cmd)(wmi_unified_t wmi_handle,
-		struct nlo_mawc_params *params);
 
 QDF_STATUS (*send_ipa_offload_control_cmd)(wmi_unified_t wmi_handle,
 		struct ipa_offload_control_params *ipa_offload);
@@ -1198,13 +1192,6 @@ QDF_STATUS (*send_action_oui_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_sar_limit_cmd)(wmi_unified_t wmi_handle,
 				struct sar_limit_cmd_params *params);
-
-QDF_STATUS (*get_sar_limit_cmd)(wmi_unified_t wmi_handle);
-
-QDF_STATUS (*extract_sar_limit_event)(wmi_unified_t wmi_handle,
-				      uint8_t *evt_buf,
-				      struct sar_limit_event *event);
-
 uint16_t (*wmi_set_htc_tx_tag)(wmi_unified_t wmi_handle,
 				wmi_buf_t buf, uint32_t cmd_id);
 
@@ -1214,8 +1201,11 @@ QDF_STATUS (*send_get_rcpi_cmd)(wmi_unified_t wmi_handle,
 QDF_STATUS (*send_limit_off_chan_cmd)(wmi_unified_t wmi_handle,
 			struct wmi_limit_off_chan_param *limit_off_chan_param);
 
-QDF_STATUS (*send_wow_timer_pattern_cmd)(wmi_unified_t wmi_handle,
-			uint8_t vdev_id, uint32_t cookie, uint32_t time);
+QDF_STATUS (*send_offload_11k_cmd)(wmi_unified_t wmi_handle,
+		struct wmi_11k_offload_params *params);
+
+QDF_STATUS (*send_invoke_neighbor_report_cmd)(wmi_unified_t wmi_handle,
+		struct wmi_invoke_neighbor_report_params *params);
 };
 
 struct target_abi_version {

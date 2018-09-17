@@ -426,24 +426,6 @@ struct mac_ssid {
 } qdf_packed;
 
 /**
- * enum wmi_bcn_tx_rate_code - beacon tx rate code
- */
-enum wmi_bcn_tx_rate_code {
-	WMI_BCN_TX_RATE_CODE_1_M = 0x43,
-	WMI_BCN_TX_RATE_CODE_2_M = 0x42,
-	WMI_BCN_TX_RATE_CODE_5_5_M = 0x41,
-	WMI_BCN_TX_RATE_CODE_6_M = 0x03,
-	WMI_BCN_TX_RATE_CODE_9_M = 0x07,
-	WMI_BCN_TX_RATE_CODE_11M = 0x40,
-	WMI_BCN_TX_RATE_CODE_12_M = 0x02,
-	WMI_BCN_TX_RATE_CODE_18_M = 0x06,
-	WMI_BCN_TX_RATE_CODE_24_M = 0x01,
-	WMI_BCN_TX_RATE_CODE_36_M = 0x05,
-	WMI_BCN_TX_RATE_CODE_48_M = 0x00,
-	WMI_BCN_TX_RATE_CODE_54_M = 0x04,
-};
-
-/**
  * struct vdev_start_params - vdev start cmd parameter
  * @vdev_id: vdev id
  * @chan_freq: channel frequency
@@ -475,7 +457,6 @@ enum wmi_bcn_tx_rate_code {
  * @dot11_mode: Phy mode (VHT20/VHT80...)
  * @disable_hw_ack: Disable hw ack if chan is dfs channel for cac
  * @channel_param: Channel params required by target.
- * @bcn_tx_rate_code: Beacon tx rate code.
  */
 struct vdev_start_params {
 	uint8_t vdev_id;
@@ -506,7 +487,6 @@ struct vdev_start_params {
 	uint8_t disable_hw_ack;
 	struct channel_param channel;
 #endif
-	enum wmi_bcn_tx_rate_code bcn_tx_rate_code;
 	bool ldpc_rx_enabled;
 };
 
@@ -1824,6 +1804,7 @@ typedef struct {
 	uint32_t wmm_caps;
 	/* since this is 4 byte aligned, we don't declare it as tlv array */
 	uint32_t mcsset[WMI_HOST_ROAM_OFFLOAD_NUM_MCS_SET >> 2];
+	uint32_t ho_delay_for_rx;
 } roam_offload_param;
 
 #define WMI_FILS_MAX_RRK_LENGTH 64
@@ -1867,6 +1848,8 @@ struct roam_fils_params {
  * @prefer_5ghz: prefer select 5G candidate
  * @roam_rssi_cat_gap: gap for every category bucket
  * @select_5ghz_margin: select 5 Ghz margin
+ * @min_delay_btw_roam_scans: Delay btw two roam scans
+ * @roam_trigger_reason_bitmask: Roam reason bitmark
  * @krk: KRK
  * @btk: BTK
  * @reassoc_failure_timeout: reassoc failure timeout
@@ -1905,8 +1888,9 @@ struct roam_offload_scan_params {
 	bool fw_okc;
 	bool fw_pmksa_cache;
 #endif
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
 	bool is_ese_assoc;
-	bool is_11r_assoc;
 	struct mobility_domain_info mdid;
 #ifndef WMI_NON_TLV_SUPPORT
 	/* THis is not available in non tlv target.
@@ -2460,24 +2444,6 @@ struct pno_scan_req_params {
 	uint32_t oui_field_len;
 	uint8_t *voui;
 };
-
-/**
- * struct nlo_mawc_params - Motion Aided Wireless Connectivity based
- *                          Network List Offload configuration
- * @vdev_id: VDEV ID on which the configuration needs to be applied
- * @enable: flag to enable or disable
- * @exp_backoff_ratio: ratio of exponential backoff
- * @init_scan_interval: initial scan interval(msec)
- * @max_scan_interval:  max scan interval(msec)
- */
-struct nlo_mawc_params {
-	uint8_t vdev_id;
-	bool enable;
-	uint32_t exp_backoff_ratio;
-	uint32_t init_scan_interval;
-	uint32_t max_scan_interval;
-};
-
 
 #define WMI_WLAN_EXTSCAN_MAX_CHANNELS                 36
 #define WMI_WLAN_EXTSCAN_MAX_BUCKETS                  16
@@ -5200,7 +5166,6 @@ typedef enum {
 	wmi_ba_rsp_ssn_event_id,
 	wmi_aggr_state_trig_event_id,
 	wmi_roam_synch_event_id,
-	wmi_roam_synch_frame_event_id,
 	wmi_p2p_disc_event_id,
 	wmi_p2p_noa_event_id,
 	wmi_pdev_resume_event_id,
@@ -5259,7 +5224,6 @@ typedef enum {
 	wmi_tx_data_traffic_ctrl_event_id,
 	wmi_update_rcpi_event_id,
 	wmi_get_arp_stats_req_id,
-	wmi_sar_get_limits_event_id,
 
 	wmi_events_max,
 } wmi_conv_event_id;
@@ -7174,15 +7138,12 @@ struct encrypt_decrypt_req_params {
 
 #define MAX_SAR_LIMIT_ROWS_SUPPORTED 64
 /**
- * struct sar_limit_cmd_row - sar limits row
+ * struct sar_limit_cmd_row - sar limts row
  * @band_id: Optional param for frequency band
- *           See %enum wmi_sar_band_id_flags for possible values
  * @chain_id: Optional param for antenna chain id
  * @mod_id: Optional param for modulation scheme
- *          See %enum wmi_sar_mod_id_flags for possible values
  * @limit_value: Mandatory param providing power limits in steps of 0.5 dbm
  * @validity_bitmap: bitmap of valid optional params in sar_limit_cmd_row struct
- *                   See WMI_SAR_*_VALID_MASK for possible values
  */
 struct sar_limit_cmd_row {
 	uint32_t band_id;
@@ -7193,9 +7154,8 @@ struct sar_limit_cmd_row {
 };
 
 /**
- * struct sar_limit_cmd_params - sar limits params
+ * struct sar_limit_cmd_params - sar limts params
  * @sar_enable: flag to enable SAR
- *              See %enum wmi_sar_feature_state_flags for possible values
  * @num_limit_rows: number of items in sar_limits
  * @commit_limits: indicates firmware to start apply new SAR values
  * @sar_limit_row_list: pointer to array of sar limit rows
@@ -7205,38 +7165,6 @@ struct sar_limit_cmd_params {
 	uint32_t num_limit_rows;
 	uint32_t commit_limits;
 	struct sar_limit_cmd_row *sar_limit_row_list;
-};
-
-/**
- * struct sar_limit_event_row - sar limits row
- * @band_id: Frequency band.
- *           See %enum wmi_sar_band_id_flags for possible values
- * @chain_id: Chain id
- * @mod_id: Modulation scheme
- *          See %enum wmi_sar_mod_id_flags for possible values
- * @limit_value: Power limits in steps of 0.5 dbm that is currently active for
- *     the given @band_id, @chain_id, and @mod_id
- */
-struct sar_limit_event_row {
-	uint32_t band_id;
-	uint32_t chain_id;
-	uint32_t mod_id;
-	uint32_t limit_value;
-};
-
-/**
- * struct sar_limit_event - sar limits params
- * @sar_enable: Current status of SAR enablement.
- *              See %enum wmi_sar_feature_state_flags for possible values
- * @num_limit_rows: number of items in sar_limits
- * @sar_limit_row: array of sar limit rows. Only @num_limit_rows
- *                 should be considered valid.
- */
-struct sar_limit_event {
-	uint32_t sar_enable;
-	uint32_t num_limit_rows;
-	struct sar_limit_event_row
-			sar_limit_row[MAX_SAR_LIMIT_ROWS_SUPPORTED];
 };
 
 /**
@@ -7493,21 +7421,55 @@ struct wmi_limit_off_chan_param {
 };
 
 /**
- * struct wmi_mawc_roam_params - Motion Aided wireless connectivity params
- * @vdev_id: VDEV on which the parameters should be applied
- * @enable: MAWC roaming feature enable/disable
- * @traffic_load_threshold: Traffic threshold in kBps for MAWC roaming
- * @best_ap_rssi_threshold: AP RSSI Threshold for MAWC roaming
- * @rssi_stationary_high_adjust: High RSSI adjustment value to supress scan
- * @rssi_stationary_low_adjust: Low RSSI adjustment value to supress scan
+ * @time_offset: time offset after 11k offload command to trigger a neighbor
+ *	report request (in seconds)
+ * @low_rssi_offset: Offset from rssi threshold to trigger a neighbor
+ *	report request (in dBm)
+ * @bmiss_count_trigger: Number of beacon miss events to trigger neighbor
+ *	report request
+ * @per_threshold_offset: offset from PER threshold to trigger neighbor
+ *	report request (in %)
+ * @neighbor_report_cache_timeout: timeout after which new trigger can enable
+ *	sending of a neighbor report request (in seconds)
+ * @max_neighbor_report_req_cap: max number of neighbor report requests that
+ *	can be sent to the peer in the current session
+ * @ssid: Current connect SSID info
  */
-struct wmi_mawc_roam_params {
-	uint8_t vdev_id;
-	bool enable;
-	uint32_t traffic_load_threshold;
-	uint32_t best_ap_rssi_threshold;
-	uint8_t rssi_stationary_high_adjust;
-	uint8_t rssi_stationary_low_adjust;
+struct wmi_11k_offload_neighbor_report_params {
+	uint32_t time_offset;
+	uint32_t low_rssi_offset;
+	uint32_t bmiss_count_trigger;
+	uint32_t per_threshold_offset;
+	uint32_t neighbor_report_cache_timeout;
+	uint32_t max_neighbor_report_req_cap;
+	struct mac_ssid ssid;
+};
+
+/**
+ * struct wmi_11k_offload_params - offload 11k features to FW
+ * @vdev_id: vdev id
+ * @offload_11k_bitmask: bitmask to specify offloaded features
+ *	B0: Neighbor Report Request offload
+ *	B1-B31: Reserved
+ * @neighbor_report_params: neighbor report offload params
+ */
+struct wmi_11k_offload_params {
+	uint32_t vdev_id;
+	uint32_t offload_11k_bitmask;
+	struct wmi_11k_offload_neighbor_report_params neighbor_report_params;
+};
+
+/**
+ * struct wmi_invoke_neighbor_report_params - Invoke neighbor report request
+ *	from IW to FW
+ * @vdev_id: vdev id
+ * @send_resp_to_host: bool to send response to host or not
+ * @ssid: ssid given from the IW command
+ */
+struct wmi_invoke_neighbor_report_params {
+	uint32_t vdev_id;
+	uint32_t send_resp_to_host;
+	struct mac_ssid ssid;
 };
 
 /**

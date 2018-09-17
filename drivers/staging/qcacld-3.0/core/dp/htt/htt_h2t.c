@@ -103,10 +103,8 @@ void htt_h2t_send_complete(void *context, HTC_PACKET *htc_pkt)
 	if (pdev->cfg.is_high_latency && !pdev->cfg.default_tx_comp_req) {
 		int32_t credit_delta;
 
-		HTT_TX_MUTEX_ACQUIRE(&pdev->credit_mutex);
 		qdf_atomic_add(1, &pdev->htt_tx_credit.bus_delta);
 		credit_delta = htt_tx_credit_update(pdev);
-		HTT_TX_MUTEX_RELEASE(&pdev->credit_mutex);
 
 		if (credit_delta)
 			ol_tx_credit_completion_handler(pdev->txrx_pdev,
@@ -1293,10 +1291,6 @@ int htt_h2t_ipa_uc_set_active(struct htt_pdev_t *pdev,
 		active_target = HTT_WDI_IPA_OPCODE_RX_RESUME;
 	else if (!uc_active && !is_tx)
 		active_target = HTT_WDI_IPA_OPCODE_RX_SUSPEND;
-
-	QDF_TRACE(QDF_MODULE_ID_HTT, QDF_TRACE_LEVEL_INFO,
-			"%s: HTT_H2T_MSG_TYPE_WDI_IPA_OP_REQ (%d)\n",
-			__func__, active_target);
 
 	HTT_WDI_IPA_OP_REQUEST_OP_CODE_SET(*msg_word, active_target);
 	HTT_H2T_MSG_TYPE_SET(*msg_word, HTT_H2T_MSG_TYPE_WDI_IPA_OP_REQ);

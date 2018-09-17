@@ -59,7 +59,6 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include <dot11f.h>
 
 #define MAX_PEERS 32
-#define SIR_MAX_SUPPORTED_BSS 5
 
 #define OFFSET_OF(structType, fldName)   (&((structType *)0)->fldName)
 
@@ -275,6 +274,17 @@ typedef enum eSirScanType {
 	eSIR_BEACON_TABLE,
 } tSirScanType;
 
+/* Rsn Capabilities structure */
+struct rsn_caps {
+	uint16_t PreAuthSupported:1;
+	uint16_t NoPairwise:1;
+	uint16_t PTKSAReplayCounter:2;
+	uint16_t GTKSAReplayCounter:2;
+	uint16_t MFPRequired:1;
+	uint16_t MFPCapable:1;
+	uint16_t Reserved:8;
+};
+
 /* / Result codes Firmware return to Host SW */
 typedef enum eSirResultCodes {
 	eSIR_SME_SUCCESS,
@@ -419,20 +429,10 @@ typedef struct sSirSupportedRates {
 	uint16_t vhtTxHighestDataRate;
 } tSirSupportedRates, *tpSirSupportedRates;
 
-/**
- * enum eSirRFBand
- * @SIR_BAND_ALL:all bands
- * @SIR_BAND_2_4_GHZ: 2G band
- * @SIR_BAND_5_GHZ: 5G band
- * @SIR_BAND_UNKNOWN: Unsupported band
- * @SIR_BAND_MAX: Max number of band
- */
 typedef enum eSirRFBand {
-	SIR_BAND_ALL,
+	SIR_BAND_UNKNOWN,
 	SIR_BAND_2_4_GHZ,
 	SIR_BAND_5_GHZ,
-	SIR_BAND_UNKNOWN,
-	SIR_BAND_MAX = SIR_BAND_UNKNOWN,
 } tSirRFBand;
 
 typedef struct sSirRemainOnChnReq {
@@ -493,7 +493,6 @@ typedef struct sSirSmeReadyReq {
 	void *csr_roam_synch_cb;
 	void *pe_roam_synch_cb;
 	void *sme_msg_cb;
-	void *stop_roaming_cb;
 } tSirSmeReadyReq, *tpSirSmeReadyReq;
 
 /**
@@ -758,8 +757,9 @@ typedef struct sSirSmeStartBssReq {
 
 	bool obssEnabled;
 	uint8_t sap_dot11mc;
-	uint16_t beacon_tx_rate;
+	uint8_t beacon_tx_rate;
 	bool vendor_vht_sap;
+
 } tSirSmeStartBssReq, *tpSirSmeStartBssReq;
 
 #define GET_IE_LEN_IN_BSS(lenInBss) (lenInBss + sizeof(lenInBss) - \
@@ -1461,6 +1461,7 @@ typedef struct sSirSmeAssocInd {
 
 	tDot11fIEHTCaps HTCaps;
 	tDot11fIEVHTCaps VHTCaps;
+	tSirMacCapabilityInfo capability_info;
 } tSirSmeAssocInd, *tpSirSmeAssocInd;
 
 /* / Definition for Association confirm */
@@ -1721,7 +1722,6 @@ typedef struct sSirSmeDisassocInd {
 typedef struct sSirSmeDisassocCnf {
 	uint16_t messageType;   /* eWNI_SME_DISASSOC_CNF */
 	uint16_t length;
-	uint8_t sme_session_id;
 	tSirResultCodes statusCode;
 	struct qdf_mac_addr bssid;
 	struct qdf_mac_addr peer_macaddr;
@@ -2855,8 +2855,12 @@ typedef struct sSirUpdateAPWPARSNIEsReq {
 #define SIR_ROAM_SCAN_MAX_PB_REQ_SIZE    450
 /* Occupied channel list remains static */
 #define CHANNEL_LIST_STATIC                   1
-/* Occupied channel list can be dynamic */
-#define CHANNEL_LIST_DYNAMIC                  2
+/* Occupied channel list can be learnt after init */
+#define CHANNEL_LIST_DYNAMIC_INIT             2
+/* Occupied channel list can be learnt after flush */
+#define CHANNEL_LIST_DYNAMIC_FLUSH            3
+/* Occupied channel list can be learnt after update */
+#define CHANNEL_LIST_DYNAMIC_UPDATE           4
 #define SIR_ROAM_SCAN_24G_DEFAULT_CH     1
 #define SIR_ROAM_SCAN_5G_DEFAULT_CH      36
 #define SIR_ROAM_SCAN_RESERVED_BYTES     61
@@ -3098,19 +3102,6 @@ struct connected_pno_band_rssi_pref {
 };
 
 /**
- * struct sir_nlo_mawc_params - MAWC based NLO configuration
- * @mawc_nlo_enabled: enable/disable MAWC based NLO
- * @exp_backoff_ratio: MAWC based NLO exponential backoff ratio
- * @init_scan_interval: MAWC based NLO initial scan interval
- * @max_scan_interval: MAWC based NLO maximum scan interval
- */
-struct sir_nlo_mawc_params {
-	bool mawc_nlo_enabled;
-	uint32_t exp_backoff_ratio;
-	uint32_t init_scan_interval;
-	uint32_t max_scan_interval;
-};
-/**
  * struct sSirPNOScanReq - PNO Scan request structure
  * @enable: flag to enable or disable
  * @modePNO: PNO Mode
@@ -3144,7 +3135,6 @@ typedef struct sSirPNOScanReq {
 	uint32_t delay_start_time;
 	uint8_t fast_scan_max_cycles;
 	uint32_t scan_backoff_multiplier;
-	struct sir_nlo_mawc_params mawc_params;
 	uint32_t        active_min_time;
 	uint32_t        active_max_time;
 	uint32_t        passive_min_time;
@@ -3515,41 +3505,24 @@ struct pmkid_mode_bits {
  * @num_disallowed_aps: Maximum number of AP's in LCA list
  *
  */
-struct lca_disallow_config_params {
+struct lca_disallow_config_params{
     uint32_t disallow_duration;
     uint32_t rssi_channel_penalization;
     uint32_t num_disallowed_aps;
-};
-
-/**
- * struct mawc_params - Motion Aided Wireless Connectivity configuration
- * @MAWCEnabled: Global configuration for MAWC (Roaming/PNO/ExtScan)
- * @mawc_roam_enabled: MAWC roaming enable/disable
- * @mawc_roam_traffic_threshold: Traffic threshold in kBps for MAWC roaming
- * @mawc_roam_ap_rssi_threshold: AP RSSI threshold for MAWC roaming
- * @mawc_roam_rssi_high_adjust: High Adjustment value for suppressing scan
- * @mawc_roam_rssi_low_adjust: Low Adjustment value for suppressing scan
- */
-struct mawc_params {
-	bool mawc_enabled;
-	bool mawc_roam_enabled;
-	uint32_t mawc_roam_traffic_threshold;
-	int8_t mawc_roam_ap_rssi_threshold;
-	uint8_t mawc_roam_rssi_high_adjust;
-	uint8_t mawc_roam_rssi_low_adjust;
 };
 
 typedef struct sSirRoamOffloadScanReq {
 	uint16_t message_type;
 	uint16_t length;
 	bool RoamScanOffloadEnabled;
-	struct mawc_params mawc_roam_params;
+	bool MAWCEnabled;
 	int8_t LookupThreshold;
 	int8_t rssi_thresh_offset_5g;
 	uint8_t delay_before_vdev_stop;
 	uint8_t OpportunisticScanThresholdDiff;
 	uint8_t RoamRescanRssiDiff;
 	uint8_t RoamRssiDiff;
+	struct rsn_caps rsn_caps;
 	int32_t rssi_abs_thresh;
 	uint8_t ChannelCacheType;
 	uint8_t Command;
@@ -3563,7 +3536,6 @@ typedef struct sSirRoamOffloadScanReq {
 	uint8_t ValidChannelCount;
 	uint8_t ValidChannelList[SIR_ROAM_MAX_CHANNELS];
 	bool IsESEAssoc;
-	bool is_11r_assoc;
 	uint8_t nProbes;
 	uint16_t HomeAwayTime;
 	tSirRoamNetworkType ConnectedNetwork;
@@ -3606,6 +3578,11 @@ typedef struct sSirRoamOffloadScanReq {
 	struct roam_fils_params roam_fils_params;
 #endif
 	struct scoring_param score_params;
+	struct wmi_11k_offload_params offload_11k_params;
+	uint32_t ho_delay_for_rx;
+	uint32_t min_delay_btw_roam_scans;
+	uint32_t roam_trigger_reason_bitmask;
+	bool roam_force_rssi_trigger;
 } tSirRoamOffloadScanReq, *tpSirRoamOffloadScanReq;
 
 typedef struct sSirRoamOffloadScanRsp {
@@ -4433,6 +4410,11 @@ struct sir_peer_info_req {
  * @rssi: rssi
  * @tx_rate: last tx rate
  * @rx_rate: last rx rate
+ * @rx_mc_bc_cnt: Multicast broadcast packet count received from
+ *              current station
+ * MSB of rx_mc_bc_cnt indicates whether FW supports rx_mc_bc_cnt
+ * feature or not, if first bit is 1 it indictes that FW supports this
+ * feature, if it is 0 it indicates FW doesn't support this feature
  *
  * a station's information
  */
@@ -4441,6 +4423,7 @@ struct sir_peer_info {
 	int8_t rssi;
 	uint32_t tx_rate;
 	uint32_t rx_rate;
+	uint32_t rx_mc_bc_cnt;
 };
 
 /**

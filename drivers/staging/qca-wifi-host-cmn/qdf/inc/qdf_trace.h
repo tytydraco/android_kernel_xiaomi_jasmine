@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -178,7 +178,6 @@ typedef struct s_qdf_trace_data {
   * @QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD - HDD RX record
  * @QDF_DP_TRACE_CE_PACKET_PTR_RECORD - CE layer ptr record
  * @QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD- CE fastpath ptr record
- * @QDF_DP_TRACE_CE_FAST_PACKET_ERR_RECORD- CE fastpath error record
  * @QDF_DP_TRACE_RX_HTT_PACKET_PTR_RECORD - HTT RX record
  * @QDF_DP_TRACE_RX_OFFLOAD_HTT_PACKET_PTR_RECORD- HTT RX offload record
   * @QDF_DP_TRACE_MED_VERBOSITY - below this are part of med verbosity
@@ -212,7 +211,6 @@ enum  QDF_DP_TRACE_ID {
 	QDF_DP_TRACE_RX_HDD_PACKET_PTR_RECORD,
 	QDF_DP_TRACE_CE_PACKET_PTR_RECORD,
 	QDF_DP_TRACE_CE_FAST_PACKET_PTR_RECORD,
-	QDF_DP_TRACE_CE_FAST_PACKET_ERR_RECORD,
 	QDF_DP_TRACE_RX_HTT_PACKET_PTR_RECORD,
 	QDF_DP_TRACE_RX_OFFLOAD_HTT_PACKET_PTR_RECORD,
 	QDF_DP_TRACE_MED_VERBOSITY,
@@ -324,28 +322,18 @@ struct qdf_dp_trace_record_s {
  * @print_pkt_cnt: count of number of packets printed in live mode
  *.@high_tput_thresh: thresh beyond which live mode is turned off
  *.@thresh_time_limit: max time, in terms of BW timer intervals to wait,
- *          for determining if high_tput_thresh has been crossed. ~1s
- * @arp_req: stats for arp reqs
- * @arp_resp: stats for arp resps
- * @icmp_req: stats for icmp reqs
- * @icmp_resp: stats for icmp resps
- * @dhcp_disc: stats for dhcp discover msgs
- * @dhcp_req: stats for dhcp req msgs
- * @dhcp_off: stats for dhcp offer msgs
- * @dhcp_ack: stats for dhcp ack msgs
- * @dhcp_nack: stats for dhcp nack msgs
- * @dhcp_others: stats for other dhcp pkts types
- * @eapol_m1: stats for eapol m1
- * @eapol_m2: stats for eapol m2
- * @eapol_m3: stats for eapol m3
- * @eapol_m4: stats for eapol m4
- * @eapol_others: stats for other eapol pkt types
- * @icmpv6_req: stats for icmpv6 reqs
- * @icmpv6_resp: stats for icmpv6 resps
+ *	         for determining if high_tput_thresh has been crossed. ~1s
+ *.@arp_req: stats for arp reqs
+ *.@arp_resp: stats for arp resps
+ *.@icmp_req: stats for icmp reqs
+ *.@icmp_resp: stats for icmp resps
+ *.@icmpv6_req: stats for icmpv6 reqs
+ *.@icmpv6_resp: stats for icmpv6 resps
  *.@icmpv6_ns: stats for icmpv6 nss
  *.@icmpv6_na: stats for icmpv6 nas
  *.@icmpv6_rs: stats for icmpv6 rss
  *.@icmpv6_ra: stats for icmpv6 ras
+
  */
 struct s_qdf_dp_trace_data {
 	uint32_t head;
@@ -363,27 +351,16 @@ struct s_qdf_dp_trace_data {
 	/* Stats */
 	uint32_t tx_count;
 	uint32_t rx_count;
-	uint16_t arp_req;
-	uint16_t arp_resp;
-	uint16_t dhcp_disc;
-	uint16_t dhcp_req;
-	uint16_t dhcp_off;
-	uint16_t dhcp_ack;
-	uint16_t dhcp_nack;
-	uint16_t dhcp_others;
-	uint16_t eapol_m1;
-	uint16_t eapol_m2;
-	uint16_t eapol_m3;
-	uint16_t eapol_m4;
-	uint16_t eapol_others;
-	uint16_t icmp_req;
-	uint16_t icmp_resp;
-	uint16_t icmpv6_req;
-	uint16_t icmpv6_resp;
-	uint16_t icmpv6_ns;
-	uint16_t icmpv6_na;
-	uint16_t icmpv6_rs;
-	uint16_t icmpv6_ra;
+	uint32_t arp_req;
+	uint32_t arp_resp;
+	uint32_t icmp_req;
+	uint32_t icmp_resp;
+	uint32_t icmpv6_req;
+	uint32_t icmpv6_resp;
+	uint32_t icmpv6_ns;
+	uint32_t icmpv6_na;
+	uint32_t icmpv6_rs;
+	uint32_t icmpv6_ra;
 };
 
 
@@ -450,13 +427,6 @@ void qdf_dp_trace_set_track(qdf_nbuf_t nbuf, enum qdf_proto_dir dir);
 void qdf_dp_trace(qdf_nbuf_t nbuf, enum QDF_DP_TRACE_ID code,
 			uint8_t *data, uint8_t size, enum qdf_proto_dir dir);
 void qdf_dp_trace_dump_all(uint32_t count);
-
-/**
- * qdf_dp_trace_dump_stats() - dump DP Trace stats
- *
- * Return: none
- */
-void qdf_dp_trace_dump_stats(void);
 void qdf_dp_trace_throttle_live_mode(bool high_bw_request);
 typedef void (*tp_qdf_dp_trace_cb)(struct qdf_dp_trace_record_s*,
 					uint16_t index, bool live);
@@ -515,10 +485,6 @@ void qdf_dp_trace_dump_all(uint32_t count)
 {
 }
 
-static inline void qdf_dp_trace_dump_stats(void)
-{
-}
-
 static inline
 void qdf_dp_trace_disable_live_mode(void)
 {
@@ -558,44 +524,29 @@ void __printf(3, 4) qdf_snprintf(char *str_buffer, unsigned int size,
 #define QDF_SNPRINTF qdf_snprintf
 
 #ifdef TSOSEG_DEBUG
+static inline
+int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg,
+			   uint16_t caller)
+{
+	int rc = -1;
 
+	if (tsoseg != NULL) {
+		tsoseg->dbg.cur++;  tsoseg->dbg.cur &= 0x0f;
+		tsoseg->dbg.history[tsoseg->dbg.cur] = caller;
+		rc = tsoseg->dbg.cur;
+	}
+	return rc;
+};
 static inline void qdf_tso_seg_dbg_bug(char *msg)
 {
 	qdf_print(msg);
 	QDF_BUG(0);
 };
 
-static inline
-int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg, short id)
-{
-	int rc = -1;
-	unsigned int c;
-
-	qdf_assert(tsoseg);
-
-	if (id == TSOSEG_LOC_ALLOC) {
-		c = qdf_atomic_read(&(tsoseg->dbg.cur));
-		/* dont crash on the very first alloc on the segment */
-		c &= 0x0f;
-		/* allow only INIT and FREE ops before ALLOC */
-		if (tsoseg->dbg.h[c].id >= id)
-			qdf_tso_seg_dbg_bug("Rogue TSO seg alloc");
-	}
-	c = qdf_atomic_inc_return(&(tsoseg->dbg.cur));
-
-	c &= 0x0f;
-	tsoseg->dbg.h[c].ts = qdf_get_log_timestamp();
-	tsoseg->dbg.h[c].id = id;
-	rc = c;
-
-	return rc;
-};
-
 static inline void
 qdf_tso_seg_dbg_setowner(struct qdf_tso_seg_elem_t *tsoseg, void *owner)
 {
-	if (tsoseg != NULL)
-		tsoseg->dbg.txdesc = owner;
+	tsoseg->dbg.txdesc = owner;
 };
 
 static inline void
@@ -607,7 +558,8 @@ qdf_tso_seg_dbg_zero(struct qdf_tso_seg_elem_t *tsoseg)
 
 #else
 static inline
-int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg, short id)
+int qdf_tso_seg_dbg_record(struct qdf_tso_seg_elem_t *tsoseg,
+			   uint16_t caller)
 {
 	return 0;
 };

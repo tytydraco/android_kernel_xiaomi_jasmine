@@ -39,7 +39,7 @@
 #include <ol_txrx_dbg.h>
 #include <enet.h>               /* ETHERNET_HDR_LEN, etc. */
 #include <ipv4.h>               /* IPV4_HDR_LEN, etc. */
-#include <linux/ipv6.h>               /* IPV6_HDR_LEN, etc. */
+#include <ipv6.h>               /* IPV6_HDR_LEN, etc. */
 #include <ip_prot.h>            /* IP_PROTOCOL_TCP, etc. */
 
 #ifdef ATH_11AC_TXCOMPACT
@@ -270,10 +270,6 @@ ol_rx_mpdu_list_next(struct ol_txrx_pdev_t *pdev,
 				 pub.tx.dropped.download_fail.bytes, _b_cntrs);\
 			break;                                                 \
 		default:                                                       \
-			TXRX_STATS_ADD(_pdev,				       \
-				 pub.tx.dropped.others.pkts, _p_cntrs);        \
-			TXRX_STATS_ADD(_pdev,				       \
-				 pub.tx.dropped.others.bytes, _b_cntrs);       \
 			break;                                                 \
 		}                                                              \
 		TXRX_STATS_UPDATE_TX_COMP_HISTOGRAM(_pdev, _p_cntrs);          \

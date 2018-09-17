@@ -37,6 +37,7 @@
 #include "qdf_status.h"
 #include "cds_mq.h"
 #include "cds_api.h"
+#include "msg.h"
 #include "qdf_types.h"
 #include <wlan_ptt_sock_svc.h>
 

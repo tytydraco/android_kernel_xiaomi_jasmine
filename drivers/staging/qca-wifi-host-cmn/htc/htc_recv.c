@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -30,7 +30,7 @@
 #include <qdf_nbuf.h>           /* qdf_nbuf_t */
 
 /* HTC Control message receive timeout msec */
-#define HTC_CONTROL_RX_TIMEOUT     6000
+#define HTC_CONTROL_RX_TIMEOUT     3000
 
 #if defined(WLAN_DEBUG) || defined(DEBUG)
 void debug_dump_bytes(uint8_t *buffer, uint16_t length, char *pDescription)
@@ -81,48 +81,67 @@ static A_STATUS htc_process_trailer(HTC_TARGET *target,
 				    uint8_t *pBuffer,
 				    int Length, HTC_ENDPOINT_ID FromEndpoint);
 
-static void do_recv_completion_pkt(HTC_ENDPOINT *pEndpoint,
-				   HTC_PACKET *pPacket)
-{
-	if (pEndpoint->EpCallBacks.EpRecv == NULL) {
-		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-				("HTC ep %d has NULL recv callback on packet %pK\n",
-				 pEndpoint->Id,
-				 pPacket));
-		if (pPacket)
-			qdf_nbuf_free(pPacket->pPktContext);
-	} else {
-		AR_DEBUG_PRINTF(ATH_DEBUG_RECV,
-				("HTC calling ep %d recv callback on packet %pK\n",
-				 pEndpoint->Id, pPacket));
-		pEndpoint->EpCallBacks.EpRecv(pEndpoint->EpCallBacks.pContext,
-					      pPacket);
-	}
-}
-
 static void do_recv_completion(HTC_ENDPOINT *pEndpoint,
 			       HTC_PACKET_QUEUE *pQueueToIndicate)
 {
-	HTC_PACKET *pPacket;
 
-	if (HTC_QUEUE_EMPTY(pQueueToIndicate)) {
-		/* nothing to indicate */
-		return;
-	}
+	do {
 
-	while (!HTC_QUEUE_EMPTY(pQueueToIndicate)) {
-		pPacket = htc_packet_dequeue(pQueueToIndicate);
-		do_recv_completion_pkt(pEndpoint, pPacket);
-	}
+		if (HTC_QUEUE_EMPTY(pQueueToIndicate)) {
+			/* nothing to indicate */
+			break;
+		}
+
+		if (pEndpoint->EpCallBacks.EpRecvPktMultiple != NULL) {
+			AR_DEBUG_PRINTF(ATH_DEBUG_RECV,
+					("HTC calling ep %d, recv multiple callback (%d pkts)\n",
+					 pEndpoint->Id,
+					 HTC_PACKET_QUEUE_DEPTH
+						 (pQueueToIndicate)));
+			/* a recv multiple handler is being used, pass the queue
+			 * to the handler
+			 */
+			pEndpoint->EpCallBacks.EpRecvPktMultiple(
+						pEndpoint->EpCallBacks.pContext,
+						pQueueToIndicate);
+			INIT_HTC_PACKET_QUEUE(pQueueToIndicate);
+		} else {
+			HTC_PACKET *pPacket;
+			/* using legacy EpRecv */
+			while (!HTC_QUEUE_EMPTY(pQueueToIndicate)) {
+				pPacket = htc_packet_dequeue(pQueueToIndicate);
+				if (pEndpoint->EpCallBacks.EpRecv == NULL) {
+					AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+							("HTC ep %d has NULL recv callback on packet %pK\n",
+							 pEndpoint->Id,
+							 pPacket));
+					if (pPacket)
+						qdf_nbuf_free(
+							pPacket->pPktContext);
+					continue;
+				}
+				AR_DEBUG_PRINTF(ATH_DEBUG_RECV,
+						("HTC calling ep %d recv callback on packet %pK\n",
+						 pEndpoint->Id, pPacket));
+				pEndpoint->EpCallBacks.EpRecv(pEndpoint->
+							      EpCallBacks.
+							      pContext,
+							      pPacket);
+			}
+		}
+
+	} while (false);
+
 }
 
 static void recv_packet_completion(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint,
 				   HTC_PACKET *pPacket)
 {
-	do_recv_completion_pkt(pEndpoint, pPacket);
+	HTC_PACKET_QUEUE container;
 
-	/* recover the packet container */
-	free_htc_packet_container(target, pPacket);
+	INIT_HTC_PACKET_QUEUE_AND_ADD(&container, pPacket);
+	/* do completion */
+	do_recv_completion(pEndpoint, &container);
 }
 
 void htc_control_rx_complete(void *Context, HTC_PACKET *pPacket)
@@ -179,9 +198,8 @@ HTC_PACKET *allocate_htc_packet_container(HTC_TARGET *target)
 
 void free_htc_packet_container(HTC_TARGET *target, HTC_PACKET *pPacket)
 {
-	pPacket->ListLink.pPrev = NULL;
-
 	LOCK_HTC_RX(target);
+
 	if (NULL == target->pHTCPacketStructPool) {
 		target->pHTCPacketStructPool = pPacket;
 		pPacket->ListLink.pNext = NULL;
@@ -504,6 +522,8 @@ QDF_STATUS htc_rx_completion_handler(void *Context, qdf_nbuf_t netbuf,
 		qdf_nbuf_set_pktlen(netbuf, pPacket->ActualLength);
 
 		recv_packet_completion(target, pEndpoint, pPacket);
+		/* recover the packet container */
+		free_htc_packet_container(target, pPacket);
 		netbuf = NULL;
 
 	} while (false);
@@ -586,6 +606,7 @@ A_STATUS htc_add_receive_pkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
 void htc_flush_rx_hold_queue(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint)
 {
 	HTC_PACKET *pPacket;
+	HTC_PACKET_QUEUE container;
 
 	LOCK_HTC_RX(target);
 
@@ -600,8 +621,9 @@ void htc_flush_rx_hold_queue(HTC_TARGET *target, HTC_ENDPOINT *pEndpoint)
 				("Flushing RX packet:%pK, length:%d, ep:%d\n",
 				 pPacket, pPacket->BufferLength,
 				 pPacket->Endpoint));
+		INIT_HTC_PACKET_QUEUE_AND_ADD(&container, pPacket);
 		/* give the packet back */
-		do_recv_completion_pkt(pEndpoint, pPacket);
+		do_recv_completion(pEndpoint, &container);
 		LOCK_HTC_RX(target);
 	}
 

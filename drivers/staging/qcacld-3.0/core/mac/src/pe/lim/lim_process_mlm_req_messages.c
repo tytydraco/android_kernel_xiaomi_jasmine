@@ -596,7 +596,6 @@ lim_mlm_add_bss(tpAniSirGlobal mac_ctx,
 
 	addbss_param->dot11_mode = session->dot11mode;
 	addbss_param->nss = session->nss;
-	addbss_param->beacon_tx_rate = session->beacon_tx_rate;
 	if (QDF_IBSS_MODE == addbss_param->halPersona) {
 		addbss_param->nss_2g = mac_ctx->vdev_type_nss_2g.ibss;
 		addbss_param->nss_5g = mac_ctx->vdev_type_nss_5g.ibss;
@@ -1043,8 +1042,6 @@ static void lim_process_mlm_auth_req(tpAniSirGlobal mac_ctx, uint32_t *msg)
 	session = pe_find_session_by_session_id(mac_ctx, session_id);
 	if (NULL == session) {
 		pe_err("SessionId:%d does not exist", session_id);
-		qdf_mem_free(msg);
-		mac_ctx->lim.gpLimMlmAuthReq = NULL;
 		return;
 	}
 
@@ -1329,7 +1326,6 @@ lim_process_mlm_disassoc_req_ntf(tpAniSirGlobal mac_ctx,
 				qdf_mem_malloc(sizeof(tSirSmeDisassocRsp));
 			if (NULL == sme_disassoc_rsp) {
 				pe_err("memory allocation failed for disassoc rsp");
-				qdf_mem_free(mlm_disassocreq);
 				return;
 			}
 
@@ -1351,7 +1347,6 @@ lim_process_mlm_disassoc_req_ntf(tpAniSirGlobal mac_ctx,
 
 			lim_send_sme_disassoc_deauth_ntf(mac_ctx,
 					QDF_STATUS_SUCCESS, msg);
-			qdf_mem_free(mlm_disassocreq);
 			return;
 
 		}
@@ -1415,11 +1410,6 @@ lim_process_mlm_disassoc_req_ntf(tpAniSirGlobal mac_ctx,
 	/* Send Disassociate frame to peer entity */
 	if (send_disassoc_frame && (mlm_disassocreq->reasonCode !=
 		eSIR_MAC_DISASSOC_DUE_TO_FTHANDOFF_REASON)) {
-		if (mac_ctx->lim.limDisassocDeauthCnfReq.pMlmDisassocReq) {
-			pe_err("pMlmDisassocReq is not NULL, freeing");
-			qdf_mem_free(mac_ctx->lim.limDisassocDeauthCnfReq.
-				     pMlmDisassocReq);
-		}
 		mac_ctx->lim.limDisassocDeauthCnfReq.pMlmDisassocReq =
 			mlm_disassocreq;
 		/*
@@ -1520,7 +1510,6 @@ void lim_clean_up_disassoc_deauth_req(tpAniSirGlobal mac_ctx,
 {
 	tLimMlmDisassocReq *mlm_disassoc_req;
 	tLimMlmDeauthReq *mlm_deauth_req;
-
 	mlm_disassoc_req = mac_ctx->lim.limDisassocDeauthCnfReq.pMlmDisassocReq;
 	if (mlm_disassoc_req &&
 	    (!qdf_mem_cmp((uint8_t *) sta_mac,
@@ -1680,7 +1669,6 @@ lim_process_mlm_deauth_req_ntf(tpAniSirGlobal mac_ctx,
 				    qdf_mem_malloc(sizeof(tSirSmeDeauthRsp));
 				if (NULL == sme_deauth_rsp) {
 					pe_err("memory allocation failed for deauth rsp");
-					qdf_mem_free(mlm_deauth_req);
 					return;
 				}
 
@@ -1707,7 +1695,6 @@ lim_process_mlm_deauth_req_ntf(tpAniSirGlobal mac_ctx,
 
 				lim_send_sme_disassoc_deauth_ntf(mac_ctx,
 						QDF_STATUS_SUCCESS, msg_buf);
-				qdf_mem_free(mlm_deauth_req);
 				return;
 			}
 
@@ -1818,14 +1805,7 @@ lim_process_mlm_deauth_req_ntf(tpAniSirGlobal mac_ctx,
 	sta_ds->mlmStaContext.disassocReason = (tSirMacReasonCodes)
 					       mlm_deauth_req->reasonCode;
 	sta_ds->mlmStaContext.cleanupTrigger = mlm_deauth_req->deauthTrigger;
-
-	if (mac_ctx->lim.limDisassocDeauthCnfReq.pMlmDeauthReq) {
-		pe_err("pMlmDeauthReq is not NULL, freeing");
-		qdf_mem_free(mac_ctx->lim.limDisassocDeauthCnfReq.
-			     pMlmDeauthReq);
-	}
 	mac_ctx->lim.limDisassocDeauthCnfReq.pMlmDeauthReq = mlm_deauth_req;
-
 	/*
 	 * Set state to mlm State to eLIM_MLM_WT_DEL_STA_RSP_STATE
 	 * This is to address the issue of race condition between
@@ -1901,7 +1881,6 @@ lim_process_mlm_deauth_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	if (NULL == session) {
 		pe_err("session does not exist for given sessionId %d",
 			mlm_deauth_req->sessionId);
-		qdf_mem_free(mlm_deauth_req);
 		return;
 	}
 	lim_process_mlm_deauth_req_ntf(mac_ctx, QDF_STATUS_SUCCESS,
@@ -1937,18 +1916,12 @@ lim_process_mlm_set_keys_req(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 	}
 
 	mlm_set_keys_req = (tLimMlmSetKeysReq *) msg_buf;
-	if (mac_ctx->lim.gpLimMlmSetKeysReq != NULL) {
-		qdf_mem_free(mac_ctx->lim.gpLimMlmSetKeysReq);
-		mac_ctx->lim.gpLimMlmSetKeysReq = NULL;
-	}
 	/* Hold onto the SetKeys request parameters */
 	mac_ctx->lim.gpLimMlmSetKeysReq = (void *)mlm_set_keys_req;
 	session = pe_find_session_by_session_id(mac_ctx,
 				mlm_set_keys_req->sessionId);
 	if (NULL == session) {
 		pe_err("session does not exist for given sessionId");
-		qdf_mem_free(mlm_set_keys_req);
-		mac_ctx->lim.gpLimMlmSetKeysReq = NULL;
 		return;
 	}
 
@@ -2618,7 +2591,6 @@ void lim_set_channel(tpAniSirGlobal mac_ctx, uint8_t channel,
 		     uint8_t pe_session_id)
 {
 	tpPESession pe_session;
-
 	pe_session = pe_find_session_by_session_id(mac_ctx, pe_session_id);
 
 	if (NULL == pe_session) {

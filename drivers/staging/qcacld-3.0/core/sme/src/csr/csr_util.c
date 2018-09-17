@@ -845,7 +845,7 @@ uint16_t csr_check_concurrent_channel_overlap(tpAniSirGlobal mac_ctx,
 	}
 
 	sme_debug("intf_ch:%d sap_ch:%d cc_switch_mode:%d, dbs:%d",
-		intf_ch, sap_ch, cc_switch_mode, wma_is_dbs_enable());
+			intf_ch, sap_ch, cc_switch_mode, wma_is_dbs_enable());
 
 	if (intf_ch && sap_ch != intf_ch &&
 	    cc_switch_mode != QDF_MCC_TO_SCC_SWITCH_FORCE &&
@@ -1510,7 +1510,7 @@ uint32_t csr_translate_to_wni_cfg_dot11_mode(tpAniSirGlobal pMac,
 		break;
 	default:
 		sme_warn("doesn't expect %d as csrDo11Mode", csrDot11Mode);
-		if (SIR_BAND_2_4_GHZ == pMac->roam.configParam.eBand)
+		if (eCSR_BAND_24 == pMac->roam.configParam.eBand)
 			ret = WNI_CFG_DOT11_MODE_11G;
 		else
 			ret = WNI_CFG_DOT11_MODE_11A;
@@ -1823,7 +1823,7 @@ bool csr_is_phy_mode_match(tpAniSirGlobal pMac, uint32_t phyMode,
 eCsrCfgDot11Mode csr_find_best_phy_mode(tpAniSirGlobal pMac, uint32_t phyMode)
 {
 	eCsrCfgDot11Mode cfgDot11ModeToUse;
-	tSirRFBand eBand = pMac->roam.configParam.eBand;
+	eCsrBand eBand = pMac->roam.configParam.eBand;
 
 	if ((0 == phyMode) ||
 	    (eCSR_DOT11_MODE_11ac & phyMode) ||
@@ -1839,7 +1839,7 @@ eCsrCfgDot11Mode csr_find_best_phy_mode(tpAniSirGlobal pMac, uint32_t phyMode)
 		if ((eCSR_DOT11_MODE_11n | eCSR_DOT11_MODE_11n_ONLY) & phyMode)
 			cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11N;
 		else if (eCSR_DOT11_MODE_abg & phyMode) {
-			if (SIR_BAND_2_4_GHZ != eBand)
+			if (eCSR_BAND_24 != eBand)
 				cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11A;
 			else
 				cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11G;
@@ -2351,20 +2351,17 @@ QDF_STATUS csr_validate_mcc_beacon_interval(tpAniSirGlobal mac_ctx,
 
 /**
  * csr_is_auth_type11r() - Check if Authentication type is 11R
- * @mac: pointer to mac context
  * @auth_type: The authentication type that is used to make the connection
  * @mdie_present: Is MDIE IE present
  *
  * Return: true if is 11R auth type, false otherwise
  */
-bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType auth_type,
-			 uint8_t mdie_present)
+bool csr_is_auth_type11r(eCsrAuthType auth_type, uint8_t mdie_present)
 {
 	switch (auth_type) {
 	case eCSR_AUTH_TYPE_OPEN_SYSTEM:
-		if (mdie_present &&
-		    mac->roam.configParam.enable_ftopen)
-		return true;
+		if (mdie_present)
+			return true;
 		break;
 	case eCSR_AUTH_TYPE_FT_RSN_PSK:
 	case eCSR_AUTH_TYPE_FT_RSN:
@@ -2376,9 +2373,9 @@ bool csr_is_auth_type11r(tpAniSirGlobal mac, eCsrAuthType auth_type,
 }
 
 /* Function to return true if the profile is 11r */
-bool csr_is_profile11r(tpAniSirGlobal mac, tCsrRoamProfile *pProfile)
+bool csr_is_profile11r(tCsrRoamProfile *pProfile)
 {
-	return csr_is_auth_type11r(mac, pProfile->negotiatedAuthType,
+	return csr_is_auth_type11r(pProfile->negotiatedAuthType,
 				   pProfile->MDID.mdiePresent);
 }
 
@@ -2834,7 +2831,7 @@ static bool csr_get_rsn_information(tHalHandle hal, tCsrAuthList *auth_type,
 				    tCsrEncryptionList *mc_encryption,
 				    tDot11fIERSN *rsn_ie, uint8_t *ucast_cipher,
 				    uint8_t *mcast_cipher, uint8_t *auth_suite,
-				    tCsrRSNCapabilities *capabilities,
+				    struct rsn_caps *capabilities,
 				    eCsrAuthType *negotiated_authtype,
 				    eCsrEncryptionType *negotiated_mccipher)
 {
@@ -3167,7 +3164,6 @@ static bool csr_lookup_pmkid_using_bssid(tpAniSirGlobal mac,
 {
 	uint32_t i;
 	tPmkidCacheInfo *session_pmk;
-
 	for (i = 0; i < session->NumPmkidCache; i++) {
 		session_pmk = &session->PmkidCacheInfo[i];
 		sme_debug("Matching BSSID: " MAC_ADDRESS_STR " to cached BSSID:"
@@ -3318,7 +3314,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 	uint8_t MulticastCypher[CSR_RSN_OUI_SIZE];
 	uint8_t AuthSuite[CSR_RSN_OUI_SIZE];
 	tCsrRSNAuthIe *pAuthSuite;
-	tCsrRSNCapabilities RSNCapabilities;
+	struct rsn_caps RSNCapabilities;
 	tCsrRSNPMKIe *pPMK;
 	tPmkidCacheInfo pmkid_cache;
 #ifdef WLAN_FEATURE_11W
@@ -3326,7 +3322,10 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 #endif
 	tDot11fBeaconIEs *pIesLocal = pIes;
 	eCsrAuthType negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
+	tCsrRoamSession *session = CSR_GET_SESSION(pMac, sessionId);
 
+	if (!CSR_IS_SESSION_VALID(pMac, sessionId) || !session)
+		return 0;
 	qdf_mem_zero(&pmkid_cache, sizeof(pmkid_cache));
 	do {
 		if (!csr_is_profile_rsn(pProfile))
@@ -3416,6 +3415,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		} else {
 			pPMK->cPMKIDs = 0;
 		}
+		session->rsn_caps = RSNCapabilities;
 
 #ifdef WLAN_FEATURE_11W
 		/* Advertise BIP in group cipher key management only if PMF is
@@ -3440,7 +3440,7 @@ uint8_t csr_construct_rsn_ie(tHalHandle hHal, uint32_t sessionId,
 		pRSNIe->IeHeader.Length =
 			(uint8_t) (sizeof(*pRSNIe) - sizeof(pRSNIe->IeHeader) +
 				   sizeof(*pAuthSuite) +
-				   sizeof(tCsrRSNCapabilities));
+				   sizeof(struct rsn_caps));
 		if (pPMK->cPMKIDs)
 			pRSNIe->IeHeader.Length += (uint8_t) (sizeof(uint16_t) +
 							      (pPMK->cPMKIDs *

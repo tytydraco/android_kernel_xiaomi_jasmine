@@ -303,7 +303,7 @@ populate_dot11f_chan_switch_wrapper(tpAniSirGlobal pMac,
 	/*
 	 * Add the VHT Transmit power Envelope Sublement.
 	 */
-	ie_ptr = lim_get_ie_ptr_new(pMac,
+	ie_ptr = wlan_cfg_get_ie_ptr(
 		psessionEntry->addIeParams.probeRespBCNData_buff,
 		psessionEntry->addIeParams.probeRespBCNDataLen,
 		DOT11F_EID_VHT_TRANSMIT_POWER_ENV, ONE_BYTE);
@@ -852,7 +852,6 @@ static void lim_log_operating_mode(tpAniSirGlobal pMac,
 static void lim_log_qos_map_set(tpAniSirGlobal pMac, tSirQosMapSet *pQosMapSet)
 {
 	uint8_t i;
-
 	if (pQosMapSet->num_dscp_exceptions > QOS_MAP_MAX_EX)
 		pQosMapSet->num_dscp_exceptions = QOS_MAP_MAX_EX;
 	pe_debug("num of dscp exceptions: %d",
@@ -1068,25 +1067,6 @@ populate_dot11f_vht_caps(tpAniSirGlobal pMac,
 				VHT_TX_HIGHEST_SUPPORTED_DATA_RATE_1_1;
 			pDot11f->rxHighSupDataRate =
 				VHT_RX_HIGHEST_SUPPORTED_DATA_RATE_1_1;
-			if (!psessionEntry->ch_width &&
-			    !pMac->roam.configParam.enable_vht20_mcs9 &&
-			    ((pDot11f->txMCSMap & VHT_1x1_MCS_MASK) ==
-			     VHT_1x1_MCS9_MAP)) {
-				DISABLE_VHT_MCS_9(pDot11f->txMCSMap,
-						NSS_1x1_MODE);
-				DISABLE_VHT_MCS_9(pDot11f->rxMCSMap,
-						NSS_1x1_MODE);
-			}
-		} else {
-			if (!psessionEntry->ch_width &&
-			    !pMac->roam.configParam.enable_vht20_mcs9 &&
-			    ((pDot11f->txMCSMap & VHT_2x2_MCS_MASK) ==
-			     VHT_2x2_MCS9_MAP)) {
-				DISABLE_VHT_MCS_9(pDot11f->txMCSMap,
-						NSS_2x2_MODE);
-				DISABLE_VHT_MCS_9(pDot11f->rxMCSMap,
-						NSS_2x2_MODE);
-			}
 		}
 	}
 	lim_log_vht_cap(pMac, pDot11f);
@@ -1375,7 +1355,6 @@ populate_dot11f_ibss_params(tpAniSirGlobal pMac,
 			    tpPESession psessionEntry)
 {
 	uint32_t val = 0;
-
 	if (LIM_IS_IBSS_ROLE(psessionEntry)) {
 		if (wlan_cfg_get_int(pMac,
 				     WNI_CFG_IBSS_ATIM_WIN_SIZE,
@@ -2938,7 +2917,6 @@ sir_convert_assoc_req_frame2_struct(tpAniSirGlobal pMac,
 	}
 	if (ar->ExtCap.present) {
 		struct s_ext_cap *ext_cap;
-
 		qdf_mem_copy(&pAssocReq->ExtCap, &ar->ExtCap,
 			    sizeof(tDot11fIEExtCap));
 		ext_cap = (struct s_ext_cap *)&pAssocReq->ExtCap.bytes;
@@ -3240,7 +3218,6 @@ sir_convert_assoc_resp_frame2_struct(tpAniSirGlobal pMac,
 
 	if (ar->ExtCap.present) {
 		struct s_ext_cap *ext_cap;
-
 		qdf_mem_copy(&pAssocRsp->ExtCap, &ar->ExtCap,
 				sizeof(tDot11fIEExtCap));
 		ext_cap = (struct s_ext_cap *)&pAssocRsp->ExtCap.bytes;
@@ -3448,7 +3425,6 @@ sir_convert_reassoc_req_frame2_struct(tpAniSirGlobal pMac,
 	}
 	if (ar.ExtCap.present) {
 		struct s_ext_cap *ext_cap;
-
 		qdf_mem_copy(&pAssocReq->ExtCap, &ar.ExtCap,
 			     sizeof(tDot11fIEExtCap));
 		ext_cap = (struct s_ext_cap *)&pAssocReq->ExtCap.bytes;
@@ -4940,7 +4916,6 @@ sir_convert_qos_map_configure_frame2_struct(tpAniSirGlobal pMac,
 {
 	tDot11fQosMapConfigure mapConfigure;
 	uint32_t status;
-
 	status =
 		dot11f_unpack_qos_map_configure(pMac, pFrame, nFrame,
 						&mapConfigure, false);
@@ -4969,7 +4944,6 @@ sir_convert_tpc_req_frame2_struct(tpAniSirGlobal pMac,
 {
 	tDot11fTPCRequest req;
 	uint32_t status;
-
 	qdf_mem_set((uint8_t *) pTpcReqFrame, sizeof(tSirMacTpcReqActionFrame),
 		    0);
 	status = dot11f_unpack_tpc_request(pMac, pFrame, nFrame, &req, false);
@@ -5162,7 +5136,6 @@ tSirRetStatus populate_dot11f_ese_cckm_opaque(tpAniSirGlobal pMac,
 					      tDot11fIEESECckmOpaque *pDot11f)
 {
 	int idx;
-
 	if (pCCKMie->length) {
 		idx = find_ie_location(pMac, (tpSirRSNie) pCCKMie,
 						 DOT11F_EID_ESECCKMOPAQUE);

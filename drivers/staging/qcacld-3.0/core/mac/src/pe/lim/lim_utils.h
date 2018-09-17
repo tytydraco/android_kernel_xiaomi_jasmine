@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -45,10 +45,6 @@
 #include "lim_scan_result_utils.h"
 #include "lim_timer_utils.h"
 #include "lim_trace.h"
-typedef enum {
-	ONE_BYTE = 1,
-	TWO_BYTE = 2
-} eSizeOfLenField;
 
 #define LIM_STA_ID_MASK                        0x00FF
 #define LIM_AID_MASK                              0xC000
@@ -66,9 +62,6 @@ typedef enum {
 
 #define CENTER_FREQ_DIFF_160MHz 8
 #define CENTER_FREQ_DIFF_80P80MHz 16
-
-#define CH_TO_CNTR_FREQ_DIFF_160MHz 14
-#define CH_TO_CNTR_FREQ_DIFF_80MHz 6
 
 #define IS_VHT_NSS_1x1(__mcs_map)	((__mcs_map & 0xFFFC) == 0xFFFC)
 
@@ -107,6 +100,18 @@ void lim_print_sme_state(tpAniSirGlobal pMac, uint16_t logLevel,
 		tLimSmeStates state);
 void lim_print_msg_name(tpAniSirGlobal pMac, uint16_t logLevel, uint32_t msgType);
 
+/**
+ * lim_send_open_system_auth() - api to send open system auth frame
+ * @ctx: Pointer to global mac structure
+ * @session_id: session id
+ *
+ * This function is used to send open system auth when
+ * shared auth fails with reason-algo not supported
+ *
+ * Return: None
+ */
+void lim_send_open_system_auth(void *ctx, uint32_t param);
+
 extern tSirRetStatus lim_send_set_max_tx_power_req(tpAniSirGlobal pMac,
 		int8_t txPower,
 		tpPESession pSessionEntry);
@@ -114,6 +119,9 @@ extern uint8_t lim_get_max_tx_power(int8_t regMax, int8_t apTxPower,
 		uint8_t iniTxPower);
 uint8_t lim_is_addr_bc(tSirMacAddr);
 uint8_t lim_is_group_addr(tSirMacAddr);
+
+/* check for type of scan allowed */
+uint8_t lim_active_scan_allowed(tpAniSirGlobal, uint8_t);
 
 /* AID pool management functions */
 void lim_init_peer_idxpool(tpAniSirGlobal, tpPESession);
@@ -465,9 +473,6 @@ tpPESession lim_is_ibss_session_active(tpAniSirGlobal pMac);
 tpPESession lim_is_ap_session_active(tpAniSirGlobal pMac);
 void lim_handle_heart_beat_failure_timeout(tpAniSirGlobal pMac);
 
-uint8_t *lim_get_ie_ptr_new(tpAniSirGlobal pMac, uint8_t *pIes, int length,
-		uint8_t eid, eSizeOfLenField size_of_len_field);
-
 #define limGetWscIEPtr(pMac, ie, ie_len) \
 	cfg_get_vendor_ie_ptr_from_oui(pMac, SIR_MAC_WSC_OUI, \
 			SIR_MAC_WSC_OUI_SIZE, ie, ie_len)
@@ -548,7 +553,7 @@ typedef enum {
 	WLAN_PE_DIAG_DEAUTH_CNF_EVENT,
 	WLAN_PE_DIAG_ADDTS_REQ_EVENT,
 	WLAN_PE_DIAG_ADDTS_RSP_EVENT = 30,
-	WLAN_PE_DIAG_DELTS_REQ_EVENT,
+	WLAN_PE_DIAG_DELTS_REQ_EVENT ,
 	WLAN_PE_DIAG_DELTS_RSP_EVENT,
 	WLAN_PE_DIAG_DELTS_IND_EVENT,
 	WLAN_PE_DIAG_ENTER_BMPS_REQ_EVENT,
@@ -562,7 +567,7 @@ typedef enum {
 	WLAN_PE_DIAG_EXIT_IMPS_RSP_EVENT,
 	WLAN_PE_DIAG_ENTER_UAPSD_REQ_EVENT,
 	WLAN_PE_DIAG_ENTER_UAPSD_RSP_EVENT,
-	WLAN_PE_DIAG_EXIT_UAPSD_REQ_EVENT,
+	WLAN_PE_DIAG_EXIT_UAPSD_REQ_EVENT ,
 	WLAN_PE_DIAG_EXIT_UAPSD_RSP_EVENT,
 	WLAN_PE_DIAG_WOWL_ADD_BCAST_PTRN_EVENT,
 	WLAN_PE_DIAG_WOWL_DEL_BCAST_PTRN_EVENT,
@@ -761,7 +766,7 @@ void lim_send_set_dtim_period(tpAniSirGlobal mac_ctx, uint8_t dtim_period,
 
 tSirRetStatus lim_strip_ie(tpAniSirGlobal mac_ctx,
 		uint8_t *addn_ie, uint16_t *addn_ielen,
-		uint8_t eid, eSizeOfLenField size_of_len_field,
+		uint8_t eid, enum size_of_len_field size_of_len_field,
 		uint8_t *oui, uint8_t out_len, uint8_t *extracted_ie,
 		uint32_t eid_max_len);
 bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, enum channel_enum ch,

@@ -848,28 +848,28 @@ htt_t2h_tx_ppdu_log_print(struct ol_fw_tx_dbg_ppdu_msg_hdr *hdr,
 	calculated_record_size = record_size +
 				hdr->mpdu_bytes_array_len * sizeof(uint16_t);
 	if (calculated_record_size < record_size) {
-		qdf_err("Overflow due to record and hdr->mpdu_bytes_array_len %u",
+		qdf_print("Overflow due to record and hdr->mpdu_bytes_array_len %u",
 			hdr->mpdu_bytes_array_len);
 		return;
 	}
 	record_size = calculated_record_size;
 	calculated_record_size += hdr->mpdu_msdus_array_len * sizeof(uint8_t);
 	if (calculated_record_size < record_size) {
-		qdf_err("Overflow due to hdr->mpdu_msdus_array_len %u",
+		qdf_print("Overflow due to hdr->mpdu_msdus_array_len %u",
 			hdr->mpdu_msdus_array_len);
 		return;
 	}
 	record_size = calculated_record_size;
 	calculated_record_size += hdr->msdu_bytes_array_len * sizeof(uint16_t);
 	if (calculated_record_size < record_size) {
-		qdf_err("Overflow due to hdr->msdu_bytes_array_len %u",
+		qdf_print("Overflow due to hdr->msdu_bytes_array_len %u",
 			hdr->msdu_bytes_array_len);
 		return;
 	}
 	record_size = calculated_record_size;
 	num_records = (length - sizeof(*hdr)) / record_size;
 	if (num_records < 0) {
-		qdf_err("Underflow due to length %d", length);
+		qdf_print("Underflow due to length %d", length);
 		return;
 	}
 	qdf_debug("Tx PPDU log elements: num_records %d", num_records);
@@ -977,7 +977,7 @@ htt_t2h_tx_ppdu_log_print(struct ol_fw_tx_dbg_ppdu_msg_hdr *hdr,
 			p8 = (uint8_t *) record;
 			calculated_p8 = p8 + sizeof(struct ol_fw_tx_dbg_ppdu_base);
 			if (calculated_p8 < p8) {
-				qdf_err("Overflow due to record %pK", p8);
+				qdf_print("Overflow due to record %p", p8);
 				continue;
 			}
 			p8 = calculated_p8;
@@ -990,7 +990,7 @@ htt_t2h_tx_ppdu_log_print(struct ol_fw_tx_dbg_ppdu_msg_hdr *hdr,
 			}
 			calculated_p8 += hdr->mpdu_bytes_array_len * sizeof(uint16_t);
 			if (calculated_p8 < p8) {
-				qdf_err("Overflow due to hdr->mpdu_bytes_array_len %u",
+				qdf_print("Overflow due to hdr->mpdu_bytes_array_len %u",
 					hdr->mpdu_bytes_array_len);
 				continue;
 			}
@@ -1003,7 +1003,7 @@ htt_t2h_tx_ppdu_log_print(struct ol_fw_tx_dbg_ppdu_msg_hdr *hdr,
 			}
 			calculated_p8 += hdr->mpdu_msdus_array_len * sizeof(uint8_t);
 			if (calculated_p8 < p8) {
-				qdf_err("Overflow due to hdr->mpdu_msdus_array_len %u",
+				qdf_print("Overflow due to hdr->mpdu_msdus_array_len %u",
 					hdr->mpdu_msdus_array_len);
 				continue;
 			}

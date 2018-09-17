@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -855,7 +855,6 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 	pSapCtx->acs_cfg = &pConfig->acs_cfg;
 	pSapCtx->isCacEndNotified = false;
 	pSapCtx->is_chan_change_inprogress = false;
-	pSapCtx->stop_bss_in_progress = false;
 	/* Set the BSSID to your "self MAC Addr" read the mac address
 		from Configuation ITEM received from HDD */
 	pSapCtx->csr_roamProfile.BSSIDs.numOfBSSIDs = 1;
@@ -929,8 +928,6 @@ QDF_STATUS wlansap_start_bss(void *pCtx,     /* pwextCtx */
 		     sizeof(pConfig->deny_mac));
 	pSapCtx->nDenyMac = pConfig->num_deny_mac;
 	sap_sort_mac_list(pSapCtx->denyMacList, pSapCtx->nDenyMac);
-	pSapCtx->beacon_tx_rate = pConfig->beacon_tx_rate;
-
 	/* Fill in the event structure for FSM */
 	sapEvent.event = eSAP_HDD_START_INFRA_BSS;
 	sapEvent.params = 0;    /* pSapPhysLinkCreate */
@@ -997,29 +994,6 @@ QDF_STATUS wlansap_set_mac_acl(void *pCtx,    /* pwextCtx */
 
 	return qdf_status;
 } /* wlansap_set_mac_acl */
-
-void wlansap_set_stop_bss_inprogress(void *ctx, bool in_progress)
-{
-	ptSapContext sap_ctx = NULL;
-
-	if (!ctx) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Invalid Global CDS handle", __func__);
-		return;
-	}
-
-	sap_ctx = CDS_GET_SAP_CB(ctx);
-	if (!sap_ctx) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Invalid SAP pointer from ctx", __func__);
-		return;
-	}
-
-	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: Set stop_bss_in_progress to %d",
-		  __func__, in_progress);
-	sap_ctx->stop_bss_in_progress = in_progress;
-}
 
 /**
  * wlansap_stop_bss() - stop BSS.
@@ -1222,7 +1196,6 @@ wlansap_get_acl_accept_list(void *pCtx, struct qdf_mac_addr *pAcceptList,
 				uint8_t *nAcceptList)
 {
 	ptSapContext pSapCtx = CDS_GET_SAP_CB(pCtx);
-
 	if (NULL == pSapCtx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid SAP pointer from p_cds_gctx", __func__);
@@ -1241,7 +1214,6 @@ wlansap_get_acl_deny_list(void *pCtx, struct qdf_mac_addr *pDenyList,
 			  uint8_t *nDenyList)
 {
 	ptSapContext pSapCtx = CDS_GET_SAP_CB(pCtx);
-
 	if (NULL == pSapCtx) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 			  "%s: Invalid SAP pointer from p_cds_gctx", __func__);
@@ -1656,13 +1628,13 @@ static QDF_STATUS wlansap_update_csa_channel_params(ptSapContext sap_context,
 		mac_ctx->sap.SapDfsInfo.new_chanWidth = 0;
 
 	} else {
-
-		if (sap_context->ch_width_orig >= CH_WIDTH_80MHZ)
+		if (sap_context->csr_roamProfile.phyMode ==
+		    eCSR_DOT11_MODE_11ac ||
+		    sap_context->csr_roamProfile.phyMode ==
+		    eCSR_DOT11_MODE_11ac_ONLY)
 			bw = BW80;
-		else if (sap_context->ch_width_orig == CH_WIDTH_40MHZ)
-			bw = BW40_HIGH_PRIMARY;
 		else
-			bw = BW20;
+			bw = BW40_HIGH_PRIMARY;
 
 		for (; bw >= BW20; bw--) {
 			uint16_t op_class;
@@ -2677,14 +2649,7 @@ wlansap_channel_change_request(void *pSapCtx, uint8_t target_channel)
 	tpAniSirGlobal mac_ctx = NULL;
 	eCsrPhyMode phy_mode;
 	struct ch_params_s *ch_params;
-
 	sapContext = (ptSapContext) pSapCtx;
-
-	if (!target_channel) {
-		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-			  "%s: channel 0 requested", __func__);
-		return QDF_STATUS_E_FAULT;
-	}
 
 	if (NULL == sapContext) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -2781,7 +2746,6 @@ QDF_STATUS wlansap_start_beacon_req(void *pSapCtx)
 	void *hHal = NULL;
 	uint8_t dfsCacWaitStatus = 0;
 	tpAniSirGlobal pMac = NULL;
-
 	sapContext = (ptSapContext) pSapCtx;
 
 	if (NULL == sapContext) {
@@ -2840,7 +2804,6 @@ QDF_STATUS wlansap_dfs_send_csa_ie_request(void *pSapCtx)
 	QDF_STATUS qdf_ret_status = QDF_STATUS_E_FAILURE;
 	void *hHal = NULL;
 	tpAniSirGlobal pMac = NULL;
-
 	sapContext = (ptSapContext) pSapCtx;
 
 	if (NULL == sapContext) {
@@ -3033,7 +2996,6 @@ QDF_STATUS
 wlan_sap_set_channel_avoidance(tHalHandle hal, bool sap_channel_avoidance)
 {
 	tpAniSirGlobal mac_ctx = NULL;
-
 	if (NULL != hal)
 		mac_ctx = PMAC_STRUCT(hal);
 	if (mac_ctx == NULL || hal == NULL) {
@@ -3520,7 +3482,6 @@ QDF_STATUS wlansap_set_dfs_nol(void *pSapCtx, eSapDfsNolType conf)
 		     i < pMac->sap.SapDfsInfo.numCurrentRegDomainDfsChannels;
 		     i++) {
 			uint32_t random_bytes = 0;
-
 			get_random_bytes(&random_bytes, 1);
 
 			if (!pMac->sap.SapDfsInfo.
@@ -3638,7 +3599,6 @@ wlansap_acs_chselect(void *pvos_gctx,
 	tHalHandle h_hal = NULL;
 	QDF_STATUS qdf_status = QDF_STATUS_E_FAILURE;
 	tpAniSirGlobal pmac = NULL;
-	tWLAN_SAPEvent sapEvent; /* State machine event */
 
 	sap_context = CDS_GET_SAP_CB(pvos_gctx);
 	if (NULL == sap_context) {
@@ -3690,7 +3650,7 @@ wlansap_acs_chselect(void *pvos_gctx,
 	 * different scan callback fucntion to process
 	 * the results pre start BSS.
 	 */
-	qdf_status = sap_goto_channel_sel(sap_context, &sapEvent, true, false);
+	qdf_status = sap_goto_channel_sel(sap_context, NULL, true, false);
 
 	if (QDF_STATUS_E_ABORTED == qdf_status) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
@@ -3734,7 +3694,6 @@ wlansap_acs_chselect(void *pvos_gctx,
 void wlan_sap_enable_phy_error_logs(tHalHandle hal, bool enable_log)
 {
 	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
-
 	mac_ctx->sap.enable_dfs_phy_error_logs = enable_log;
 }
 

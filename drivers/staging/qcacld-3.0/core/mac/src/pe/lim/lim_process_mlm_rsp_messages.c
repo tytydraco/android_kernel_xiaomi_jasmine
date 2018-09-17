@@ -473,8 +473,7 @@ void lim_pmf_comeback_timer_callback(void *context)
  */
 void lim_process_mlm_auth_cnf(tpAniSirGlobal mac_ctx, uint32_t *msg)
 {
-	tAniAuthType auth_type, auth_mode;
-	tLimMlmAuthReq *auth_req;
+	tAniAuthType auth_type;
 	tLimMlmAuthCnf *auth_cnf;
 	tpPESession session_entry;
 
@@ -544,34 +543,18 @@ void lim_process_mlm_auth_cnf(tpAniSirGlobal mac_ctx, uint32_t *msg)
 		 * When shared authentication fails with reason
 		 * code "13" and authType set to 'auto switch',
 		 * Try with open Authentication
+		 * There is a possibility that AP does not receive
+		 * ack and retries auth frame. The retry frame could be
+		 * received at host after open sys auth is sent to firmware
+		 * resulting in auth failure. So, to fix this issue, open system
+		 * auth frame is sent to firmware after timer of 15msec expires.
 		 */
-		auth_mode = eSIR_OPEN_SYSTEM;
-		/* Trigger MAC based Authentication */
-		auth_req = qdf_mem_malloc(sizeof(tLimMlmAuthReq));
-		if (NULL == auth_req) {
-			pe_err("mlmAuthReq :Memory alloc failed");
-			return;
+		mac_ctx->lim.limTimers.open_sys_auth_timer.sessionId =
+							    auth_cnf->sessionId;
+		if (tx_timer_activate(&mac_ctx->lim.limTimers.
+				      open_sys_auth_timer) != TX_SUCCESS) {
+			pe_err("failed to activate system Auth timer");
 		}
-		if (session_entry->limSmeState ==
-			eLIM_SME_WT_AUTH_STATE) {
-			sir_copy_mac_addr(auth_req->peerMacAddr,
-				session_entry->bssId);
-		} else {
-			qdf_mem_copy((uint8_t *)&auth_req->peerMacAddr,
-			(uint8_t *)&mac_ctx->lim.gLimPreAuthPeerAddr,
-			sizeof(tSirMacAddr));
-		}
-		auth_req->authType = auth_mode;
-		/* Update PE session Id */
-		auth_req->sessionId = auth_cnf->sessionId;
-		if (wlan_cfg_get_int(mac_ctx,
-			WNI_CFG_AUTHENTICATE_FAILURE_TIMEOUT,
-			(uint32_t *) &auth_req->authFailureTimeout)
-			!= eSIR_SUCCESS) {
-			pe_err("Fail:retrieve AuthFailureTimeout");
-		}
-		lim_post_mlm_message(mac_ctx, LIM_MLM_AUTH_REQ,
-			(uint32_t *) auth_req);
 		return;
 	} else {
 		/* MAC based authentication failure */
@@ -788,6 +771,7 @@ lim_fill_assoc_ind_params(tpAniSirGlobal mac_ctx,
 		sme_assoc_ind->HTCaps = assoc_ind->HTCaps;
 	if (assoc_ind->VHTCaps.present)
 		sme_assoc_ind->VHTCaps = assoc_ind->VHTCaps;
+	sme_assoc_ind->capability_info = assoc_ind->capabilityInfo;
 
 }
 
@@ -816,7 +800,6 @@ void lim_process_mlm_assoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	tSirSmeAssocInd *pSirSmeAssocInd;
 	tpDphHashNode pStaDs = 0;
 	tpPESession psessionEntry;
-
 	if (pMsgBuf == NULL) {
 		pe_err("Buffer is Pointing to NULL");
 		return;
@@ -894,7 +877,6 @@ void lim_process_mlm_disassoc_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 {
 	tLimMlmDisassocInd *pMlmDisassocInd;
 	tpPESession psessionEntry;
-
 	pMlmDisassocInd = (tLimMlmDisassocInd *) pMsgBuf;
 	psessionEntry = pe_find_session_by_session_id(pMac,
 				pMlmDisassocInd->sessionId);
@@ -936,7 +918,6 @@ void lim_process_mlm_disassoc_cnf(tpAniSirGlobal mac_ctx,
 	tSirResultCodes result_code;
 	tLimMlmDisassocCnf *disassoc_cnf;
 	tpPESession session_entry;
-
 	disassoc_cnf = (tLimMlmDisassocCnf *) msg;
 
 	session_entry =
@@ -1024,7 +1005,6 @@ void lim_process_mlm_deauth_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	tLimMlmDeauthInd *pMlmDeauthInd;
 	tpPESession psessionEntry;
 	uint8_t sessionId;
-
 	pMlmDeauthInd = (tLimMlmDeauthInd *) pMsgBuf;
 	psessionEntry = pe_find_session_by_bssid(pMac,
 				pMlmDeauthInd->peerMacAddr, &sessionId);
@@ -1154,7 +1134,6 @@ void lim_process_mlm_purge_sta_ind(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 	tSirResultCodes resultCode;
 	tpLimMlmPurgeStaInd pMlmPurgeStaInd;
 	tpPESession psessionEntry;
-
 	if (pMsgBuf == NULL) {
 		pe_err("Buffer is Pointing to NULL");
 		return;
@@ -1508,7 +1487,6 @@ void lim_process_sta_mlm_add_sta_rsp(tpAniSirGlobal mac_ctx,
 		if (session_entry->limSmeState == eLIM_SME_WT_REASSOC_STATE) {
 			/* check if we have keys(PTK)to install in case of 11r */
 			tpftPEContext ft_ctx = &session_entry->ftPEContext;
-
 			ft_session = pe_find_session_by_bssid(mac_ctx,
 				session_entry->limReAssocbssId, &ft_session_id);
 			if (ft_session != NULL &&
@@ -1765,7 +1743,6 @@ void lim_process_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 	 */
 	tpPESession session_entry;
 	tpDeleteStaParams del_sta_params;
-
 	del_sta_params = (tpDeleteStaParams) msg->bodyptr;
 	if (NULL == del_sta_params) {
 		pe_err("null pointer del_sta_params msg");
@@ -1870,7 +1847,6 @@ void lim_process_ap_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 			 */
 			if (sta_ds->qos.addtsPresent) {
 				tpLimTspecInfo pTspecInfo;
-
 				if (eSIR_SUCCESS ==
 				    lim_tspec_find_by_assoc_id(mac_ctx,
 					sta_ds->assocId,
@@ -1888,7 +1864,7 @@ void lim_process_ap_mlm_del_sta_rsp(tpAniSirGlobal mac_ctx,
 				sta_ds->mlmStaContext.subType, true,
 				sta_ds->mlmStaContext.authType, sta_ds->assocId,
 				true,
-				eSIR_MAC_UNSPEC_FAILURE_STATUS,
+				(tSirResultCodes)eSIR_MAC_UNSPEC_FAILURE_STATUS,
 				session_entry);
 		}
 		return;
@@ -1910,7 +1886,6 @@ void lim_process_sta_mlm_del_sta_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,
 	tSirResultCodes statusCode = eSIR_SME_SUCCESS;
 	tpDeleteStaParams pDelStaParams = (tpDeleteStaParams) limMsgQ->bodyptr;
 	tpDphHashNode pStaDs = NULL;
-
 	if (NULL == pDelStaParams) {
 		pe_err("Encountered NULL Pointer");
 		goto end;
@@ -1996,6 +1971,7 @@ void lim_process_ap_mlm_add_sta_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,
 				       pStaDs->mlmStaContext.subType,
 				       true, pStaDs->mlmStaContext.authType,
 				       pStaDs->assocId, true,
+				       (tSirResultCodes)
 				       eSIR_MAC_UNSPEC_FAILURE_STATUS,
 				       psessionEntry);
 		goto end;
@@ -2064,7 +2040,6 @@ static void lim_process_ap_mlm_add_bss_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg
 	tpPESession psessionEntry;
 	uint8_t isWepEnabled = false;
 	tpAddBssParams pAddBssParams = (tpAddBssParams) limMsgQ->bodyptr;
-
 	if (NULL == pAddBssParams) {
 		pe_err("Encountered NULL Pointer");
 		goto end;
@@ -2418,7 +2393,6 @@ lim_process_sta_mlm_add_bss_rsp(tpAniSirGlobal mac_ctx,
 	tpDphHashNode sta_ds = NULL;
 	uint16_t sta_idx = STA_INVALID_IDX;
 	uint8_t update_sta = false;
-
 	mlm_assoc_cnf.resultCode = eSIR_SME_SUCCESS;
 
 	if (eLIM_MLM_WT_ADD_BSS_RSP_PREASSOC_STATE ==
@@ -2910,7 +2884,6 @@ static void lim_process_switch_channel_re_assoc_req(tpAniSirGlobal pMac,
 {
 	tLimMlmReassocCnf mlmReassocCnf;
 	tLimMlmReassocReq *pMlmReassocReq;
-
 	pMlmReassocReq =
 		(tLimMlmReassocReq *) (psessionEntry->pLimMlmReassocReq);
 	if (pMlmReassocReq == NULL) {
@@ -2977,7 +2950,6 @@ static void lim_process_switch_channel_join_req(
 {
 	tSirMacSSid ssId;
 	tLimMlmJoinCnf join_cnf;
-
 	if (status != QDF_STATUS_SUCCESS) {
 		pe_err("Change channel failed!!");
 		goto error;
@@ -3135,7 +3107,7 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 	psessionEntry = pe_find_session_by_session_id(pMac, peSessionId);
 	if (psessionEntry == NULL) {
 		pe_err("session does not exist for given sessionId");
-		goto free;
+		return;
 	}
 	psessionEntry->ch_switch_in_progress = false;
 	/* HAL fills in the tx power used for mgmt frames in this field. */
@@ -3201,7 +3173,6 @@ void lim_process_switch_channel_rsp(tpAniSirGlobal pMac, void *body)
 	default:
 		break;
 	}
-free:
 	qdf_mem_free(body);
 }
 

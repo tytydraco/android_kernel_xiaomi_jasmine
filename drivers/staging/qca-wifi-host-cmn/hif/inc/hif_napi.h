@@ -96,7 +96,7 @@ enum qca_napi_event {
 #define NAPI_ID2PIPE(i) ((i)-1)
 #define NAPI_PIPE2ID(p) ((p)+1)
 
-int hif_napi_offld_flush_cb_register(struct hif_opaque_softc *hif_hdl,
+int hif_napi_lro_flush_cb_register(struct hif_opaque_softc *hif_hdl,
 				   void (lro_flush_handler)(void *arg),
 				   void *(lro_init_handler)(void));
 
@@ -123,7 +123,6 @@ int hif_napi_destroy(struct hif_opaque_softc  *hif,
 		     int               force);
 
 struct qca_napi_data *hif_napi_get_all(struct hif_opaque_softc   *hif);
-struct qca_napi_info *hif_get_napi(int napi_id, void *napi_d);
 
 int hif_napi_event(struct hif_opaque_softc     *hif,
 		   enum  qca_napi_event event,
@@ -239,11 +238,6 @@ static inline int hif_napi_destroy(struct hif_opaque_softc  *hif,
 static inline struct qca_napi_data *hif_napi_get_all(
 				struct hif_opaque_softc *hif)
 { return NULL; }
-
-static inline struct napi_struct *hif_get_napi(int napi_id, void *napi_d)
-{
-	return NULL;
-}
 
 static inline int hif_napi_event(struct hif_opaque_softc     *hif,
 				 enum  qca_napi_event event,

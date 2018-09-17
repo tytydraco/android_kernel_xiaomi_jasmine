@@ -849,7 +849,7 @@ static void wma_data_tx_ack_work_handler(void *ack_work)
 	wma_handle->umac_data_ota_ack_cb = NULL;
 	wma_handle->last_umac_data_nbuf = NULL;
 	qdf_mem_free(work);
-	wma_handle->data_ack_work_ctx = NULL;
+	wma_handle->ack_work_ctx = NULL;
 }
 
 /**
@@ -900,7 +900,7 @@ wma_data_tx_ack_comp_hdlr(void *wma_context, qdf_nbuf_t netbuf, int32_t status)
 		struct wma_tx_ack_work_ctx *ack_work;
 
 		ack_work = qdf_mem_malloc(sizeof(struct wma_tx_ack_work_ctx));
-		wma_handle->data_ack_work_ctx = ack_work;
+		wma_handle->ack_work_ctx = ack_work;
 		if (ack_work) {
 			ack_work->wma_handle = wma_handle;
 			ack_work->sub_type = 0;
@@ -1228,15 +1228,10 @@ void wma_set_linkstate(tp_wma_handle wma, tpLinkStateParams params)
 			WMA_LOGP(FL("Failed to fill vdev request for vdev_id %d"),
 				 vdev_id);
 			params->status = false;
+			status = QDF_STATUS_E_NOMEM;
 			goto out;
 		}
-
-		status = wma_send_vdev_stop_to_fw(wma, vdev_id);
-		wma_cli_set_command(vdev_id,
-			(int)WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM, 0, VDEV_CMD);
-		WMA_LOGD("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 0",
-			 vdev_id);
-		if (QDF_IS_STATUS_ERROR(status)) {
+		if (wma_send_vdev_stop_to_fw(wma, vdev_id)) {
 			WMA_LOGP("%s: %d Failed to send vdev stop vdev %d",
 				 __func__, __LINE__, vdev_id);
 			wma_remove_vdev_req(wma, vdev_id,
@@ -1407,7 +1402,7 @@ static void wma_mgmt_tx_ack_work_handler(void *ack_work)
 	       work->status ? 0 : 1);
 
 	qdf_mem_free(work);
-	wma_handle->mgmt_ack_work_ctx = NULL;
+	wma_handle->ack_work_ctx = NULL;
 }
 
 /**
@@ -1465,7 +1460,6 @@ wma_mgmt_tx_ack_comp_hdlr(void *wma_context, qdf_nbuf_t netbuf, int32_t status)
 
 			ack_work = qdf_mem_malloc(sizeof(
 						struct wma_tx_ack_work_ctx));
-			wma_handle->mgmt_ack_work_ctx = ack_work;
 
 			if (ack_work) {
 				ack_work->wma_handle = wma_handle;
@@ -2433,23 +2427,14 @@ void wmi_desc_pool_deinit(tp_wma_handle wma_handle)
 {
 	struct wmi_desc_t *wmi_desc;
 	uint8_t i;
-	qdf_device_t qdf_dev = cds_get_context(QDF_MODULE_ID_QDF_DEVICE);
 
-	if (NULL == qdf_dev) {
-		WMA_LOGE("%s: Failed to get qdf_dev_ctx", __func__);
-		return;
-	}
 	qdf_spin_lock_bh(&wma_handle->wmi_desc_pool.wmi_desc_pool_lock);
 	if (wma_handle->wmi_desc_pool.array) {
 		for (i = 0; i < wma_handle->wmi_desc_pool.pool_size; i++) {
 			wmi_desc = (struct wmi_desc_t *)
 				    (&wma_handle->wmi_desc_pool.array[i]);
-			if (wmi_desc && wmi_desc->nbuf) {
-				qdf_nbuf_unmap_single(qdf_dev,
-						wmi_desc->nbuf,
-						QDF_DMA_TO_DEVICE);
+			if (wmi_desc && wmi_desc->nbuf)
 				cds_packet_free(wmi_desc->nbuf);
-			}
 		}
 		qdf_mem_free(wma_handle->wmi_desc_pool.array);
 		wma_handle->wmi_desc_pool.array = NULL;
@@ -2631,7 +2616,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	struct wmi_mgmt_params mgmt_param = {0};
 	struct wmi_desc_t *wmi_desc = NULL;
 	ol_pdev_handle ctrl_pdev;
-	bool is_5g = false;
 
 	if (NULL == wma_handle) {
 		WMA_LOGE("wma_handle is NULL");
@@ -2964,9 +2948,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		}
 	}
 
-	if (CDS_IS_CHANNEL_5GHZ(wma_handle->interfaces[vdev_id].channel))
-		is_5g = true;
-
 	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
 				   WMI_SERVICE_MGMT_TX_WMI)) {
 		mgmt_param.tx_frame = tx_frame;
@@ -2980,7 +2961,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 		 * other than 1Mbps and 6 Mbps
 		 */
 		if (rid < RATEID_DEFAULT &&
-		    (rid != RATEID_1MBPS) && !(rid == RATEID_6MBPS && is_5g)) {
+		    (rid != RATEID_1MBPS && rid != RATEID_6MBPS)) {
 			WMA_LOGD(FL("using rate id: %d for Tx"), rid);
 			mgmt_param.tx_params_valid = true;
 			wma_update_tx_send_params(&mgmt_param.tx_param, rid);
@@ -3066,8 +3047,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			 */
 
 			/* display scheduler stats */
-			ol_txrx_display_stats(WLAN_SCHEDULER_STATS,
-					QDF_STATS_VERB_LVL_HIGH);
+			ol_txrx_display_stats(WLAN_SCHEDULER_STATS);
 		}
 	}
 
@@ -3249,6 +3229,7 @@ void wma_tx_abort(uint8_t vdev_id)
 					 &param);
 }
 
+#if defined(FEATURE_LRO)
 /**
  * wma_lro_config_cmd() - process the LRO config command
  * @wma: Pointer to WMA handle
@@ -3283,6 +3264,7 @@ QDF_STATUS wma_lro_config_cmd(tp_wma_handle wma_handle,
 	return wmi_unified_lro_config_cmd(wma_handle->wmi_handle,
 						&wmi_lro_cmd);
 }
+#endif
 
 /**
  * wma_indicate_err() - indicate an error to the protocol stack

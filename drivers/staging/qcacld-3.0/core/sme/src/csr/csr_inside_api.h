@@ -61,6 +61,9 @@
 #define CSR_MAX_2_4_GHZ_SUPPORTED_CHANNELS 14
 
 #define CSR_MAX_BSS_SUPPORT            512
+#define SYSTEM_TIME_MSEC_TO_USEC      1000
+#define SYSTEM_TIME_SEC_TO_MSEC       1000
+#define SYSTEM_TIME_NSEC_TO_USEC      1000
 
 /* This number minus 1 means the number of times a channel is scanned before
  * a BSS is remvoed from
@@ -934,6 +937,20 @@ QDF_STATUS csr_roam_reconnect(tpAniSirGlobal pMac, uint32_t sessionId);
 QDF_STATUS csr_roam_set_pmkid_cache(tpAniSirGlobal pMac, uint32_t sessionId,
 				    tPmkidCacheInfo *pPMKIDCache,
 				   uint32_t numItems, bool update_entire_cache);
+
+/*
+ * csr_get_pmk_info(): store PMK in pmk_cache
+ * @mac_ctx: pointer to global structure for MAC
+ * @session_id: Sme session id
+ * @pmk_cache: pointer to a structure of Pmk
+ *
+ * This API gets the PMK from the session and
+ * stores it in the pmk_cache
+ *
+ * Return: none
+ */
+void csr_get_pmk_info(tpAniSirGlobal mac_ctx, uint8_t session_id,
+		      tPmkidCacheInfo *pmk_cache);
 
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 /*

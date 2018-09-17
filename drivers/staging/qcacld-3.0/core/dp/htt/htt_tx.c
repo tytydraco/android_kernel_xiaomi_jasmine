@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011, 2014-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -971,7 +971,6 @@ htt_tx_send_batch(htt_pdev_handle pdev, qdf_nbuf_t head_msdu, int num_msdus)
 	msdu = head_msdu;
 	while (num_msdus--) {
 		qdf_nbuf_t next_msdu = qdf_nbuf_next(msdu);
-
 		msdu_id_storage = ol_tx_msdu_id_storage(msdu);
 		msdu_id = *msdu_id_storage;
 
@@ -1532,7 +1531,6 @@ htt_tx_desc_fill_tso_info(htt_pdev_handle pdev, void *desc,
 
 	if (tso_seg->seg.num_frags < FRAG_NUM_MAX)
 		*word = 0;
-	qdf_tso_seg_dbg_record(tso_seg, TSOSEG_LOC_FILLHTTSEG);
 }
 #endif /* FEATURE_TSO */
 
@@ -1818,8 +1816,6 @@ htt_tx_desc_init(htt_pdev_handle pdev,
 	} else {
 		HTT_TX_DESC_FRM_LEN_SET(local_word1, qdf_nbuf_len(msdu));
 	}
-
-	QDF_BUG(HTT_TX_DESC_FRM_LEN_GET(local_word1) != 0);
 
 	HTT_TX_DESC_FRM_ID_SET(local_word1, msdu_id);
 	*word1 = local_word1;
