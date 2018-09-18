@@ -4,7 +4,7 @@ language: c
 os:
   - linux
   
-addons:
+addons: 
   apt:
     packages:
       - curl
@@ -31,7 +31,7 @@ script:
   - export KBUILD_BUILD_USER="tytydraco-hex"
   - export KBUILD_BUILD_HOST="Manish4586"
   - mkdir out
-  - env make O=out hex_defconfig
+  - make O=out jasmine-perf_defconfig
   - make O=out -j4
 
 after_success:
