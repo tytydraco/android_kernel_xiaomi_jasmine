@@ -279,7 +279,7 @@ static int nvt_gesture_read(struct seq_file *file, void *v)
 {
 	uint8_t str;
 	if(copy_from_user(&str, buf, 1)); // ignore
-	enable_gesture_mode = true;
+	enable_gesture_mode = (str == '1');
 	return 1;
 }
  static const struct file_operations nvt_gesture_fops = {
