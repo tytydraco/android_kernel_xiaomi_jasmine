@@ -10,8 +10,6 @@
  * GNU General Public License for more details.
  */
 
-#define pr_fmt(fmt)	"haptic: %s: " fmt, __func__
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
