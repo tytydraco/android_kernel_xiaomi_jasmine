@@ -467,10 +467,6 @@ static ssize_t irq_ack(struct device *dev,
 	const char *buf, size_t count)
 {
 	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
-
-	dev_dbg(fpc1020->dev, "%s\n", __func__);
-
-		 tyt_debug;
 	return count;
 }
 static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
@@ -500,10 +496,7 @@ static void notification_work(struct work_struct *work)
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 {
 	struct fpc1020_data *fpc1020 = handle;
-
-	dev_dbg(fpc1020->dev, "%s\n", __func__);
-
-		 tyt_debug;
+	
 	if (atomic_read(&fpc1020->wakeup_enabled)) {
 		wake_lock_timeout(&fpc1020->ttw_wl,
 					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
