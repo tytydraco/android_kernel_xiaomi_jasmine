@@ -131,6 +131,18 @@ config VM_MIN_READAHEAD
 	Adjust the default Block min readahead value in kbytes 
 	(including the current page).
 
+config BLKDEV_MAX_RQ
+	int "Maximum Block requests"
+	default 128
+	---help---
+	Adjust the default Block max requests.
+
+config BLKDEV_MIN_RQ
+	int "Minimum Block requests"
+	default 4
+	---help---
+	Adjust the default Block min requests.
+
 menu "Partition Types"
 
 source "block/partitions/Kconfig"
