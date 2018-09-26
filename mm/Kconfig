@@ -743,3 +743,11 @@ config PROCESS_RECLAIM
 	 (addr, addr + size-bytes) of the process.
 
 	 Any other vaule is ignored.
+
+config VM_DIRTY_RATIO
+	int "VM dirty ratio default value"
+	default 20
+
+config VM_DIRTY_BACKGROUND_RATIO
+	int "VM dirty background ratio default value"
+	default 10
