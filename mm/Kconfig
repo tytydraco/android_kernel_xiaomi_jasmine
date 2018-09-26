@@ -740,3 +740,11 @@ config LAPTOP_MODE
 	help
 		This reduces the amount of memory write-outs to save battery on
 		many devices.
+
+config VM_DIRTY_RATIO
+	int "VM dirty ratio default value"
+	default 20
+
+config VM_DIRTY_BACKGROUND_RATIO
+	int "VM dirty background ratio default value"
+	default 10
