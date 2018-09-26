@@ -733,3 +733,10 @@ config PROCESS_RECLAIM
 	 (addr, addr + size-bytes) of the process.
 
 	 Any other vaule is ignored.
+
+config LAPTOP_MODE
+	bool "Enable laptop mode by default"
+	default y
+	help
+		This reduces the amount of memory write-outs to save battery on
+		many devices.
