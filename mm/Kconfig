@@ -735,8 +735,8 @@ config PROCESS_RECLAIM
 	 Any other vaule is ignored.
 
 config LAPTOP_MODE
-	bool "Enable laptop mode by default"
-	default y
+	int "Enable laptop mode by default"
+	default 1
 	help
 		This reduces the amount of memory write-outs to save battery on
 		many devices.
