@@ -1558,6 +1558,10 @@ config PRINTK
 	  very difficult to diagnose system problems, saying N here is
 	  strongly discouraged.
 
+config PRINTK_INTERFACE_MODE
+	int "Log printk to dmesg interface by default"
+	default 0
+
 config BUG
 	bool "BUG() support" if EXPERT
 	default y

@@ -82,7 +82,7 @@ static int __init printk_mode_init(void)
 	}
 
 	// initialize printk mode to 1 (enabled) as default
-	printk_mode = 1;
+	printk_mode = CONFIG_PRINTK_INTERFACE_MODE;
 
 	return (printk_mode_retval);
 }
