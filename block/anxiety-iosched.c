@@ -115,7 +115,7 @@ static ssize_t anxiety_max_writes_starved_show(struct elevator_queue *e, char *p
 {
 	struct anxiety_data *ad = e->elevator_data;
 
-	return snprintf(page, PAGE_SIZE, "%d\n", ad->max_writes_starved);
+	return snprintf(page, PAGE_SIZE, "%u\n", ad->max_writes_starved);
 }
 
 static ssize_t anxiety_max_writes_starved_store(struct elevator_queue *e, const char *page, size_t count)
