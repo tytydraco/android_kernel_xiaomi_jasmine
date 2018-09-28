@@ -197,7 +197,7 @@ static unsigned int _adjust_pwrlevel(struct kgsl_pwrctrl *pwr, int level,
 static void kgsl_pwrctrl_vbif_update(unsigned long ab)
 {
 	/* ask a governor to vote on behalf of us */
-	devfreq_vbif_update_bw(ib_votes[last_vote_buslevel], ab);
+	//devfreq_vbif_update_bw(ib_votes[last_vote_buslevel], ab);
 }
 #else
 static void kgsl_pwrctrl_vbif_update(unsigned long ab)
@@ -1826,7 +1826,7 @@ static void kgsl_thermal_timer(unsigned long data)
 #ifdef CONFIG_DEVFREQ_GOV_QCOM_GPUBW_MON
 static int kgsl_pwrctrl_vbif_init(void)
 {
-	devfreq_vbif_register_callback(kgsl_get_bw);
+	//devfreq_vbif_register_callback(kgsl_get_bw);
 	return 0;
 }
 #else
