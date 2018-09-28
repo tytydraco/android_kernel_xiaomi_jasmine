@@ -10,7 +10,7 @@
 #include <linux/init.h>
 
 /* default tunable values */
-static const uint8_t max_writes_starved = 12; /* max amount of times reads can starve pending writes */
+static const uint8_t max_writes_starved = 32; /* max amount of times reads can starve pending writes */
 
 struct anxiety_data {
 	struct list_head queue[2];
