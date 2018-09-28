@@ -30,8 +30,8 @@
 #ifdef CONFIG_NET_RX_BUSY_POLL
 
 struct napi_struct;
-extern unsigned int sysctl_net_busy_read __read_mostly = CONFIG_SYSCTL_NET_BUSY_READ;
-extern unsigned int sysctl_net_busy_poll __read_mostly = CONFIG_SYSCTL_NET_BUSY_POLL;
+extern unsigned int sysctl_net_busy_read __read_mostly;
+extern unsigned int sysctl_net_busy_poll __read_mostly;
 
 /* return values from ndo_ll_poll */
 #define LL_FLUSH_FAILED		-1
