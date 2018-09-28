@@ -193,17 +193,9 @@ static unsigned int _adjust_pwrlevel(struct kgsl_pwrctrl *pwr, int level,
 	return level;
 }
 
-#ifdef CONFIG_DEVFREQ_GOV_QCOM_GPUBW_MON
-static void kgsl_pwrctrl_vbif_update(unsigned long ab)
-{
-	/* ask a governor to vote on behalf of us */
-	//devfreq_vbif_update_bw(ib_votes[last_vote_buslevel], ab);
-}
-#else
 static void kgsl_pwrctrl_vbif_update(unsigned long ab)
 {
 }
-#endif
 
 /**
  * kgsl_pwrctrl_buslevel_update() - Recalculate the bus vote and send it
@@ -1823,18 +1815,10 @@ static void kgsl_thermal_timer(unsigned long data)
 	kgsl_schedule_work(&device->pwrctrl.thermal_cycle_ws);
 }
 
-#ifdef CONFIG_DEVFREQ_GOV_QCOM_GPUBW_MON
-static int kgsl_pwrctrl_vbif_init(void)
-{
-	//devfreq_vbif_register_callback(kgsl_get_bw);
-	return 0;
-}
-#else
 static int kgsl_pwrctrl_vbif_init(void)
 {
 	return 0;
 }
-#endif
 
 static int _get_regulator(struct kgsl_device *device,
 		struct kgsl_regulator *regulator, const char *str)
