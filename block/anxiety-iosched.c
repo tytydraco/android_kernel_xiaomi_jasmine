@@ -28,10 +28,8 @@ static void anxiety_merged_requests(struct request_queue *q, struct request *rq,
 static __always_inline struct request *anxiety_choose_request(struct anxiety_data *mdata)
 {
 	/* prioritize reads unless writes are exceedingly starved */
-	bool starved = mdata->writes_starved > mdata->max_writes_starved;
-
-	/* read */
-	if (!starved && !list_empty(&mdata->queue[READ])) {
+	if (mdata->writes_starved <= mdata->max_writes_starved && 
+			!list_empty(&mdata->queue[READ])) {
 		mdata->writes_starved++;
 		return rq_entry_fifo(mdata->queue[READ].next);
 	}
@@ -42,7 +40,7 @@ static __always_inline struct request *anxiety_choose_request(struct anxiety_dat
 		return rq_entry_fifo(mdata->queue[WRITE].next);
 	}
 
-	/* all queues are empty, i.e. no pending requests */
+	/* all queues are empty; no pending requests */
 	mdata->writes_starved = 0;
 	return NULL;
 }
