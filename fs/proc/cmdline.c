@@ -47,6 +47,8 @@ static int __init proc_cmdline_init(void)
 	strcpy(updated_command_line, saved_command_line);
  	proc_cmdline_set("androidboot.verifiedbootstate", "green");
 	proc_cmdline_set("androidboot.veritymode", "enforcing");
+    proc_cmdline_set("androidboot.veritykeyid", NULL);
+    proc_cmdline_set("androidboot.buildvariant", "user");
 	proc_cmdline_set("lpm_levels.sleep_disabled", NULL);
 
 	proc_create("cmdline", 0, NULL, &cmdline_proc_fops);
