@@ -3249,15 +3249,21 @@ out:
 	return match;
 }
 
+#ifdef CONFIG_AUDIT
+int audit_update_lsm_rules(void) {};
 static int (*aurule_callback)(void) = audit_update_lsm_rules;
+#endif
 
 static int aurule_avc_callback(u32 event)
 {
+#ifdef CONFIG_AUDIT
 	int err = 0;
-
-	if (event == AVC_CALLBACK_RESET && aurule_callback)
-		err = aurule_callback();
+    if (event == AVC_CALLBACK_RESET && aurule_callback)
+        err = aurule_callback();
 	return err;
+#else
+    return 0;
+#endif
 }
 
 static int __init aurule_init(void)
