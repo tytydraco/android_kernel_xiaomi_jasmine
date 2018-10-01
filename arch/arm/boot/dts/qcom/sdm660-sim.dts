@@ -24,7 +24,7 @@
 			<0x0001001b 0x0201011a 0x0 0x0>;
 
 	chosen {
-		bootargs = "lpm_levels.sleep_disabled=1";
+		bootargs = "";
 	};
 };
 
