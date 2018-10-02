@@ -3259,7 +3259,7 @@ EXPORT_SYMBOL(dev_queue_xmit_accel);
 			Receiver routines
   =======================================================================*/
 
-int netdev_max_backlog __read_mostly = 1000;
+int netdev_max_backlog __read_mostly = CONFIG_NETDEV_MAX_BACKLOG;
 EXPORT_SYMBOL(netdev_max_backlog);
 
 int netdev_tstamp_prequeue __read_mostly = 1;

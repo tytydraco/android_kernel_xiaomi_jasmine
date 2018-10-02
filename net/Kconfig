@@ -422,6 +422,11 @@ config SYSCTL_NET_BUSY_POLL
 	int "Busy poll default value"
 	default 0
 
+config NETDEV_MAX_BACKLOG
+	int "Netdev max backlog default value"
+	default 1000
+
+
 source "net/ipc_router/Kconfig"
 
 endif   # if NET
