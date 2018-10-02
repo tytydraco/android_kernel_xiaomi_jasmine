@@ -705,3 +705,7 @@ config TCP_MD5SIG
 config TCP_LOW_LATENCY
 	int "Enable low latency for TCP by default"
 	default 0
+
+config TCP_TIMESTAMPS
+	int "Enable timestamps for TCP by default"
+	default 1
