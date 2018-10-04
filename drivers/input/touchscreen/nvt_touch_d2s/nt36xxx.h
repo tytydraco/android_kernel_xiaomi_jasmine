@@ -27,37 +27,14 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
-
-#define NVT_DEBUG 1
-
-
+#define NVT_DEBUG 0
 #define NVTTOUCH_INT_PIN 943
-
-
-
-
-
 #define INT_TRIGGER_TYPE IRQ_TYPE_EDGE_RISING
-
-
-
 #define NVT_I2C_NAME "NVT-ts"
 #define I2C_BLDR_Address 0x01
 #define I2C_FW_Address 0x01
 #define I2C_HW_Address 0x62
-
-#if NVT_DEBUG
-#define NVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
-#else
-#define NVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
-#endif
-#define NVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
-
-
 #define NVT_TS_NAME "NVTCapacitiveTouchScreen"
-
-
-
 #define TOUCH_DEFAULT_MAX_WIDTH 1080
 #define TOUCH_DEFAULT_MAX_HEIGHT 2160
 #define TOUCH_MAX_FINGER_NUM 10
@@ -66,8 +43,6 @@
 extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #endif
 #define TOUCH_FORCE_NUM 1000
-
-
 #define NVT_TOUCH_PROC 0
 #define NVT_TOUCH_EXT_PROC 0
 #define NVT_TOUCH_MP 0
@@ -79,8 +54,6 @@ extern const uint16_t gesture_key_array[];
 #define BOOT_UPDATE_FIRMWARE 1
 #define BOOT_UPDATE_FIRMWARE_NAME_TIANMA "novatek/tianma_nt36672_miui_d2s.bin"
 #define BOOT_UPDATE_FIRMWARE_NAME_JDI "novatek/jdi_nt36672_miui_d2s.bin"
-
-
 #define NVT_TOUCH_ESD_PROTECT 1
 #define NVT_TOUCH_ESD_CHECK_PERIOD 1500	/* ms */
 
@@ -166,8 +139,6 @@ typedef enum {
 
 
 extern struct nvt_ts_data *ts;
-
-
 extern int32_t CTP_I2C_READ(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
 extern int32_t CTP_I2C_WRITE(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
 extern void nvt_bootloader_reset(void);
@@ -179,5 +150,4 @@ extern int32_t nvt_check_fw_status(void);
 #if NVT_TOUCH_ESD_PROTECT
 extern void nvt_esd_check_enable(uint8_t enable);
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
-
 #endif /* _LINUX_NVT_TOUCH_H */
