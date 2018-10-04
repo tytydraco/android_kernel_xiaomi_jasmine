@@ -68,11 +68,11 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #define TOUCH_FORCE_NUM 1000
 
 
-#define NVT_TOUCH_PROC 1
-#define NVT_TOUCH_EXT_PROC 1
-#define NVT_TOUCH_MP 1
+#define NVT_TOUCH_PROC 0
+#define NVT_TOUCH_EXT_PROC 0
+#define NVT_TOUCH_MP 0
 #define MT_PROTOCOL_B 1
-#define WAKEUP_GESTURE 1
+#define WAKEUP_GESTURE 0
 #if WAKEUP_GESTURE
 extern const uint16_t gesture_key_array[];
 #endif
@@ -135,7 +135,7 @@ struct nvt_ts_data {
 	uint32_t irq_flags;
 	int32_t reset_gpio;
 	uint32_t reset_flags;
-	struct mutex lock;
+	struct rt_mutex lock;
 	const struct nvt_ts_mem_map *mmap;
 	uint8_t carrier_system;
 	uint16_t nvt_pid;

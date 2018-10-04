@@ -1455,7 +1455,7 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 
 	NVT_LOG("++\n");
 
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (rt_mutex_lock_interruptible(&ts->lock)) {
 		return -ERESTARTSYS;
 	}
 
@@ -1464,7 +1464,7 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	if (nvt_get_fw_info()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		NVT_ERR("get fw info failed!\n");
 		return -EAGAIN;
 	}
@@ -1489,13 +1489,13 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 	}
 
 	if (nvt_switch_FreqHopEnDis(FREQ_HOP_DISABLE)) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		NVT_ERR("switch frequency hopping disable failed!\n");
 		return -EAGAIN;
 	}
 
 	if (nvt_check_fw_reset_state(RESET_STATE_NORMAL_RUN)) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		NVT_ERR("check fw reset state failed!\n");
 		return -EAGAIN;
 	}
@@ -1504,7 +1504,7 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 
 
 	if (nvt_clear_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		NVT_ERR("clear fw status failed!\n");
 		return -EAGAIN;
 	}
@@ -1512,7 +1512,7 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 	nvt_change_mode(MP_MODE_CC);
 
 	if (nvt_check_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		NVT_ERR("check fw status failed!\n");
 		return -EAGAIN;
 	}
@@ -1626,7 +1626,7 @@ static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 
 	nvt_bootloader_reset();
 
-	mutex_unlock(&ts->lock);
+	rt_mutex_unlock(&ts->lock);
 
 	NVT_LOG("--\n");
 

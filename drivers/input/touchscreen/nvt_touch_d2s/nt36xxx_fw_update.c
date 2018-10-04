@@ -1004,7 +1004,7 @@ void Boot_Update_Firmware(struct work_struct *work)
 		return;
 	}
 
-	mutex_lock(&ts->lock);
+	rt_mutex_lock(&ts->lock);
 
 #if NVT_TOUCH_ESD_PROTECT
 	nvt_esd_check_enable(false);
@@ -1033,7 +1033,7 @@ void Boot_Update_Firmware(struct work_struct *work)
 		}
 	}
 
-	mutex_unlock(&ts->lock);
+	rt_mutex_unlock(&ts->lock);
 
 	update_firmware_release();
 }
