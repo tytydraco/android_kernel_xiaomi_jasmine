@@ -369,7 +369,7 @@ return:
 *******************************************************/
 static int32_t nvt_fw_version_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (rt_mutex_lock_interruptible(&ts->lock)) {
 		return -ERESTARTSYS;
 	}
 
@@ -380,11 +380,11 @@ static int32_t nvt_fw_version_open(struct inode *inode, struct file *file)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	if (nvt_get_fw_info()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
-	mutex_unlock(&ts->lock);
+	rt_mutex_unlock(&ts->lock);
 
 	NVT_LOG("--\n");
 
@@ -408,7 +408,7 @@ return:
 *******************************************************/
 static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (rt_mutex_lock_interruptible(&ts->lock)) {
 		return -ERESTARTSYS;
 	}
 
@@ -419,19 +419,19 @@ static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	if (nvt_clear_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
 	nvt_change_mode(TEST_MODE_2);
 
 	if (nvt_check_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
 	if (nvt_get_fw_info()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
@@ -444,7 +444,7 @@ static int32_t nvt_baseline_open(struct inode *inode, struct file *file)
 
 	nvt_change_mode(NORMAL_MODE);
 
-	mutex_unlock(&ts->lock);
+	rt_mutex_unlock(&ts->lock);
 
 	NVT_LOG("--\n");
 
@@ -468,7 +468,7 @@ return:
 *******************************************************/
 static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (rt_mutex_lock_interruptible(&ts->lock)) {
 		return -ERESTARTSYS;
 	}
 
@@ -479,19 +479,19 @@ static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	if (nvt_clear_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
 	nvt_change_mode(TEST_MODE_2);
 
 	if (nvt_check_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
 	if (nvt_get_fw_info()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
@@ -511,7 +511,7 @@ static int32_t nvt_raw_open(struct inode *inode, struct file *file)
 
 	nvt_change_mode(NORMAL_MODE);
 
-	mutex_unlock(&ts->lock);
+	rt_mutex_unlock(&ts->lock);
 
 	NVT_LOG("--\n");
 
@@ -535,7 +535,7 @@ return:
 *******************************************************/
 static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (rt_mutex_lock_interruptible(&ts->lock)) {
 		return -ERESTARTSYS;
 	}
 
@@ -546,19 +546,19 @@ static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	if (nvt_clear_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
 	nvt_change_mode(TEST_MODE_2);
 
 	if (nvt_check_fw_status()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
 	if (nvt_get_fw_info()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
@@ -578,7 +578,7 @@ static int32_t nvt_diff_open(struct inode *inode, struct file *file)
 
 	nvt_change_mode(NORMAL_MODE);
 
-	mutex_unlock(&ts->lock);
+	rt_mutex_unlock(&ts->lock);
 
 	NVT_LOG("--\n");
 
@@ -757,7 +757,7 @@ static int nvt_xiaomi_lockdown_info_show(struct seq_file *m, void *v)
 
 static int32_t nvt_xiaomi_lockdown_info_open(struct inode *inode, struct file *file)
 {
-	if (mutex_lock_interruptible(&ts->lock)) {
+	if (rt_mutex_lock_interruptible(&ts->lock)) {
 		return -ERESTARTSYS;
 	}
 
@@ -768,11 +768,11 @@ static int32_t nvt_xiaomi_lockdown_info_open(struct inode *inode, struct file *f
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
 
 	if (nvt_get_xiaomi_lockdown_info()) {
-		mutex_unlock(&ts->lock);
+		rt_mutex_unlock(&ts->lock);
 		return -EAGAIN;
 	}
 
-	mutex_unlock(&ts->lock);
+	rt_mutex_unlock(&ts->lock);
 
 	NVT_LOG("--\n");
 
