@@ -506,7 +506,6 @@ out:
 static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int32_t ret = 0;
-	char fw_version[64];
 
 	ts = kmalloc(sizeof(struct nvt_ts_data), GFP_KERNEL);
 	if (ts == NULL) {
@@ -621,22 +620,10 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	queue_delayed_work(nvt_esd_check_wq, &nvt_esd_check_work,
 			msecs_to_jiffies(NVT_TOUCH_ESD_CHECK_PERIOD));
 
-	if (tianma_jdi_flag == 0) {
-		memset(fw_version, 0, sizeof(fw_version));
-		sprintf(fw_version, "[FW]0x%02x,[IC]nvt36672", ts->fw_ver);
-		init_tp_fm_info(0, fw_version, "tianma");
-	} else {
-		memset(fw_version, 0, sizeof(fw_version));
-		sprintf(fw_version, "[FW]0x%02x,[IC]nvt36672", ts->fw_ver);
-	init_tp_fm_info(0, fw_version, "jdi"); }
-
-
-
 	ts->fb_notif.notifier_call = fb_notifier_callback;
 	ret = fb_register_client(&ts->fb_notif);
-	if (ret) {
+	if (ret)
 		goto err_register_fb_notif_failed;
-	}
 
 	bTouchIsAwake = 1;
 

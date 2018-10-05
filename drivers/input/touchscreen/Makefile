@@ -100,7 +100,3 @@ obj-$(CONFIG_TOUCHSCREEN_ZFORCE)	+= zforce_ts.o
 obj-$(CONFIG_TOUCHSCREEN_COLIBRI_VF50)	+= colibri-vf50-ts.o
 obj-$(CONFIG_TOUCHSCREEN_ROHM_BU21023)	+= rohm_bu21023.o
 obj-$(CONFIG_TOUCHSCREEN_ST)		+= st/
-obj-y	+= lct_tp_fm_info.o
-obj-y	+= lct_ctp_selftest.o
-obj-y	+= lct_ctp_upgrade.o
-obj-y	+= lct_if_ctp_upgrade.o
