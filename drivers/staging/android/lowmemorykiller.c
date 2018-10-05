@@ -102,21 +102,6 @@ static unsigned long lowmem_count(struct shrinker *s,
 		global_page_state(NR_INACTIVE_FILE);
 }
 
-static bool lowmem_whitelist(char *name)
-{
-	bool ret = false;
-	if (name == NULL)
-		return ret;
-
-	if ((!strcmp(name, "com.miui.home")) ||
-		(!strcmp(name, ".android.camera"))) {
-		ret = true;
-	}
-
-	return ret;
-}
-
-
 static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 {
 	struct task_struct *tsk;
@@ -188,7 +173,7 @@ again:
 		tasksize += (get_mm_counter(p->mm, MM_SWAPENTS) / 3);
 #endif
 		task_unlock(p);
-		if ((tasksize <= 0) || (lowmem_whitelist(p->comm) == true))
+		if (tasksize <= 0)
 			continue;
 		if (selected) {
 			if (oom_score_adj < selected_oom_score_adj)
