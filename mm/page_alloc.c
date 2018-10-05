@@ -63,7 +63,6 @@
 #include <linux/sched/rt.h>
 #include <linux/page_owner.h>
 #include <linux/kthread.h>
-#include <linux/simple_lmk.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -3273,13 +3272,6 @@ retry:
 	 */
 	if (!is_thp_gfp_mask(gfp_mask) || (current->flags & PF_KTHREAD))
 		migration_mode = MIGRATE_SYNC_LIGHT;
-
-#ifdef CONFIG_ANDROID_SIMPLE_LMK
-	simple_lmk_mem_reclaim();
-	if (gfp_mask & __GFP_NORETRY)
-		goto noretry;
-	goto retry;
-#endif
 
 	/* Try direct reclaim and then allocating */
 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
