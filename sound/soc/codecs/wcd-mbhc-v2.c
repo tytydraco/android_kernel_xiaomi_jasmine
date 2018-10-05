@@ -631,8 +631,6 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 	pr_debug("%s: enter insertion %d hph_status %x\n",
 		 __func__, insertion, mbhc->hph_status);
 
-	switch_set_state(&sdev, insertion);
-
 	if (!insertion) {
 		/* Report removal */
 		mbhc->hph_status &= ~jack_type;
@@ -2394,11 +2392,6 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 
 	pr_debug("%s: enter\n", __func__);
 	WCD_MBHC_RSC_LOCK(mbhc);
-
-	/* Add for get headset state tsx 10/19 */
-	sdev.name = "h2w";
-	if (switch_dev_register(&sdev) < 0)
-	    pr_err("%s, register headset switch fail\n", __func__);
 
 	/* enable HS detection */
 	if (mbhc->mbhc_cb->hph_pull_up_control)
