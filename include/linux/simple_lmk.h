@@ -13,9 +13,6 @@
 #ifndef _SIMPLE_LMK_H_
 #define _SIMPLE_LMK_H_
 
-/* Time until memory reclaim can be triggered again */
-#define LMK_KILL_TIMEOUT (msecs_to_jiffies(CONFIG_ANDROID_SIMPLE_LMK_TIMEOUT))
-
 void simple_lmk_mem_reclaim(void);
 
 #endif /* _SIMPLE_LMK_H_ */

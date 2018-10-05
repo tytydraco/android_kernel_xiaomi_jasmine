@@ -58,22 +58,6 @@ config ANDROID_SIMPLE_LMK
 	  Android gives them; in other words, the least important processes are
 	  always killed first.
 
-if ANDROID_SIMPLE_LMK
-
-config ANDROID_SIMPLE_LMK_MINFREE
-	int "Minimum MiB of memory to free per reclaim"
-	default "64"
-	help
-	  Simple LMK will free at least this many MiB of memory per reclaim.
-
-config ANDROID_SIMPLE_LMK_TIMEOUT
-	int "Kill timeout in milliseconds"
-	default "50"
-	help
-	  Simple LMK limits the frequency of memory reclaims to this value.
-
-endif
-
 config SYNC
 	bool "Synchronization framework"
 	default n
