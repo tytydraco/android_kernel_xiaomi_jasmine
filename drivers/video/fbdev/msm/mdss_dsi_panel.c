@@ -33,7 +33,7 @@
 
 #define VSYNC_DELAY msecs_to_jiffies(17)
 
-static unsigned int brightness_floor;
+static unsigned int brightness_floor = 16; /* 16 is Android's default lowest user-controlled brightness */
 module_param(brightness_floor, uint, 0644);
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
