@@ -868,7 +868,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	 * Use the minimum possible brightness when bl_level
 	 * is less than or equal to the floor value.
 	 */
-	if (brightness_floor && bl_level <= brightness_floor)
+	if (brightness_floor && bl_level <= brightness_floor && bl_level != 0)
 		bl_level = pdata->panel_info.bl_min;
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
