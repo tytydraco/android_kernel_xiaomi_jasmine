@@ -423,6 +423,18 @@ static ssize_t irq_get(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%i\n", irq);
 }
 
+/**
+ * writing to the irq node will just drop a printk message
+ * and return success, used for latency measurement.
+ */
+static ssize_t irq_ack(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	return count;
+}
+static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
+
 static struct attribute *attributes[] = {
 	&dev_attr_pinctl_set.attr,
 	&dev_attr_device_prepare.attr,
