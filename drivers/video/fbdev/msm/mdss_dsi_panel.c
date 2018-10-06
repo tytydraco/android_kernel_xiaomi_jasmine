@@ -434,7 +434,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
 	}
-	printk("%s, panel reset\n", __func__);
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -457,9 +456,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			   __func__, __LINE__);
 		return rc;
 	}
-
-	pr_debug("%s: enable = %d\n", __func__, enable);
-
+	
 	if (enable) {
 		rc = mdss_dsi_request_gpios(ctrl_pdata);
 		if (rc) {
@@ -928,13 +925,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	/*
-	 * Some backlight controllers specify a minimum duty cycle
-	 * for the backlight brightness. If the brightness is less
-	 * than it, the controller can malfunction.
-	 */
-	pr_err("%s: bl_level:%d\n", __func__, bl_level);
-
 	/* do not allow backlight to change when panel in disable mode */
 	if (pdata->panel_disable_mode && (bl_level != 0))
 		return;
@@ -1120,8 +1110,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	pr_err("%s: ctrl=%pK ndx=%d\n", __func__, ctrl, ctrl->ndx);
-
 	if (pinfo->dcs_cmd_by_left) {
 		if (ctrl->ndx != DSI_CTRL_LEFT)
 			goto end;
@@ -1139,7 +1127,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	}
 
 end:
-	pr_err("%s:-\n", __func__);
 	return 0;
 }
 

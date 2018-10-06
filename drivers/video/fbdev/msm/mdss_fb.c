@@ -969,9 +969,6 @@ int mdss_first_set_feature(struct mdss_panel_data *pdata, int first_ce_state, in
 		return -EPERM;
 	}
 
-	printk("%s, first_ce_state: %d, first_cabc_state: %d, first_srgb_state=%d, first_gamma_state=%d\n", __func__,
-	first_ce_state, first_cabc_state, first_srgb_state, first_gamma_state);
-
 	switch (first_ce_state) {
 	case 0x1:
 		if (ctrl->ce_on_cmds.cmd_cnt) {
@@ -2193,7 +2190,6 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	bool ad_bl_notify_needed = false;
 	bool bl_notify_needed = false;
 
-	printk("%s\n", __func__);
 	if ((((mdss_fb_is_power_off(mfd) && mfd->dcm_state != DCM_ENTER)
 		|| !mfd->allow_bl_update) && !IS_CALIB_MODE_BL(mfd)) ||
 		mfd->panel_info->cont_splash_enabled) {
@@ -2226,7 +2222,6 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 		} else {
 			if (mfd->bl_level != bkl_lvl)
 				bl_notify_needed = true;
-			pr_debug("backlight sent to panel :%d\n", temp);
 			pdata->set_backlight(pdata, temp);
 			mfd->bl_level = bkl_lvl;
 			mfd->bl_level_scaled = temp;
@@ -2492,9 +2487,6 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	if (mfd->dcm_state == DCM_ENTER)
 		return -EPERM;
 
-	pr_debug("%pS mode:%d\n", __builtin_return_address(0),
-		blank_mode);
-
 	snprintf(trace_buffer, sizeof(trace_buffer), "fb%d blank %d",
 		mfd->index, blank_mode);
 	ATRACE_BEGIN(trace_buffer);
@@ -2580,7 +2572,6 @@ static int mdss_fb_blank(int blank_mode, struct fb_info *info)
 	int ret;
 	struct mdss_panel_data *pdata;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-	printk("mdss_fb_blank 111\n");
 	if ((info == prim_fbi) && (blank_mode == FB_BLANK_UNBLANK) &&
 			atomic_read(&prim_panel_is_on)) {
 		atomic_set(&prim_panel_is_on, false);

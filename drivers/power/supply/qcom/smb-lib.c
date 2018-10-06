@@ -174,8 +174,6 @@ int smblib_get_charge_param(struct smb_charger *chg,
 		*val_u = param->get_proc(param, val_raw);
 	else
 		*val_u = val_raw * param->step_u + param->min_u;
-	smblib_dbg(chg, PR_REGISTER, "%s = %d (0x%02x)\n",
-		   param->name, *val_u, val_raw);
 
 	return rc;
 }
@@ -1776,8 +1774,6 @@ int smblib_get_prop_batt_health(struct smb_charger *chg,
 			rc);
 		return rc;
 	}
-	smblib_dbg(chg, PR_REGISTER, "BATTERY_CHARGER_STATUS_2 = 0x%02x\n",
-		   stat);
 
 	if (stat & CHARGER_ERROR_STATUS_BAT_OV_BIT) {
 		rc = smblib_get_prop_batt_voltage_now(chg, &pval);
@@ -2003,8 +1999,6 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 		return -EINVAL;
 
 	#ifdef THERMAL_CONFIG_FB
-	pr_err("smblib_set_prop_system_temp_level val=%d, chg->system_temp_level=%d, LctThermal=%d, lct_backlight_off= %d, IsInCall=%d, hwc_check_india=%d\n ",
-		val->intval, chg->system_temp_level, LctThermal, lct_backlight_off, LctIsInCall, hwc_check_india);
 
 	if (LctThermal == 0) {
 	    #if defined(CONFIG_KERNEL_CUSTOM_D2S)
@@ -2065,8 +2059,6 @@ int smblib_set_prop_system_temp_level(struct smb_charger *chg,
 		return vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, false, 0);
 		pr_err("lct smblib_set_prop_system_temp_level 0 false fcc_votable\n");
 	}
-
-	pr_err("lct smblib_set_prop_system_temp_level >0 fcc_votable\n");
 
 	vote(chg->fcc_votable, THERMAL_DAEMON_VOTER, true,
 			chg->thermal_mitigation[chg->system_temp_level]);
@@ -2310,8 +2302,6 @@ int smblib_get_prop_dc_online(struct smb_charger *chg,
 			rc);
 		return rc;
 	}
-	smblib_dbg(chg, PR_REGISTER, "POWER_PATH_STATUS = 0x%02x\n",
-		   stat);
 
 	val->intval = (stat & USE_DCIN_BIT) &&
 		      (stat & VALID_INPUT_POWER_SOURCE_STS_BIT);
@@ -2376,8 +2366,6 @@ int smblib_get_prop_usb_online(struct smb_charger *chg,
 			rc);
 		return rc;
 	}
-	smblib_dbg(chg, PR_REGISTER, "POWER_PATH_STATUS = 0x%02x\n",
-		   stat);
 
 	val->intval = (stat & USE_USBIN_BIT) &&
 		      (stat & VALID_INPUT_POWER_SOURCE_STS_BIT);
@@ -4465,8 +4453,6 @@ irqreturn_t smblib_handle_wdog_bark(int irq, void *data)
 	struct smb_irq_data *irq_data = data;
 	struct smb_charger *chg = irq_data->parent_data;
 	int rc;
-
-	smblib_dbg(chg, PR_INTERRUPT, "IRQ: %s\n", irq_data->name);
 
 	rc = smblib_write(chg, BARK_BITE_WDOG_PET_REG, BARK_BITE_WDOG_PET_BIT);
 	if (rc < 0)
