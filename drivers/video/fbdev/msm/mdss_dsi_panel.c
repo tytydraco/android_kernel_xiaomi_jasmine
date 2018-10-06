@@ -41,7 +41,7 @@ extern int mdss_first_set_feature(struct mdss_panel_data *pdata, int first_ce_st
 extern bool first_set_bl;
 char g_lcd_id[128];
 
-static unsigned int brightness_floor;
+static unsigned int brightness_floor = 16; /* 16 is Android's default lowest user-controlled brightness */
 module_param(brightness_floor, uint, 0644);
 
 bool ESD_TE_status = false;
