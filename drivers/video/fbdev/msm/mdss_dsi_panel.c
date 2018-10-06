@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -39,6 +40,9 @@ extern int first_ce_state, first_cabc_state, first_srgb_state, first_gamma_state
 extern int mdss_first_set_feature(struct mdss_panel_data *pdata, int first_ce_state, int first_cabc_state, int first_srgb_state, int first_gamma_state);
 extern bool first_set_bl;
 char g_lcd_id[128];
+
+static unsigned int brightness_floor;
+module_param(brightness_floor, uint, 0644);
 
 bool ESD_TE_status = false;
 DEFINE_LED_TRIGGER(bl_led_trigger);
@@ -913,6 +917,13 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
 	}
+
+	/*
+	 * Use the minimum possible brightness when bl_level
+	 * is less than or equal to the floor value.
+	 */
+	if (brightness_floor && bl_level <= brightness_floor)
+		bl_level = 1;
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
