@@ -187,8 +187,6 @@ static void spi_clock_set(struct gf_dev *gf_dev, int speed)
 
 static int gfspi_ioctl_clk_init(struct gf_dev *data)
 {
-	pr_debug("%s: enter\n", __func__);
-
 	data->clk_enabled = 0;
 	data->core_clk = clk_get(&data->spi->dev, "core_clk");
 	if (IS_ERR_OR_NULL(data->core_clk)) {
@@ -342,7 +340,6 @@ static irqreturn_t gf_irq(int irq, void *handle)
 	wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
 	sendnlmsg(&msg);
 	if ((gf_dev->wait_finger_down == true) && (gf_dev->device_available == 1) && (gf_dev->fb_black == 1)) {
-		printk("%s:shedule_work\n", __func__);
 		gf_dev->wait_finger_down = false;
 		schedule_work(&gf_dev->work);
 	}
@@ -397,8 +394,6 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 		/* add special key define */
 		key_input = gf_key->key;
 	}
-	pr_info("%s: received key event[%d], key=%d, value=%d\n",
-			__func__, key_input, gf_key->key, gf_key->value);
 
 	if ((GF_KEY_POWER == gf_key->key || GF_KEY_CAMERA == gf_key->key)
 			&& (gf_key->value == 1)) {
@@ -557,9 +552,7 @@ static long gf_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 
  static void notification_work(struct work_struct *work)
 {
-	printk("notification_work\n");
 	mdss_prim_panel_fb_unblank(FP_UNLOCK_REJECTION_TIMEOUT);
-	printk("unblank\n");
 }
 
 static int gf_open(struct inode *inode, struct file *filp)
@@ -615,7 +608,6 @@ static int gf_fasync(int fd, struct file *filp, int mode)
 	int ret;
 
 	ret = fasync_helper(fd, filp, mode, &gf_dev->async);
-	pr_info("ret = %d\n", ret);
 	return ret;
 }
 #endif
@@ -725,7 +717,6 @@ static int gf_probe(struct platform_device *pdev)
 	struct regulator *vreg;
 	int ret = 0;
 #endif
-		 printk("Macle11 gf_probe\n");
 	/* Initialize the driver data */
 	INIT_LIST_HEAD(&gf_dev->device_entry);
 #if defined(USE_SPI_BUS)
@@ -762,7 +753,6 @@ static int gf_probe(struct platform_device *pdev)
 			vreg = NULL;
 			goto error_hw;
 		}
-		pr_info("Macle Set voltage on vdd_ana for goodix fingerprint");
 
 	msleep(11);
         #endif
@@ -814,7 +804,6 @@ static int gf_probe(struct platform_device *pdev)
 
 
 #ifdef AP_CONTROL_CLK
-	pr_info("Get the clk resource.\n");
 	/* Enable spi clock */
 	if (gfspi_ioctl_clk_init(gf_dev))
 		goto gfspi_probe_clk_init_failed;
@@ -830,9 +819,6 @@ static int gf_probe(struct platform_device *pdev)
 	fb_register_client(&gf_dev->notifier);
 
 	wake_lock_init(&fp_wakelock, WAKE_LOCK_SUSPEND, "fp_wakelock");
-
-		 printk("adasdad\n");
-	pr_info("version V%d.%d.%02d\n", VER_MAJOR, VER_MINOR, PATCH_LEVEL);
 
 	return status;
 

@@ -535,8 +535,6 @@ static int fpc_fb_notif_callback(struct notifier_block *nb,
 	if (val != FB_EVENT_BLANK)
 		return 0;
 
-	printk("[info] %s value = %d\n", __func__, (int)val);
-
 	if (evdata && evdata->data && val == FB_EVENT_BLANK) {
 		blank = *(int *)(evdata->data);
 		switch (blank) {
