@@ -60,7 +60,6 @@
 #include <linux/mutex.h>
 #include <linux/nsproxy.h>
 #include <linux/poll.h>
-#include <linux/debugfs.h>
 #include <linux/rbtree.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -83,27 +82,8 @@ static DEFINE_RT_MUTEX(binder_procs_lock);
 static HLIST_HEAD(binder_dead_nodes);
 static DEFINE_SPINLOCK(binder_dead_nodes_lock);
 
-static struct dentry *binder_debugfs_dir_entry_root;
-static struct dentry *binder_debugfs_dir_entry_proc;
 static atomic_t binder_last_id;
 static struct workqueue_struct *binder_deferred_workqueue;
-
-#define BINDER_DEBUG_ENTRY(name) \
-static int binder_##name##_open(struct inode *inode, struct file *file) \
-{ \
-	return single_open(file, binder_##name##_show, inode->i_private); \
-} \
-\
-static const struct file_operations binder_##name##_fops = { \
-	.owner = THIS_MODULE, \
-	.open = binder_##name##_open, \
-	.read = seq_read, \
-	.llseek = seq_lseek, \
-	.release = single_release, \
-}
-
-static int binder_proc_show(struct seq_file *m, void *unused);
-BINDER_DEBUG_ENTRY(proc);
 
 /* This is only defined in include/asm-arm/sizes.h */
 #ifndef SZ_1K
@@ -510,7 +490,6 @@ struct binder_priority {
  *                        (protected by @inner_lock)
  * @default_priority:     default scheduler priority
  *                        (invariant after initialized)
- * @debugfs_entry:        debugfs node
  * @alloc:                binder allocator bookkeeping
  * @context:              binder_context for this proc
  *                        (invariant after initialized)
@@ -543,7 +522,6 @@ struct binder_proc {
 	int requested_threads_started;
 	int tmp_ref;
 	struct binder_priority default_priority;
-	struct dentry *debugfs_entry;
 	struct binder_alloc alloc;
 	struct binder_context *context;
 	spinlock_t inner_lock;
@@ -4572,23 +4550,6 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	hlist_add_head(&proc->proc_node, &binder_procs);
 	rt_mutex_unlock(&binder_procs_lock);
 
-	if (binder_debugfs_dir_entry_proc) {
-		char strbuf[11];
-
-		snprintf(strbuf, sizeof(strbuf), "%u", proc->pid);
-		/*
-		 * proc debug entries are shared between contexts, so
-		 * this will fail if the process tries to open the driver
-		 * again with a different context. The priting code will
-		 * anyway print all contexts that a given PID has, so this
-		 * is not a problem.
-		 */
-		proc->debugfs_entry = debugfs_create_file(strbuf, 0444,
-			binder_debugfs_dir_entry_proc,
-			(void *)(unsigned long)proc->pid,
-			&binder_proc_fops);
-	}
-
 	return 0;
 }
 
@@ -4623,7 +4584,6 @@ static int binder_release(struct inode *nodp, struct file *filp)
 {
 	struct binder_proc *proc = filp->private_data;
 
-	debugfs_remove(proc->debugfs_entry);
 	binder_defer_work(proc, BINDER_DEFERRED_RELEASE);
 
 	return 0;
@@ -4919,71 +4879,6 @@ static const char * const binder_objstat_strings[] = {
 	"transaction_complete"
 };
 
-inline static void print_binder_stats(struct seq_file *m, const char *prefix,
-			       struct binder_stats *stats)
-{
-	return;
-}
-
-inline static void print_binder_proc_stats(struct seq_file *m,
-				    struct binder_proc *proc)
-{
-	return;
-}
-
-
-static int binder_state_show(struct seq_file *m, void *unused)
-{
-	struct binder_node *node;
-	struct binder_node *last_node = NULL;
-
-	spin_lock(&binder_dead_nodes_lock);
-	hlist_for_each_entry(node, &binder_dead_nodes, dead_node) {
-		/*
-		 * take a temporary reference on the node so it
-		 * survives and isn't removed from the list
-		 * while we print it.
-		 */
-		node->tmp_refs++;
-		spin_unlock(&binder_dead_nodes_lock);
-		if (last_node)
-			binder_put_node(last_node);
-		last_node = node;
-		spin_lock(&binder_dead_nodes_lock);
-	}
-	spin_unlock(&binder_dead_nodes_lock);
-	if (last_node)
-		binder_put_node(last_node);
-
-	return 0;
-}
-
-inline static int binder_stats_show(struct seq_file *m, void *unused)
-{
-	return 0;
-}
-
-inline static int binder_transactions_show(struct seq_file *m, void *unused)
-{
-	return 0;
-}
-
-inline static int binder_proc_show(struct seq_file *m, void *unused)
-{
-	return 0;
-}
-
-inline static void print_binder_transaction_log_entry(struct seq_file *m,
-					struct binder_transaction_log_entry *e)
-{
-	return;
-}
-
-inline static int binder_transaction_log_show(struct seq_file *m, void *unused)
-{
-	return 0;
-}
-
 static const struct file_operations binder_fops = {
 	.owner = THIS_MODULE,
 	.poll = binder_poll,
@@ -4994,11 +4889,6 @@ static const struct file_operations binder_fops = {
 	.flush = binder_flush,
 	.release = binder_release,
 };
-
-BINDER_DEBUG_ENTRY(state);
-BINDER_DEBUG_ENTRY(stats);
-BINDER_DEBUG_ENTRY(transactions);
-BINDER_DEBUG_ENTRY(transaction_log);
 
 static int __init init_binder_device(const char *name)
 {
@@ -5045,39 +4935,6 @@ static int __init binder_init(void)
 	if (!binder_deferred_workqueue)
 		return -ENOMEM;
 
-	binder_debugfs_dir_entry_root = debugfs_create_dir("binder", NULL);
-	if (binder_debugfs_dir_entry_root)
-		binder_debugfs_dir_entry_proc = debugfs_create_dir("proc",
-						 binder_debugfs_dir_entry_root);
-
-	if (binder_debugfs_dir_entry_root) {
-		debugfs_create_file("state",
-				    0444,
-				    binder_debugfs_dir_entry_root,
-				    NULL,
-				    &binder_state_fops);
-		debugfs_create_file("stats",
-				    0444,
-				    binder_debugfs_dir_entry_root,
-				    NULL,
-				    &binder_stats_fops);
-		debugfs_create_file("transactions",
-				    0444,
-				    binder_debugfs_dir_entry_root,
-				    NULL,
-				    &binder_transactions_fops);
-		debugfs_create_file("transaction_log",
-				    0444,
-				    binder_debugfs_dir_entry_root,
-				    &binder_transaction_log,
-				    &binder_transaction_log_fops);
-		debugfs_create_file("failed_transaction_log",
-				    0444,
-				    binder_debugfs_dir_entry_root,
-				    &binder_transaction_log_failed,
-				    &binder_transaction_log_fops);
-	}
-
 	/*
 	 * Copy the module_parameter string, because we don't want to
 	 * tokenize it in-place.
@@ -5108,7 +4965,6 @@ err_init_binder_device_failed:
 	kfree(device_names);
 
 err_alloc_device_names_failed:
-	debugfs_remove_recursive(binder_debugfs_dir_entry_root);
 
 	destroy_workqueue(binder_deferred_workqueue);
 
