@@ -782,8 +782,8 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->dev = NULL;
 
 	kref_init(&bdi->refcnt);
-	bdi->min_ratio = 0;
-	bdi->max_ratio = 100;
+	bdi->min_ratio = CONFIG_BDI_MIN_RATIO;
+	bdi->max_ratio = CONFIG_BDI_MAX_RATIO;
 	bdi->max_prop_frac = FPROP_FRAC_BASE;
 	INIT_LIST_HEAD(&bdi->bdi_list);
 	INIT_LIST_HEAD(&bdi->wb_list);

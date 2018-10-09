@@ -748,3 +748,11 @@ config VM_DIRTY_RATIO
 config VM_DIRTY_BACKGROUND_RATIO
 	int "VM dirty background ratio default value"
 	default 10
+
+config BDI_MIN_RATIO
+  int "BDI min ratio default value"
+  default 0
+
+config BDI_MAX_RATIO
+  int "BDI max ratio default value"
+  default 100
