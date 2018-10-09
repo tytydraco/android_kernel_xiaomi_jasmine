@@ -2752,8 +2752,6 @@ static void binder_transaction(struct binder_proc *proc,
 
 			tmp = thread->transaction_stack;
 			if (tmp->to_thread != thread) {
-				spin_lock(&tmp->lock);
-				spin_unlock(&tmp->lock);
 				binder_inner_proc_unlock(proc);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = -EPROTO;
