@@ -1564,7 +1564,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * Syscall tracing and stepping should be turned off in the
 	 * child regardless of CLONE_PTRACE.
 	 */
+#ifdef CONFIG_JTAG_DEBUGGING
 	user_disable_single_step(p);
+#endif
 	clear_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(p, TIF_SYSCALL_EMU);

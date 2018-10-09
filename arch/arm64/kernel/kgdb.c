@@ -307,8 +307,10 @@ int kgdb_arch_init(void)
 	if (ret != 0)
 		return ret;
 
+#ifdef CONFIG_JTAG_DEBUGGING
 	register_break_hook(&kgdb_brkpt_hook);
 	register_break_hook(&kgdb_compiled_brkpt_hook);
+#endif
 	register_step_hook(&kgdb_step_hook);
 	return 0;
 }
@@ -320,8 +322,10 @@ int kgdb_arch_init(void)
  */
 void kgdb_arch_exit(void)
 {
+#ifdef CONFIG_JTAG_DEBUGGING
 	unregister_break_hook(&kgdb_brkpt_hook);
 	unregister_break_hook(&kgdb_compiled_brkpt_hook);
+#endif
 	unregister_step_hook(&kgdb_step_hook);
 	unregister_die_notifier(&kgdb_notifier);
 }

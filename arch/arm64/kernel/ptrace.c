@@ -157,6 +157,7 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
 /*
  * Called by kernel/ptrace.c when detaching..
  */
+#ifdef CONFIG_JTAG_DEBUGGING
 void ptrace_disable(struct task_struct *child)
 {
 	/*
@@ -166,6 +167,9 @@ void ptrace_disable(struct task_struct *child)
 	 */
 	user_disable_single_step(child);
 }
+#else
+inline void ptrace_disable(struct task_struct *child) {};
+#endif
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 /*

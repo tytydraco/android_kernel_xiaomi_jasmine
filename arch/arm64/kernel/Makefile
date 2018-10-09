@@ -11,13 +11,17 @@ CFLAGS_REMOVE_insn.o = -pg
 CFLAGS_REMOVE_return_address.o = -pg
 
 # Object file lists.
-arm64-obj-y		:= debug-monitors.o entry.o irq.o fpsimd.o		\
+arm64-obj-y		:= entry.o irq.o fpsimd.o		\
 			   entry-fpsimd.o process.o ptrace.o setup.o signal.o	\
 			   sys.o stacktrace.o time.o traps.o io.o vdso.o	\
 			   hyp-stub.o psci.o cpu_ops.o insn.o	\
 			   return_address.o cpuinfo.o cpu_errata.o		\
 			   cpufeature.o alternative.o cacheinfo.o		\
 			   smp.o smp_spin_table.o topology.o smccc-call.o
+
+ifeq ($(CONFIG_JTAG_DEBUGGING), y)
+arm64-obj-y		:= debug_monitors.o
+endif
 
 extra-$(CONFIG_EFI)			:= efi-entry.o
 
