@@ -3,7 +3,6 @@
  * Android IPC Subsystem
  *
  * Copyright (C) 2017 Google, Inc.
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -15,6 +14,8 @@
  * GNU General Public License for more details.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/mm_types.h>
 #include <linux/err.h>
@@ -83,9 +84,23 @@ enum buf_end_align_type {
 	LOOP_END,
 };
 
+static void pr_err_size_seq(size_t *sizes, int *seq)
+{
+	int i;
+
+	pr_err("alloc sizes: ");
+	for (i = 0; i < BUFFER_NUM; i++)
+		pr_cont("[%zu]", sizes[i]);
+	pr_cont("\n");
+	pr_err("free seq: ");
+	for (i = 0; i < BUFFER_NUM; i++)
+		pr_cont("[%d]", seq[i]);
+	pr_cont("\n");
+}
+
 static bool check_buffer_pages_allocated(struct binder_alloc *alloc,
-			struct binder_buffer *buffer,
-			size_t size)
+					 struct binder_buffer *buffer,
+					 size_t size)
 {
 	void *page_addr, *end;
 	int page_index;
@@ -95,7 +110,10 @@ static bool check_buffer_pages_allocated(struct binder_alloc *alloc,
 	for (; page_addr < end; page_addr += PAGE_SIZE) {
 		page_index = (page_addr - alloc->buffer) / PAGE_SIZE;
 		if (!alloc->pages[page_index].page_ptr ||
-				!list_empty(&alloc->pages[page_index].lru)) {
+		    !list_empty(&alloc->pages[page_index].lru)) {
+			pr_err("expect alloc but is %s at page index %d\n",
+			       alloc->pages[page_index].page_ptr ?
+			       "lru" : "free", page_index);
 			return false;
 		}
 	}
@@ -103,24 +121,25 @@ static bool check_buffer_pages_allocated(struct binder_alloc *alloc,
 }
 
 static void binder_selftest_alloc_buf(struct binder_alloc *alloc,
-			struct binder_buffer *buffers[],
-			size_t *sizes, int *seq)
+				      struct binder_buffer *buffers[],
+				      size_t *sizes, int *seq)
 {
 	int i;
 
 	for (i = 0; i < BUFFER_NUM; i++) {
 		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0);
 		if (IS_ERR(buffers[i]) ||
-				!check_buffer_pages_allocated(alloc, buffers[i],
-				sizes[i])) {
+		    !check_buffer_pages_allocated(alloc, buffers[i],
+						  sizes[i])) {
+			pr_err_size_seq(sizes, seq);
 			binder_selftest_failures++;
 		}
 	}
 }
 
 static void binder_selftest_free_buf(struct binder_alloc *alloc,
-			struct binder_buffer *buffers[],
-			size_t *sizes, int *seq, size_t end)
+				     struct binder_buffer *buffers[],
+				     size_t *sizes, int *seq, size_t end)
 {
 	int i;
 
@@ -128,7 +147,15 @@ static void binder_selftest_free_buf(struct binder_alloc *alloc,
 		binder_alloc_free_buf(alloc, buffers[seq[i]]);
 
 	for (i = 0; i < end / PAGE_SIZE; i++) {
+		/**
+		 * Error message on a free page can be false positive
+		 * if binder shrinker ran during binder_alloc_free_buf
+		 * calls above.
+		 */
 		if (list_empty(&alloc->pages[i].lru)) {
+			pr_err_size_seq(sizes, seq);
+			pr_err("expect lru but is %s at page index %d\n",
+			       alloc->pages[i].page_ptr ? "alloc" : "free", i);
 			binder_selftest_failures++;
 		}
 	}
@@ -141,18 +168,21 @@ static void binder_selftest_free_page(struct binder_alloc *alloc)
 
 	while ((count = list_lru_count(&binder_alloc_lru))) {
 		list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
-				NULL, count);
+			      NULL, count);
 	}
 
 	for (i = 0; i < (alloc->buffer_size / PAGE_SIZE); i++) {
 		if (alloc->pages[i].page_ptr) {
+			pr_err("expect free but is %s at page index %d\n",
+			       list_empty(&alloc->pages[i].lru) ?
+			       "alloc" : "lru", i);
 			binder_selftest_failures++;
 		}
 	}
 }
 
 static void binder_selftest_alloc_free(struct binder_alloc *alloc,
-			size_t *sizes, int *seq, size_t end)
+				       size_t *sizes, int *seq, size_t end)
 {
 	struct binder_buffer *buffers[BUFFER_NUM];
 
@@ -161,6 +191,8 @@ static void binder_selftest_alloc_free(struct binder_alloc *alloc,
 
 	/* Allocate from lru. */
 	binder_selftest_alloc_buf(alloc, buffers, sizes, seq);
+	if (list_lru_count(&binder_alloc_lru))
+		pr_err("lru list should be empty but is not\n");
 
 	binder_selftest_free_buf(alloc, buffers, sizes, seq, end);
 	binder_selftest_free_page(alloc);
@@ -179,8 +211,8 @@ static bool is_dup(int *seq, int index, int val)
 
 /* Generate BUFFER_NUM factorial free orders. */
 static void binder_selftest_free_seq(struct binder_alloc *alloc,
-			size_t *sizes, int *seq,
-			int index, size_t end)
+				     size_t *sizes, int *seq,
+				     int index, size_t end)
 {
 	int i;
 
@@ -197,7 +229,7 @@ static void binder_selftest_free_seq(struct binder_alloc *alloc,
 }
 
 static void binder_selftest_alloc_size(struct binder_alloc *alloc,
-			size_t *end_offset)
+				       size_t *end_offset)
 {
 	int i;
 	int seq[BUFFER_NUM] = {0};
@@ -223,7 +255,7 @@ static void binder_selftest_alloc_size(struct binder_alloc *alloc,
 }
 
 static void binder_selftest_alloc_offset(struct binder_alloc *alloc,
-			size_t *end_offset, int index)
+					 size_t *end_offset, int index)
 {
 	int align;
 	size_t end, prev;
@@ -262,12 +294,17 @@ void binder_selftest_alloc(struct binder_alloc *alloc)
 
 	if (!binder_selftest_run)
 		return;
-	rt_mutex_lock(&binder_selftest_lock);
+	mutex_lock(&binder_selftest_lock);
 	if (!binder_selftest_run || !alloc->vma)
 		goto done;
+	pr_info("STARTED\n");
 	binder_selftest_alloc_offset(alloc, end_offset, 0);
 	binder_selftest_run = false;
+	if (binder_selftest_failures > 0)
+		pr_info("%d tests FAILED\n", binder_selftest_failures);
+	else
+		pr_info("PASSED\n");
 
 done:
-	rt_mutex_unlock(&binder_selftest_lock);
+	mutex_unlock(&binder_selftest_lock);
 }

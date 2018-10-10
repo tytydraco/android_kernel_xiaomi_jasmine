@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2017 Google, Inc.
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -101,7 +100,7 @@ struct binder_lru_page {
  * struct binder_buffer objects used to track the user buffers
  */
 struct binder_alloc {
-	struct rt_mutex mutex;
+	struct mutex mutex;
 	struct vm_area_struct *vma;
 	struct mm_struct *vma_vm_mm;
 	void *buffer;
@@ -123,15 +122,15 @@ void binder_selftest_alloc(struct binder_alloc *alloc);
 static inline void binder_selftest_alloc(struct binder_alloc *alloc) {}
 #endif
 enum lru_status binder_alloc_free_page(struct list_head *item,
-				struct list_lru_one *lru,
-				spinlock_t *lock, void *cb_arg);
+				       struct list_lru_one *lru,
+				       spinlock_t *lock, void *cb_arg);
 extern struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 						  size_t data_size,
 						  size_t offsets_size,
 						  size_t extra_buffers_size,
 						  int is_async);
 extern void binder_alloc_init(struct binder_alloc *alloc);
-void binder_alloc_shrinker_init(void);
+extern int binder_alloc_shrinker_init(void);
 extern void binder_alloc_vma_close(struct binder_alloc *alloc);
 extern struct binder_buffer *
 binder_alloc_prepare_to_free(struct binder_alloc *alloc,
@@ -158,9 +157,9 @@ binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 {
 	size_t free_async_space;
 
-	rt_mutex_lock(&alloc->mutex);
+	mutex_lock(&alloc->mutex);
 	free_async_space = alloc->free_async_space;
-	rt_mutex_unlock(&alloc->mutex);
+	mutex_unlock(&alloc->mutex);
 	return free_async_space;
 }
 
