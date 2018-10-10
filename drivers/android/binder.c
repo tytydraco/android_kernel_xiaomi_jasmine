@@ -484,7 +484,6 @@ struct binder_proc {
 	bool is_dead;
 
 	struct list_head todo;
-	struct binder_stats stats;
 	struct list_head delivered_death;
 	int max_threads;
 	int requested_threads;
@@ -2722,8 +2721,6 @@ static void binder_transaction(struct binder_proc *proc,
 				return_error = BR_DEAD_REPLY;
 			rt_mutex_unlock(&context->context_mgr_node_lock);
 			if (target_node && target_proc == proc) {
-				binder_user_error("%d:%d got transaction to context manager from process owning it\n",
-						  proc->pid, thread->pid);
 				return_error = BR_FAILED_REPLY;
 				return_error_param = -EINVAL;
 				return_error_line = __LINE__;
@@ -4169,19 +4166,17 @@ static int binder_ioctl_get_node_info_for_ref(struct binder_proc *proc,
 
 	if (info->strong_count || info->weak_count || info->reserved1 ||
 	    info->reserved2 || info->reserved3) {
-		binder_user_error("%d BINDER_GET_NODE_INFO_FOR_REF: only handle may be non-zero.",
-				  proc->pid);
 		return -EINVAL;
 	}
 
 	/* This ioctl may only be used by the context manager */
-	mutex_lock(&context->context_mgr_node_lock);
+	rt_mutex_lock(&context->context_mgr_node_lock);
 	if (!context->binder_context_mgr_node ||
 		context->binder_context_mgr_node->proc != proc) {
-		mutex_unlock(&context->context_mgr_node_lock);
+		rt_mutex_unlock(&context->context_mgr_node_lock);
 		return -EPERM;
 	}
-	mutex_unlock(&context->context_mgr_node_lock);
+	rt_mutex_unlock(&context->context_mgr_node_lock);
 
 	node = binder_get_node_from_ref(proc, handle, true, NULL);
 	if (!node)
