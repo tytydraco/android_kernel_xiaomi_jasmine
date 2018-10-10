@@ -157,7 +157,7 @@ unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
 /*
  * Called by kernel/ptrace.c when detaching..
  */
-#ifdef CONFIG_JTAG_DEBUGGING
+#ifdef CONFIG_DEBUG_MONITORS
 void ptrace_disable(struct task_struct *child)
 {
 	/*

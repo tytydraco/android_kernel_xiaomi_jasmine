@@ -287,7 +287,7 @@ static void setup_restart_syscall(struct pt_regs *regs)
  */
 static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
-#ifdef CONFIG_JTAG_DEBUGGING
+#ifdef CONFIG_DEBUG_MONITORS
 	struct task_struct *tsk = current;
 #endif
   sigset_t *oldset = sigmask_to_save();
@@ -315,7 +315,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	 * Fast forward the stepping logic so we step into the signal
 	 * handler.
 	 */
-#ifdef CONFIG_JTAG_DEBUGGING
+#ifdef CONFIG_DEBUG_MONITORS
 	if (!ret)
 		user_fastforward_single_step(tsk);
 #endif
@@ -397,7 +397,7 @@ static void do_signal(struct pt_regs *regs)
 	if (syscall >= 0 && regs->pc == restart_addr) {
 		if (retval == -ERESTART_RESTARTBLOCK)
 			setup_restart_syscall(regs);
-#ifdef CONFIG_JTAG_DEBUGGING
+#ifdef CONFIG_DEBUG_MONITORS
 		user_rewind_single_step(current);
 #endif
   }

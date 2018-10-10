@@ -766,7 +766,7 @@ static int ptrace_resume(struct task_struct *child, long request,
 	} else if (is_singlestep(request) || is_sysemu_singlestep(request)) {
 		if (unlikely(!arch_has_single_step()))
 			return -EIO;
-#ifdef CONFIG_JTAG_DEBUGGING
+#ifdef CONFIG_DEBUG_MONITORS
 		user_enable_single_step(child);
 	} else {
 		user_disable_single_step(child);

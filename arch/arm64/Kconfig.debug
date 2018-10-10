@@ -125,6 +125,10 @@ config KERNEL_TEXT_RDONLY
 config ARM64_STRICT_BREAK_BEFORE_MAKE
 	bool "Enforce strict break-before-make on page table updates "
 
+config DEBUG_MONITORS
+	bool "Enable debug monitor calls in the kernel"
+	default n
+
 source "drivers/hwtracing/coresight/Kconfig"
 
 endmenu

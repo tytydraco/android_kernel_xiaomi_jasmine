@@ -19,7 +19,7 @@ arm64-obj-y		:= entry.o irq.o fpsimd.o		\
 			   cpufeature.o alternative.o cacheinfo.o		\
 			   smp.o smp_spin_table.o topology.o smccc-call.o
 
-ifeq ($(CONFIG_JTAG_DEBUGGING), y)
+ifeq ($(CONFIG_DEBUG_MONITORS), y)
 arm64-obj-y		:= debug_monitors.o
 endif
 
