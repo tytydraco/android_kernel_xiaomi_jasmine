@@ -37,7 +37,7 @@ struct mdss_mdp_wfd *mdss_mdp_wfd_init(struct device *device,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	mutex_init(&wfd->lock);
+	rt_mutex_init(&wfd->lock);
 	INIT_LIST_HEAD(&wfd->data_queue);
 	init_completion(&wfd->comp);
 	wfd->ctl = ctl;
@@ -81,13 +81,13 @@ int mdss_mdp_wfd_wait_for_finish(struct mdss_mdp_wfd *wfd)
 {
 	int ret;
 
-	mutex_lock(&wfd->lock);
+	rt_mutex_lock(&wfd->lock);
 	if (list_empty(&wfd->data_queue)) {
-		mutex_unlock(&wfd->lock);
+		rt_mutex_unlock(&wfd->lock);
 		return 0;
 	}
 	init_completion(&wfd->comp);
-	mutex_unlock(&wfd->lock);
+	rt_mutex_unlock(&wfd->lock);
 
 	ret = wait_for_completion_timeout(&wfd->comp,
 				msecs_to_jiffies(WFD_TIMEOUT_IN_MS));
@@ -369,9 +369,9 @@ struct mdss_mdp_wb_data *mdss_mdp_wfd_add_data(
 		return ERR_PTR(ret);
 	}
 
-	mutex_lock(&wfd->lock);
+	rt_mutex_lock(&wfd->lock);
 	list_add_tail(&wfd_data->next, &wfd->data_queue);
-	mutex_unlock(&wfd->lock);
+	rt_mutex_unlock(&wfd->lock);
 
 	return wfd_data;
 }
@@ -379,11 +379,11 @@ struct mdss_mdp_wb_data *mdss_mdp_wfd_add_data(
 void mdss_mdp_wfd_remove_data(struct mdss_mdp_wfd *wfd,
 	struct mdss_mdp_wb_data *wfd_data)
 {
-	mutex_lock(&wfd->lock);
+	rt_mutex_lock(&wfd->lock);
 	list_del_init(&wfd_data->next);
 	if (list_empty(&wfd->data_queue))
 		complete(&wfd->comp);
-	mutex_unlock(&wfd->lock);
+	rt_mutex_unlock(&wfd->lock);
 	mdss_mdp_data_free(&wfd_data->data, true, DMA_FROM_DEVICE);
 	kfree(wfd_data);
 }
@@ -512,16 +512,16 @@ int mdss_mdp_wfd_kickoff(struct mdss_mdp_wfd *wfd,
 		return 0;
 	}
 
-	mutex_lock(&wfd->lock);
+	rt_mutex_lock(&wfd->lock);
 	if (list_empty(&wfd->data_queue)) {
 		pr_debug("no output buffer\n");
-		mutex_unlock(&wfd->lock);
+		rt_mutex_unlock(&wfd->lock);
 		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_DONE);
 		return 0;
 	}
 	wfd_data = list_first_entry(&wfd->data_queue,
 				struct mdss_mdp_wb_data, next);
-	mutex_unlock(&wfd->lock);
+	rt_mutex_unlock(&wfd->lock);
 
 	ret = mdss_mdp_data_map(&wfd_data->data, true, DMA_FROM_DEVICE);
 	if (ret) {
@@ -558,15 +558,15 @@ int mdss_mdp_wfd_commit_done(struct mdss_mdp_wfd *wfd)
 {
 	struct mdss_mdp_wb_data *wfd_data;
 
-	mutex_lock(&wfd->lock);
+	rt_mutex_lock(&wfd->lock);
 	if (list_empty(&wfd->data_queue)) {
 		pr_err("no output buffer\n");
-		mutex_unlock(&wfd->lock);
+		rt_mutex_unlock(&wfd->lock);
 		return -EINVAL;
 	}
 	wfd_data = list_first_entry(&wfd->data_queue,
 				struct mdss_mdp_wb_data, next);
-	mutex_unlock(&wfd->lock);
+	rt_mutex_unlock(&wfd->lock);
 
 	mdss_mdp_wfd_remove_data(wfd, wfd_data);
 

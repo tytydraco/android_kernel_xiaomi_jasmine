@@ -1072,13 +1072,13 @@ static int mdss_dp_wait4video_ready(struct mdss_dp_drv_pdata *dp_drv)
 static void mdss_dp_update_cable_status(struct mdss_dp_drv_pdata *dp,
 		bool connected)
 {
-	mutex_lock(&dp->attention_lock);
+	rt_mutex_lock(&dp->attention_lock);
 	pr_debug("cable_connected to %d\n", connected);
 	if (dp->cable_connected != connected)
 		dp->cable_connected = connected;
 	else
 		pr_debug("no change in cable status\n");
-	mutex_unlock(&dp->attention_lock);
+	rt_mutex_unlock(&dp->attention_lock);
 }
 
 static int dp_get_cable_status(struct platform_device *pdev, u32 vote)
@@ -1091,9 +1091,9 @@ static int dp_get_cable_status(struct platform_device *pdev, u32 vote)
 		return -ENODEV;
 	}
 
-	mutex_lock(&dp->attention_lock);
+	rt_mutex_lock(&dp->attention_lock);
 	hpd = dp->cable_connected;
-	mutex_unlock(&dp->attention_lock);
+	rt_mutex_unlock(&dp->attention_lock);
 
 	return hpd;
 }
@@ -1570,9 +1570,9 @@ static int mdss_dp_on_irq(struct mdss_dp_drv_pdata *dp_drv, bool lt_needed)
 	char ln_map[4];
 	bool connected;
 
-	mutex_lock(&dp_drv->attention_lock);
+	rt_mutex_lock(&dp_drv->attention_lock);
 	connected = dp_drv->cable_connected;
-	mutex_unlock(&dp_drv->attention_lock);
+	rt_mutex_unlock(&dp_drv->attention_lock);
 
 	/*
 	 * If DP cable disconnected, Avoid link training or turning on DP Path
@@ -1589,7 +1589,7 @@ static int mdss_dp_on_irq(struct mdss_dp_drv_pdata *dp_drv, bool lt_needed)
 		if (ret == -EAGAIN)
 			mdss_dp_mainlink_ctrl(&dp_drv->ctrl_io, false);
 
-		mutex_lock(&dp_drv->train_mutex);
+		rt_mutex_lock(&dp_drv->train_mutex);
 
 		dp_init_panel_info(dp_drv, dp_drv->vic);
 		ret = mdss_dp_get_lane_mapping(dp_drv, dp_drv->orientation,
@@ -1625,13 +1625,13 @@ static int mdss_dp_on_irq(struct mdss_dp_drv_pdata *dp_drv, bool lt_needed)
 		if (ret) {
 			if (ret == -ENODEV || ret == -EINVAL) {
 				pr_err("main link setup failed\n");
-				mutex_unlock(&dp_drv->train_mutex);
+				rt_mutex_unlock(&dp_drv->train_mutex);
 				return ret;
 			}
 		}
 
 exit_loop:
-		mutex_unlock(&dp_drv->train_mutex);
+		rt_mutex_unlock(&dp_drv->train_mutex);
 	} while (ret == -EAGAIN);
 
 	pr_debug("end\n");
@@ -1655,7 +1655,7 @@ int mdss_dp_on_hpd(struct mdss_dp_drv_pdata *dp_drv)
 	char ln_map[4];
 
 	/* wait until link training is completed */
-	mutex_lock(&dp_drv->train_mutex);
+	rt_mutex_lock(&dp_drv->train_mutex);
 
 	pr_debug("Enter++ cont_splash=%d\n", dp_drv->cont_splash);
 
@@ -1714,7 +1714,7 @@ link_training:
 	pr_debug("End-\n");
 
 exit:
-	mutex_unlock(&dp_drv->train_mutex);
+	rt_mutex_unlock(&dp_drv->train_mutex);
 	return ret;
 }
 
@@ -1732,9 +1732,9 @@ int mdss_dp_on(struct mdss_panel_data *pdata)
 	dp_drv = container_of(pdata, struct mdss_dp_drv_pdata,
 			panel_data);
 
-	mutex_lock(&dp_drv->attention_lock);
+	rt_mutex_lock(&dp_drv->attention_lock);
 	hpd = dp_drv->cable_connected;
-	mutex_unlock(&dp_drv->attention_lock);
+	rt_mutex_unlock(&dp_drv->attention_lock);
 
 	/* In case of device coming out of PM_SUSPEND, there can be
 	 * a corner case where the sink is turned off or the DP cable
@@ -1806,7 +1806,7 @@ static int mdss_dp_off_irq(struct mdss_dp_drv_pdata *dp_drv)
 	}
 
 	/* wait until link training is completed */
-	mutex_lock(&dp_drv->train_mutex);
+	rt_mutex_lock(&dp_drv->train_mutex);
 
 	pr_debug("start\n");
 
@@ -1823,7 +1823,7 @@ static int mdss_dp_off_irq(struct mdss_dp_drv_pdata *dp_drv)
 	if (mdss_dp_is_ds_bridge_sink_count_zero(dp_drv))
 		dp_init_panel_info(dp_drv, HDMI_VFRMT_UNKNOWN);
 
-	mutex_unlock(&dp_drv->train_mutex);
+	rt_mutex_unlock(&dp_drv->train_mutex);
 
 	pr_debug("end\n");
 
@@ -1838,7 +1838,7 @@ static int mdss_dp_off_hpd(struct mdss_dp_drv_pdata *dp_drv)
 	}
 
 	/* wait until link training is completed */
-	mutex_lock(&dp_drv->train_mutex);
+	rt_mutex_lock(&dp_drv->train_mutex);
 
 	pr_debug("Entered++, cont_splash=%d\n", dp_drv->cont_splash);
 
@@ -1856,7 +1856,7 @@ static int mdss_dp_off_hpd(struct mdss_dp_drv_pdata *dp_drv)
 	mdss_dp_reset_test_data(dp_drv);
 	mdss_dp_reset_sink_count(dp_drv);
 	dp_drv->prev_sink_count = dp_drv->sink_count;
-	mutex_unlock(&dp_drv->train_mutex);
+	rt_mutex_unlock(&dp_drv->train_mutex);
 	pr_debug("DP off done\n");
 
 	return 0;
@@ -2516,9 +2516,9 @@ static ssize_t mdss_dp_rda_connected(struct device *dev,
 	if (!dp)
 		return -EINVAL;
 
-	mutex_lock(&dp->attention_lock);
+	rt_mutex_lock(&dp->attention_lock);
 	cable_connected = dp->cable_connected;
-	mutex_unlock(&dp->attention_lock);
+	rt_mutex_unlock(&dp->attention_lock);
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", cable_connected);
 	pr_debug("%d\n", cable_connected);
 
@@ -2705,9 +2705,9 @@ static ssize_t mdss_dp_wta_hpd(struct device *dev,
 	}
 
 	dp->hpd = !!hpd;
-	mutex_lock(&dp->attention_lock);
+	rt_mutex_lock(&dp->attention_lock);
 	cable_connected = dp->cable_connected;
-	mutex_unlock(&dp->attention_lock);
+	rt_mutex_unlock(&dp->attention_lock);
 	pr_debug("hpd=%d cable_connected=%s\n", dp->hpd,
 		cable_connected ? "true" : "false");
 
@@ -3040,18 +3040,18 @@ static void mdss_dp_mainlink_push_idle(struct mdss_panel_data *pdata)
 	pr_debug("Entered++\n");
 
 	/* wait until link training is completed */
-	mutex_lock(&dp_drv->train_mutex);
+	rt_mutex_lock(&dp_drv->train_mutex);
 
 	if (!dp_drv->power_on) {
 		pr_err("DP Controller not powered on\n");
-		mutex_unlock(&dp_drv->train_mutex);
+		rt_mutex_unlock(&dp_drv->train_mutex);
 		return;
 	}
 
 	/* power down the sink if cable is still connected */
-	mutex_lock(&dp_drv->attention_lock);
+	rt_mutex_lock(&dp_drv->attention_lock);
 	cable_connected = dp_drv->cable_connected;
-	mutex_unlock(&dp_drv->attention_lock);
+	rt_mutex_unlock(&dp_drv->attention_lock);
 	if (cable_connected && dp_drv->alt_mode.dp_status.hpd_high) {
 		if (mdss_dp_aux_send_psm_request(dp_drv, true))
 			pr_err("Failed to enter low power mode\n");
@@ -3063,7 +3063,7 @@ static void mdss_dp_mainlink_push_idle(struct mdss_panel_data *pdata)
 			idle_pattern_completion_timeout_ms))
 		pr_warn("PUSH_IDLE pattern timedout\n");
 
-	mutex_unlock(&dp_drv->train_mutex);
+	rt_mutex_unlock(&dp_drv->train_mutex);
 	pr_debug("mainlink off done\n");
 }
 
@@ -3576,9 +3576,9 @@ static void mdss_dp_reset_event_list(struct mdss_dp_drv_pdata *dp)
 	ev_data->pndx = ev_data->gndx = 0;
 	spin_unlock(&ev_data->event_lock);
 
-	mutex_lock(&dp->attention_lock);
+	rt_mutex_lock(&dp->attention_lock);
 	INIT_LIST_HEAD(&dp->attention_head);
-	mutex_unlock(&dp->attention_lock);
+	rt_mutex_unlock(&dp->attention_lock);
 }
 
 static void mdss_dp_reset_sw_state(struct mdss_dp_drv_pdata *dp)
@@ -3730,9 +3730,9 @@ end:
  */
 static inline void mdss_dp_send_test_response(struct mdss_dp_drv_pdata *dp)
 {
-	mutex_lock(&dp->train_mutex);
+	rt_mutex_lock(&dp->train_mutex);
 	mdss_dp_aux_send_test_response(dp);
-	mutex_unlock(&dp->train_mutex);
+	rt_mutex_unlock(&dp->train_mutex);
 }
 
 /**
@@ -4165,10 +4165,10 @@ static void usbpd_response_callback(struct usbpd_svid_handler *hdlr, u8 cmd,
 			return;
 		node->vdo = *vdos;
 
-		mutex_lock(&dp_drv->attention_lock);
+		rt_mutex_lock(&dp_drv->attention_lock);
 		if (dp_drv->cable_connected)
 			list_add_tail(&node->list, &dp_drv->attention_head);
-		mutex_unlock(&dp_drv->attention_lock);
+		rt_mutex_unlock(&dp_drv->attention_lock);
 
 		dp_send_events(dp_drv, EV_USBPD_ATTENTION);
 		break;
@@ -4293,10 +4293,10 @@ static void mdss_dp_handle_attention(struct mdss_dp_drv_pdata *dp)
 		pr_debug("processing item %d in the list\n", ++i);
 
 		reinit_completion(&dp->notification_comp);
-		mutex_lock(&dp->attention_lock);
+		rt_mutex_lock(&dp->attention_lock);
 		if (!dp->cable_connected) {
 			pr_debug("cable disconnected, returning\n");
-			mutex_unlock(&dp->attention_lock);
+			rt_mutex_unlock(&dp->attention_lock);
 			goto exit;
 		}
 		node = list_first_entry(&dp->attention_head,
@@ -4304,7 +4304,7 @@ static void mdss_dp_handle_attention(struct mdss_dp_drv_pdata *dp)
 
 		vdo = node->vdo;
 		list_del(&node->list);
-		mutex_unlock(&dp->attention_lock);
+		rt_mutex_unlock(&dp->attention_lock);
 
 		kzfree(node);
 
@@ -4405,12 +4405,12 @@ static int mdss_dp_probe(struct platform_device *pdev)
 	dp_drv->aux_rate = 19200000;
 	dp_drv->mask1 = EDP_INTR_MASK1;
 	dp_drv->mask2 = EDP_INTR_MASK2;
-	mutex_init(&dp_drv->emutex);
-	mutex_init(&dp_drv->attention_lock);
-	mutex_init(&dp_drv->hdcp_mutex);
+	rt_mutex_init(&dp_drv->emutex);
+	rt_mutex_init(&dp_drv->attention_lock);
+	rt_mutex_init(&dp_drv->hdcp_mutex);
 	spin_lock_init(&dp_drv->lock);
-	mutex_init(&dp_drv->aux_mutex);
-	mutex_init(&dp_drv->train_mutex);
+	rt_mutex_init(&dp_drv->aux_mutex);
+	rt_mutex_init(&dp_drv->train_mutex);
 	init_completion(&dp_drv->aux_comp);
 	init_completion(&dp_drv->idle_comp);
 	init_completion(&dp_drv->video_comp);

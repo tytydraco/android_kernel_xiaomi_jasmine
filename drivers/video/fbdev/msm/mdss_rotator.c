@@ -170,10 +170,10 @@ static unsigned long mdss_rotator_clk_rate_calc(
 	unsigned long total_clk_rate = 0;
 	int i, wb_idx;
 
-	mutex_lock(&private->perf_lock);
+	rt_mutex_lock(&private->perf_lock);
 	list_for_each_entry(perf, &private->perf_list, list) {
 		bool rate_accounted_for = false;
-		mutex_lock(&perf->work_dis_lock);
+		rt_mutex_lock(&perf->work_dis_lock);
 		/*
 		 * If there is one session that has two work items across
 		 * different hw blocks rate is accounted for in both blocks.
@@ -194,9 +194,9 @@ static unsigned long mdss_rotator_clk_rate_calc(
 		if ((!rate_accounted_for) && (wb_idx >= 0) &&
 				(wb_idx < mgr->queue_count))
 			clk_rate[wb_idx] += perf->clk_rate;
-		mutex_unlock(&perf->work_dis_lock);
+		rt_mutex_unlock(&perf->work_dis_lock);
 	}
-	mutex_unlock(&private->perf_lock);
+	rt_mutex_unlock(&private->perf_lock);
 
 	for (i = 0; i < mgr->queue_count; i++)
 		total_clk_rate = max(clk_rate[i], total_clk_rate);
@@ -223,7 +223,7 @@ static void mdss_rotator_set_clk_rate(struct mdss_rot_mgr *mgr,
 	int ret;
 
 	if (clk) {
-		mutex_lock(&mgr->clk_lock);
+		rt_mutex_lock(&mgr->clk_lock);
 		clk_rate = clk_round_rate(clk, rate);
 		if (IS_ERR_VALUE(clk_rate)) {
 			pr_err("unable to round rate err=%ld\n", clk_rate);
@@ -236,7 +236,7 @@ static void mdss_rotator_set_clk_rate(struct mdss_rot_mgr *mgr,
 				MDSS_XLOG(clk_rate);
 			}
 		}
-		mutex_unlock(&mgr->clk_lock);
+		rt_mutex_unlock(&mgr->clk_lock);
 	} else {
 		pr_err("rotator clk not setup properly\n");
 	}
@@ -269,7 +269,7 @@ static int mdss_rotator_clk_ctrl(struct mdss_rot_mgr *mgr, int enable)
 	int ret = 0;
 	int i, changed = 0;
 
-	mutex_lock(&mgr->clk_lock);
+	rt_mutex_lock(&mgr->clk_lock);
 	if (enable) {
 		if (mgr->rot_enable_clk_cnt == 0)
 			changed++;
@@ -298,7 +298,7 @@ static int mdss_rotator_clk_ctrl(struct mdss_rot_mgr *mgr, int enable)
 				clk_disable_unprepare(clk);
 			}
 		}
-		mutex_lock(&mgr->bus_lock);
+		rt_mutex_lock(&mgr->bus_lock);
 		if (enable) {
 			/* Active+Sleep */
 			msm_bus_scale_client_update_context(
@@ -312,15 +312,15 @@ static int mdss_rotator_clk_ctrl(struct mdss_rot_mgr *mgr, int enable)
 				mgr->data_bus.curr_bw_uc_idx);
 			trace_rotator_bw_ao_as_context(1);
 		}
-		mutex_unlock(&mgr->bus_lock);
+		rt_mutex_unlock(&mgr->bus_lock);
 	}
-	mutex_unlock(&mgr->clk_lock);
+	rt_mutex_unlock(&mgr->clk_lock);
 
 	return ret;
 error:
 	for (i--; i >= 0; i--)
 		clk_disable_unprepare(mgr->rot_clk[i]);
-	mutex_unlock(&mgr->clk_lock);
+	rt_mutex_unlock(&mgr->clk_lock);
 	return ret;
 }
 
@@ -329,7 +329,7 @@ int mdss_rotator_resource_ctrl(struct mdss_rot_mgr *mgr, int enable)
 	int changed = 0;
 	int ret = 0;
 
-	mutex_lock(&mgr->clk_lock);
+	rt_mutex_lock(&mgr->clk_lock);
 	if (enable) {
 		if (mgr->res_ref_cnt == 0)
 			changed++;
@@ -354,7 +354,7 @@ int mdss_rotator_resource_ctrl(struct mdss_rot_mgr *mgr, int enable)
 		else
 			mdss_rotator_footswitch_ctrl(mgr, false);
 	}
-	mutex_unlock(&mgr->clk_lock);
+	rt_mutex_unlock(&mgr->clk_lock);
 	return ret;
 }
 
@@ -395,7 +395,7 @@ static int mdss_rotator_create_fence(struct mdss_rot_entry *entry)
 
 	rot_timeline = &entry->queue->timeline;
 
-	mutex_lock(&rot_timeline->lock);
+	rt_mutex_lock(&rot_timeline->lock);
 	val = rot_timeline->next_value + 1;
 
 	sync_pt = sw_sync_pt_create(rot_timeline->timeline, val);
@@ -421,7 +421,7 @@ static int mdss_rotator_create_fence(struct mdss_rot_entry *entry)
 	}
 
 	rot_timeline->next_value++;
-	mutex_unlock(&rot_timeline->lock);
+	rt_mutex_unlock(&rot_timeline->lock);
 
 	entry->output_fence_fd = fd;
 	entry->output_fence = fence;
@@ -432,7 +432,7 @@ static int mdss_rotator_create_fence(struct mdss_rot_entry *entry)
 get_fd_err:
 	sync_fence_put(fence);
 sync_pt_create_err:
-	mutex_unlock(&rot_timeline->lock);
+	rt_mutex_unlock(&rot_timeline->lock);
 	return ret;
 }
 
@@ -453,9 +453,9 @@ static void mdss_rotator_clear_fence(struct mdss_rot_entry *entry)
 		entry->output_fence = NULL;
 		put_unused_fd(entry->output_fence_fd);
 
-		mutex_lock(&rot_timeline->lock);
+		rt_mutex_lock(&rot_timeline->lock);
 		rot_timeline->next_value--;
-		mutex_unlock(&rot_timeline->lock);
+		rt_mutex_unlock(&rot_timeline->lock);
 	}
 }
 
@@ -473,9 +473,9 @@ static int mdss_rotator_signal_output(struct mdss_rot_entry *entry)
 		return 0;
 	}
 
-	mutex_lock(&rot_timeline->lock);
+	rt_mutex_lock(&rot_timeline->lock);
 	sw_sync_timeline_inc(rot_timeline->timeline, 1);
-	mutex_unlock(&rot_timeline->lock);
+	rt_mutex_unlock(&rot_timeline->lock);
 
 	entry->output_signaled = true;
 
@@ -634,9 +634,9 @@ static struct mdss_rot_perf *mdss_rotator_find_session(
 {
 	struct mdss_rot_perf *perf;
 
-	mutex_lock(&private->perf_lock);
+	rt_mutex_lock(&private->perf_lock);
 	perf = __mdss_rotator_find_session(private, session_id);
-	mutex_unlock(&private->perf_lock);
+	rt_mutex_unlock(&private->perf_lock);
 	return perf;
 }
 
@@ -817,7 +817,7 @@ struct mdss_rot_hw_resource *mdss_rotator_get_hw_resource(
 		return NULL;
 	}
 
-	mutex_lock(&queue->hw_lock);
+	rt_mutex_lock(&queue->hw_lock);
 
 	if (hw->workload) {
 		hw = ERR_PTR(-EBUSY);
@@ -826,16 +826,16 @@ struct mdss_rot_hw_resource *mdss_rotator_get_hw_resource(
 	hw->workload = entry;
 
 get_hw_resource_err:
-	mutex_unlock(&queue->hw_lock);
+	rt_mutex_unlock(&queue->hw_lock);
 	return hw;
 }
 
 static void mdss_rotator_put_hw_resource(struct mdss_rot_queue *queue,
 	struct mdss_rot_hw_resource *hw)
 {
-	mutex_lock(&queue->hw_lock);
+	rt_mutex_lock(&queue->hw_lock);
 	hw->workload = NULL;
-	mutex_unlock(&queue->hw_lock);
+	rt_mutex_unlock(&queue->hw_lock);
 }
 
 /*
@@ -874,9 +874,9 @@ static int mdss_rotator_init_queue(struct mdss_rot_mgr *mgr)
 		size = sizeof(mgr->queues[i].timeline.fence_name);
 		snprintf(mgr->queues[i].timeline.fence_name, size,
 				"rot_fence_%d", i);
-		mutex_init(&mgr->queues[i].timeline.lock);
+		rt_mutex_init(&mgr->queues[i].timeline.lock);
 
-		mutex_init(&mgr->queues[i].hw_lock);
+		rt_mutex_init(&mgr->queues[i].hw_lock);
 	}
 
 	return ret;
@@ -943,7 +943,7 @@ static int mdss_rotator_assign_queue(struct mdss_rot_mgr *mgr,
 
 	queue = mgr->queues + wb_idx;
 
-	mutex_lock(&queue->hw_lock);
+	rt_mutex_lock(&queue->hw_lock);
 
 	if (!queue->hw) {
 		hw = mdss_rotator_hw_alloc(mgr, pipe_idx, wb_idx);
@@ -960,7 +960,7 @@ static int mdss_rotator_assign_queue(struct mdss_rot_mgr *mgr,
 		queue->hw->pending_count++;
 	}
 
-	mutex_unlock(&queue->hw_lock);
+	rt_mutex_unlock(&queue->hw_lock);
 
 	perf = mdss_rotator_find_session(private, item->session_id);
 	if (!perf) {
@@ -984,11 +984,11 @@ static void mdss_rotator_unassign_queue(struct mdss_rot_mgr *mgr,
 
 	entry->queue = NULL;
 
-	mutex_lock(&queue->hw_lock);
+	rt_mutex_lock(&queue->hw_lock);
 
 	if (!queue->hw) {
 		pr_err("entry assigned a queue with no hw\n");
-		mutex_unlock(&queue->hw_lock);
+		rt_mutex_unlock(&queue->hw_lock);
 		return;
 	}
 
@@ -998,7 +998,7 @@ static void mdss_rotator_unassign_queue(struct mdss_rot_mgr *mgr,
 		queue->hw = NULL;
 	}
 
-	mutex_unlock(&queue->hw_lock);
+	rt_mutex_unlock(&queue->hw_lock);
 }
 
 static void mdss_rotator_queue_request(struct mdss_rot_mgr *mgr,
@@ -1015,9 +1015,9 @@ static void mdss_rotator_queue_request(struct mdss_rot_mgr *mgr,
 		entry = req->entries + i;
 		queue = entry->queue;
 		wb_idx = queue->hw->wb_id;
-		mutex_lock(&entry->perf->work_dis_lock);
+		rt_mutex_lock(&entry->perf->work_dis_lock);
 		entry->perf->work_distribution[wb_idx]++;
-		mutex_unlock(&entry->perf->work_dis_lock);
+		rt_mutex_unlock(&entry->perf->work_dis_lock);
 		entry->work_assigned = true;
 	}
 
@@ -1095,22 +1095,22 @@ static int mdss_rotator_update_perf(struct mdss_rot_mgr *mgr)
 	not_in_suspend_mode = !atomic_read(&mgr->device_suspended);
 
 	if (not_in_suspend_mode) {
-		mutex_lock(&mgr->file_lock);
+		rt_mutex_lock(&mgr->file_lock);
 		list_for_each_entry(priv, &mgr->file_list, list) {
-			mutex_lock(&priv->perf_lock);
+			rt_mutex_lock(&priv->perf_lock);
 			list_for_each_entry(perf, &priv->perf_list, list) {
 				total_bw += perf->bw;
 			}
-			mutex_unlock(&priv->perf_lock);
+			rt_mutex_unlock(&priv->perf_lock);
 		}
-		mutex_unlock(&mgr->file_lock);
+		rt_mutex_unlock(&mgr->file_lock);
 	}
 
-	mutex_lock(&mgr->bus_lock);
+	rt_mutex_lock(&mgr->bus_lock);
 	total_bw += mgr->pending_close_bw_vote;
 	mdss_rotator_enable_reg_bus(mgr, total_bw);
 	mdss_rotator_bus_scale_set_quota(&mgr->data_bus, total_bw);
-	mutex_unlock(&mgr->bus_lock);
+	rt_mutex_unlock(&mgr->bus_lock);
 
 	ATRACE_END(__func__);
 	return 0;
@@ -1124,8 +1124,8 @@ static void mdss_rotator_release_from_work_distribution(
 		bool free_perf = false;
 		u32 wb_idx = entry->queue->hw->wb_id;
 
-		mutex_lock(&mgr->lock);
-		mutex_lock(&entry->perf->work_dis_lock);
+		rt_mutex_lock(&mgr->lock);
+		rt_mutex_lock(&entry->perf->work_dis_lock);
 		if (entry->perf->work_distribution[wb_idx])
 			entry->perf->work_distribution[wb_idx]--;
 
@@ -1134,12 +1134,12 @@ static void mdss_rotator_release_from_work_distribution(
 			/* close session has offloaded perf free to us */
 			free_perf = true;
 		}
-		mutex_unlock(&entry->perf->work_dis_lock);
+		rt_mutex_unlock(&entry->perf->work_dis_lock);
 		entry->work_assigned = false;
 		if (free_perf) {
-			mutex_lock(&mgr->bus_lock);
+			rt_mutex_lock(&mgr->bus_lock);
 			mgr->pending_close_bw_vote -= entry->perf->bw;
-			mutex_unlock(&mgr->bus_lock);
+			rt_mutex_unlock(&mgr->bus_lock);
 			mdss_rotator_resource_ctrl(mgr, false);
 			devm_kfree(&mgr->pdev->dev,
 				entry->perf->work_distribution);
@@ -1148,7 +1148,7 @@ static void mdss_rotator_release_from_work_distribution(
 			mdss_rotator_clk_ctrl(mgr, false);
 			entry->perf = NULL;
 		}
-		mutex_unlock(&mgr->lock);
+		rt_mutex_unlock(&mgr->lock);
 	}
 }
 
@@ -1549,9 +1549,9 @@ static int mdss_rotator_add_request(struct mdss_rot_mgr *mgr,
 			item->session_id);
 	}
 
-	mutex_lock(&private->req_lock);
+	rt_mutex_lock(&private->req_lock);
 	list_add(&req->list, &private->req_list);
-	mutex_unlock(&private->req_lock);
+	rt_mutex_unlock(&private->req_lock);
 
 	return 0;
 }
@@ -1562,11 +1562,11 @@ static void mdss_rotator_remove_request(struct mdss_rot_mgr *mgr,
 {
 	int i;
 
-	mutex_lock(&private->req_lock);
+	rt_mutex_lock(&private->req_lock);
 	for (i = 0; i < req->count; i++)
 		mdss_rotator_release_entry(mgr, req->entries + i);
 	list_del_init(&req->list);
-	mutex_unlock(&private->req_lock);
+	rt_mutex_unlock(&private->req_lock);
 }
 
 /* This function should be called with req_lock */
@@ -1602,10 +1602,10 @@ static void mdss_rotator_cancel_all_requests(struct mdss_rot_mgr *mgr,
 	struct mdss_rot_entry_container *req, *req_next;
 	pr_debug("Canceling all rotator requests\n");
 
-	mutex_lock(&private->req_lock);
+	rt_mutex_lock(&private->req_lock);
 	list_for_each_entry_safe(req, req_next, &private->req_list, list)
 		mdss_rotator_cancel_request(mgr, req);
-	mutex_unlock(&private->req_lock);
+	rt_mutex_unlock(&private->req_lock);
 }
 
 static void mdss_rotator_free_competed_request(struct mdss_rot_mgr *mgr,
@@ -1613,14 +1613,14 @@ static void mdss_rotator_free_competed_request(struct mdss_rot_mgr *mgr,
 {
 	struct mdss_rot_entry_container *req, *req_next;
 
-	mutex_lock(&private->req_lock);
+	rt_mutex_lock(&private->req_lock);
 	list_for_each_entry_safe(req, req_next, &private->req_list, list) {
 		if (atomic_read(&req->pending_count) == 0) {
 			list_del_init(&req->list);
 			devm_kfree(&mgr->pdev->dev, req);
 		}
 	}
-	mutex_unlock(&private->req_lock);
+	rt_mutex_unlock(&private->req_lock);
 }
 
 static void mdss_rotator_release_rotator_perf_session(
@@ -1632,20 +1632,20 @@ static void mdss_rotator_release_rotator_perf_session(
 	pr_debug("Releasing all rotator request\n");
 	mdss_rotator_cancel_all_requests(mgr, private);
 
-	mutex_lock(&private->perf_lock);
+	rt_mutex_lock(&private->perf_lock);
 	list_for_each_entry_safe(perf, perf_next, &private->perf_list, list) {
 		list_del_init(&perf->list);
 		devm_kfree(&mgr->pdev->dev, perf->work_distribution);
 		devm_kfree(&mgr->pdev->dev, perf);
 	}
-	mutex_unlock(&private->perf_lock);
+	rt_mutex_unlock(&private->perf_lock);
 }
 
 static void mdss_rotator_release_all(struct mdss_rot_mgr *mgr)
 {
 	struct mdss_rot_file_private *priv, *priv_next;
 
-	mutex_lock(&mgr->file_lock);
+	rt_mutex_lock(&mgr->file_lock);
 	list_for_each_entry_safe(priv, priv_next, &mgr->file_list, list) {
 		mdss_rotator_release_rotator_perf_session(mgr, priv);
 		mdss_rotator_resource_ctrl(mgr, false);
@@ -1653,7 +1653,7 @@ static void mdss_rotator_release_all(struct mdss_rot_mgr *mgr)
 		priv->file->private_data = NULL;
 		devm_kfree(&mgr->pdev->dev, priv);
 	}
-	mutex_unlock(&rot_mgr->file_lock);
+	rt_mutex_unlock(&rot_mgr->file_lock);
 
 	mdss_rotator_update_perf(mgr);
 }
@@ -1668,7 +1668,7 @@ static int mdss_rotator_prepare_hw(struct mdss_rot_hw_resource *hw,
 	pipe = hw->pipe;
 	orig_ctl = pipe->mixer_left->ctl;
 	if (orig_ctl->shared_lock)
-		mutex_lock(orig_ctl->shared_lock);
+		rt_mutex_lock(orig_ctl->shared_lock);
 
 	rot_ctl = mdss_mdp_ctl_mixer_switch(orig_ctl,
 						MDSS_MDP_WB_CTL_TYPE_BLOCK);
@@ -1684,7 +1684,7 @@ static int mdss_rotator_prepare_hw(struct mdss_rot_hw_resource *hw,
 
 error:
 	if (orig_ctl->shared_lock)
-		mutex_unlock(orig_ctl->shared_lock);
+		rt_mutex_unlock(orig_ctl->shared_lock);
 	return ret;
 }
 
@@ -1793,7 +1793,7 @@ static int mdss_rotator_wait_for_entry(struct mdss_rot_hw_resource *hw,
 
 	ret = mdss_mdp_display_wait4comp(ctl);
 	if (ctl->shared_lock)
-		mutex_unlock(ctl->shared_lock);
+		rt_mutex_unlock(ctl->shared_lock);
 	return ret;
 }
 
@@ -1918,9 +1918,9 @@ static int mdss_rotator_validate_request(struct mdss_rot_mgr *mgr,
 static u32 mdss_rotator_generator_session_id(struct mdss_rot_mgr *mgr)
 {
 	u32 id;
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	id = mgr->session_id_generator++;
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return id;
 }
 
@@ -1961,7 +1961,7 @@ static int mdss_rotator_open_session(struct mdss_rot_mgr *mgr,
 	config.session_id = mdss_rotator_generator_session_id(mgr);
 	perf->config = config;
 	perf->last_wb_idx = -1;
-	mutex_init(&perf->work_dis_lock);
+	rt_mutex_init(&perf->work_dis_lock);
 
 	INIT_LIST_HEAD(&perf->list);
 
@@ -1977,9 +1977,9 @@ static int mdss_rotator_open_session(struct mdss_rot_mgr *mgr,
 		goto copy_user_err;
 	}
 
-	mutex_lock(&private->perf_lock);
+	rt_mutex_lock(&private->perf_lock);
 	list_add(&perf->list, &private->perf_list);
-	mutex_unlock(&private->perf_lock);
+	rt_mutex_unlock(&private->perf_lock);
 
 	ret = mdss_rotator_resource_ctrl(mgr, true);
 	if (ret) {
@@ -2003,9 +2003,9 @@ perf_err:
 	mdss_rotator_clk_ctrl(rot_mgr, false);
 	mdss_rotator_resource_ctrl(mgr, false);
 resource_err:
-	mutex_lock(&private->perf_lock);
+	rt_mutex_lock(&private->perf_lock);
 	list_del_init(&perf->list);
-	mutex_unlock(&private->perf_lock);
+	rt_mutex_unlock(&private->perf_lock);
 copy_user_err:
 	devm_kfree(&mgr->pdev->dev, perf->work_distribution);
 alloc_err:
@@ -2023,28 +2023,28 @@ static int mdss_rotator_close_session(struct mdss_rot_mgr *mgr,
 	u32 id;
 
 	id = (u32)arg;
-	mutex_lock(&mgr->lock);
-	mutex_lock(&private->perf_lock);
+	rt_mutex_lock(&mgr->lock);
+	rt_mutex_lock(&private->perf_lock);
 	perf = __mdss_rotator_find_session(private, id);
 	if (!perf) {
-		mutex_unlock(&private->perf_lock);
-		mutex_unlock(&mgr->lock);
+		rt_mutex_unlock(&private->perf_lock);
+		rt_mutex_unlock(&mgr->lock);
 		pr_err("Trying to close session that does not exist\n");
 		return -EINVAL;
 	}
 
 	ATRACE_BEGIN(__func__);
-	mutex_lock(&perf->work_dis_lock);
+	rt_mutex_lock(&perf->work_dis_lock);
 	if (mdss_rotator_is_work_pending(mgr, perf)) {
 		pr_debug("Work is still pending, offload free to wq\n");
-		mutex_lock(&mgr->bus_lock);
+		rt_mutex_lock(&mgr->bus_lock);
 		mgr->pending_close_bw_vote += perf->bw;
-		mutex_unlock(&mgr->bus_lock);
+		rt_mutex_unlock(&mgr->bus_lock);
 		offload_release_work = true;
 	}
 	list_del_init(&perf->list);
-	mutex_unlock(&perf->work_dis_lock);
-	mutex_unlock(&private->perf_lock);
+	rt_mutex_unlock(&perf->work_dis_lock);
+	rt_mutex_unlock(&private->perf_lock);
 
 	if (offload_release_work)
 		goto done;
@@ -2057,7 +2057,7 @@ static int mdss_rotator_close_session(struct mdss_rot_mgr *mgr,
 done:
 	pr_debug("Closed session id:%u", id);
 	ATRACE_END(__func__);
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return 0;
 }
 
@@ -2081,20 +2081,20 @@ static int mdss_rotator_config_session(struct mdss_rot_mgr *mgr,
 		return ret;
 	}
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	perf = mdss_rotator_find_session(private, config.session_id);
 	if (!perf) {
 		pr_err("No session with id=%u could be found\n",
 			config.session_id);
-		mutex_unlock(&mgr->lock);
+		rt_mutex_unlock(&mgr->lock);
 		return -EINVAL;
 	}
 
 	ATRACE_BEGIN(__func__);
-	mutex_lock(&private->perf_lock);
+	rt_mutex_lock(&private->perf_lock);
 	perf->config = config;
 	ret = mdss_rotator_calc_perf(perf);
-	mutex_unlock(&private->perf_lock);
+	rt_mutex_unlock(&private->perf_lock);
 
 	if (ret) {
 		pr_err("error in configuring the session %d\n", ret);
@@ -2109,7 +2109,7 @@ static int mdss_rotator_config_session(struct mdss_rot_mgr *mgr,
 		config.output.format);
 done:
 	ATRACE_END(__func__);
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return ret;
 }
 
@@ -2230,7 +2230,7 @@ static int mdss_rotator_handle_request(struct mdss_rot_mgr *mgr,
 		goto handle_request_err;
 	}
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 
 	if (req->flags & MDSS_ROTATION_REQUEST_VALIDATE) {
 		ret = mdss_rotator_validate_request(mgr, private, req);
@@ -2253,13 +2253,13 @@ static int mdss_rotator_handle_request(struct mdss_rot_mgr *mgr,
 	mdss_rotator_install_fence_fd(req);
 	mdss_rotator_queue_request(mgr, private, req);
 
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 
 	devm_kfree(&mgr->pdev->dev, items);
 	return ret;
 
 handle_request_err1:
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 handle_request_err:
 	devm_kfree(&mgr->pdev->dev, items);
 	devm_kfree(&mgr->pdev->dev, req);
@@ -2282,17 +2282,17 @@ static int mdss_rotator_open(struct inode *inode, struct file *file)
 		pr_err("fail to allocate rotation file private data\n");
 		return -ENOMEM;
 	}
-	mutex_init(&private->req_lock);
-	mutex_init(&private->perf_lock);
+	rt_mutex_init(&private->req_lock);
+	rt_mutex_init(&private->perf_lock);
 	INIT_LIST_HEAD(&private->req_list);
 	INIT_LIST_HEAD(&private->perf_list);
 	INIT_LIST_HEAD(&private->list);
 
-	mutex_lock(&rot_mgr->file_lock);
+	rt_mutex_lock(&rot_mgr->file_lock);
 	list_add(&private->list, &rot_mgr->file_list);
 	file->private_data = private;
 	private->file = file;
-	mutex_unlock(&rot_mgr->file_lock);
+	rt_mutex_unlock(&rot_mgr->file_lock);
 
 	return 0;
 }
@@ -2303,14 +2303,14 @@ static bool mdss_rotator_file_priv_allowed(struct mdss_rot_mgr *mgr,
 	struct mdss_rot_file_private *_priv, *_priv_next;
 	bool ret = false;
 
-	mutex_lock(&mgr->file_lock);
+	rt_mutex_lock(&mgr->file_lock);
 	list_for_each_entry_safe(_priv, _priv_next, &mgr->file_list, list) {
 		if (_priv == priv) {
 			ret = true;
 			break;
 		}
 	}
-	mutex_unlock(&mgr->file_lock);
+	rt_mutex_unlock(&mgr->file_lock);
 	return ret;
 }
 
@@ -2333,11 +2333,11 @@ static int mdss_rotator_close(struct inode *inode, struct file *file)
 
 	mdss_rotator_release_rotator_perf_session(rot_mgr, private);
 
-	mutex_lock(&rot_mgr->file_lock);
+	rt_mutex_lock(&rot_mgr->file_lock);
 	list_del_init(&private->list);
 	devm_kfree(&rot_mgr->pdev->dev, private);
 	file->private_data = NULL;
-	mutex_unlock(&rot_mgr->file_lock);
+	rt_mutex_unlock(&rot_mgr->file_lock);
 
 	mdss_rotator_update_perf(rot_mgr);
 	return 0;
@@ -2391,7 +2391,7 @@ static int mdss_rotator_handle_request32(struct mdss_rot_mgr *mgr,
 		goto handle_request32_err;
 	}
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 
 	if (req->flags & MDSS_ROTATION_REQUEST_VALIDATE) {
 		ret = mdss_rotator_validate_request(mgr, private, req);
@@ -2414,13 +2414,13 @@ static int mdss_rotator_handle_request32(struct mdss_rot_mgr *mgr,
 	mdss_rotator_install_fence_fd(req);
 	mdss_rotator_queue_request(mgr, private, req);
 
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 
 	devm_kfree(&mgr->pdev->dev, items);
 	return ret;
 
 handle_request32_err1:
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 handle_request32_err:
 	devm_kfree(&mgr->pdev->dev, items);
 	devm_kfree(&mgr->pdev->dev, req);
@@ -2859,9 +2859,9 @@ static int mdss_rotator_probe(struct platform_device *pdev)
 		goto error_parse_dt;
 	}
 
-	mutex_init(&rot_mgr->lock);
-	mutex_init(&rot_mgr->clk_lock);
-	mutex_init(&rot_mgr->bus_lock);
+	rt_mutex_init(&rot_mgr->lock);
+	rt_mutex_init(&rot_mgr->clk_lock);
+	rt_mutex_init(&rot_mgr->bus_lock);
 	atomic_set(&rot_mgr->device_suspended, 0);
 	ret = mdss_rotator_init_queue(rot_mgr);
 	if (ret) {
@@ -2869,7 +2869,7 @@ static int mdss_rotator_probe(struct platform_device *pdev)
 		goto error_get_dev_num;
 	}
 
-	mutex_init(&rot_mgr->file_lock);
+	rt_mutex_init(&rot_mgr->file_lock);
 	INIT_LIST_HEAD(&rot_mgr->file_list);
 
 	platform_set_drvdata(pdev, rot_mgr);
@@ -2960,11 +2960,11 @@ static void mdss_rotator_suspend_cancel_rot_work(struct mdss_rot_mgr *mgr)
 {
 	struct mdss_rot_file_private *priv, *priv_next;
 
-	mutex_lock(&mgr->file_lock);
+	rt_mutex_lock(&mgr->file_lock);
 	list_for_each_entry_safe(priv, priv_next, &mgr->file_list, list) {
 		mdss_rotator_cancel_all_requests(mgr, priv);
 	}
-	mutex_unlock(&rot_mgr->file_lock);
+	rt_mutex_unlock(&rot_mgr->file_lock);
 }
 
 #if defined(CONFIG_PM)

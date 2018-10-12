@@ -53,7 +53,7 @@ struct mdss_mdp_cdm {
 	u32 num;
 	char __iomem *base;
 	struct kref kref;
-	struct mutex lock;
+	struct rt_mutex lock;
 
 	struct mdss_data_type *mdata;
 	u32 out_intf;

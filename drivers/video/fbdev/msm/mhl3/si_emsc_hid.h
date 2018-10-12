@@ -153,7 +153,7 @@ struct mhl3_hid_desc {
 	__u8	bSerialNumberSize;
 } __packed;
 
-static DEFINE_MUTEX(mhl3_hid_open_mutex);
+static DEFINE_RT_MUTEX(mhl3_hid_open_mutex);
 
 struct mhl3_hid_global_data {
 	/* RHID/RHIDK host-device negotiation	*/

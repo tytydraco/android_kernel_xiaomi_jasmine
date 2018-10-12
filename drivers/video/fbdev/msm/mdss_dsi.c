@@ -149,7 +149,7 @@ static void mdss_dsi_pm_qos_add_request(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 	if (!irq_info)
 		return;
 
-	mutex_lock(&ctrl_pdata->shared_data->pm_qos_lock);
+	rt_mutex_lock(&ctrl_pdata->shared_data->pm_qos_lock);
 	if (!ctrl_pdata->shared_data->pm_qos_req_cnt) {
 		pr_debug("%s: add request irq\n", __func__);
 
@@ -159,7 +159,7 @@ static void mdss_dsi_pm_qos_add_request(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 	}
 	ctrl_pdata->shared_data->pm_qos_req_cnt++;
-	mutex_unlock(&ctrl_pdata->shared_data->pm_qos_lock);
+	rt_mutex_unlock(&ctrl_pdata->shared_data->pm_qos_lock);
 }
 
 static void mdss_dsi_pm_qos_remove_request(struct dsi_shared_data *sdata)
@@ -167,7 +167,7 @@ static void mdss_dsi_pm_qos_remove_request(struct dsi_shared_data *sdata)
 	if (!sdata)
 		return;
 
-	mutex_lock(&sdata->pm_qos_lock);
+	rt_mutex_lock(&sdata->pm_qos_lock);
 	if (sdata->pm_qos_req_cnt) {
 		sdata->pm_qos_req_cnt--;
 		if (!sdata->pm_qos_req_cnt) {
@@ -177,7 +177,7 @@ static void mdss_dsi_pm_qos_remove_request(struct dsi_shared_data *sdata)
 	} else {
 		pr_warn("%s: unbalanced pm_qos ref count\n", __func__);
 	}
-	mutex_unlock(&sdata->pm_qos_lock);
+	rt_mutex_unlock(&sdata->pm_qos_lock);
 }
 
 static void mdss_dsi_pm_qos_update_request(int val)
@@ -764,7 +764,7 @@ struct buf_data {
 	char *string_buf; /* cmd buf as string, 3 bytes per number */
 	int sblen; /* string buffer length */
 	int sync_flag;
-	struct mutex dbg_mutex; /* mutex to synchronize read/write/flush */
+	struct rt_mutex dbg_mutex; /* mutex to synchronize read/write/flush */
 };
 
 struct mdss_dsi_debugfs_info {
@@ -859,7 +859,7 @@ static ssize_t mdss_dsi_cmd_read(struct file *file, char __user *buf,
 	char *bp;
 	ssize_t ret = 0;
 
-	mutex_lock(&pcmds->dbg_mutex);
+	rt_mutex_lock(&pcmds->dbg_mutex);
 	if (*ppos == 0) {
 		kfree(pcmds->string_buf);
 		pcmds->string_buf = NULL;
@@ -878,7 +878,7 @@ static ssize_t mdss_dsi_cmd_read(struct file *file, char __user *buf,
 		buffer = kmalloc(bsize, GFP_KERNEL);
 		if (!buffer) {
 			pr_err("%s: Failed to allocate memory\n", __func__);
-			mutex_unlock(&pcmds->dbg_mutex);
+			rt_mutex_unlock(&pcmds->dbg_mutex);
 			return -ENOMEM;
 		}
 
@@ -914,12 +914,12 @@ static ssize_t mdss_dsi_cmd_read(struct file *file, char __user *buf,
 		kfree(pcmds->string_buf);
 		pcmds->string_buf = NULL;
 		pcmds->sblen = 0;
-		mutex_unlock(&pcmds->dbg_mutex);
+		rt_mutex_unlock(&pcmds->dbg_mutex);
 		return 0; /* the end */
 	}
 	ret = simple_read_from_buffer(buf, count, ppos, pcmds->string_buf,
 				      pcmds->sblen);
-	mutex_unlock(&pcmds->dbg_mutex);
+	rt_mutex_unlock(&pcmds->dbg_mutex);
 	return ret;
 }
 
@@ -931,7 +931,7 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 	int blen = 0;
 	char *string_buf;
 
-	mutex_lock(&pcmds->dbg_mutex);
+	rt_mutex_lock(&pcmds->dbg_mutex);
 	if (*ppos == 0) {
 		kfree(pcmds->string_buf);
 		pcmds->string_buf = NULL;
@@ -943,7 +943,7 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 	string_buf = krealloc(pcmds->string_buf, blen + 1, GFP_KERNEL);
 	if (!string_buf) {
 		pr_err("%s: Failed to allocate memory\n", __func__);
-		mutex_unlock(&pcmds->dbg_mutex);
+		rt_mutex_unlock(&pcmds->dbg_mutex);
 		return -ENOMEM;
 	}
 
@@ -951,14 +951,14 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 	ret = simple_write_to_buffer(string_buf, blen, ppos, p, count);
 	if (ret < 0) {
 		pr_err("%s: Failed to copy data\n", __func__);
-		mutex_unlock(&pcmds->dbg_mutex);
+		rt_mutex_unlock(&pcmds->dbg_mutex);
 		return -EINVAL;
 	}
 
 	string_buf[ret] = '\0';
 	pcmds->string_buf = string_buf;
 	pcmds->sblen = count;
-	mutex_unlock(&pcmds->dbg_mutex);
+	rt_mutex_unlock(&pcmds->dbg_mutex);
 	return ret;
 }
 
@@ -969,10 +969,10 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 	char *buf, *bufp, *bp;
 	struct dsi_ctrl_hdr *dchdr;
 
-	mutex_lock(&pcmds->dbg_mutex);
+	rt_mutex_lock(&pcmds->dbg_mutex);
 
 	if (!pcmds->string_buf) {
-		mutex_unlock(&pcmds->dbg_mutex);
+		rt_mutex_unlock(&pcmds->dbg_mutex);
 		return 0;
 	}
 
@@ -987,7 +987,7 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 		kfree(pcmds->string_buf);
 		pcmds->string_buf = NULL;
 		pcmds->sblen = 0;
-		mutex_unlock(&pcmds->dbg_mutex);
+		rt_mutex_unlock(&pcmds->dbg_mutex);
 		return -ENOMEM;
 	}
 
@@ -1012,7 +1012,7 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 			pr_err("%s: dtsi cmd=%x error, len=%d\n",
 				__func__, dchdr->dtype, dchdr->dlen);
 			kfree(buf);
-			mutex_unlock(&pcmds->dbg_mutex);
+			rt_mutex_unlock(&pcmds->dbg_mutex);
 			return -EINVAL;
 		}
 		bp += sizeof(*dchdr);
@@ -1024,7 +1024,7 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 		pr_err("%s: dcs_cmd=%x len=%d error!\n", __func__,
 				bp[0], len);
 		kfree(buf);
-		mutex_unlock(&pcmds->dbg_mutex);
+		rt_mutex_unlock(&pcmds->dbg_mutex);
 		return -EINVAL;
 	}
 
@@ -1037,7 +1037,7 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 		pcmds->buf = buf;
 		pcmds->blen = blen;
 	}
-	mutex_unlock(&pcmds->dbg_mutex);
+	rt_mutex_unlock(&pcmds->dbg_mutex);
 	return 0;
 }
 
@@ -1052,7 +1052,7 @@ struct dentry *dsi_debugfs_create_dcs_cmd(const char *name, umode_t mode,
 				struct dentry *parent, struct buf_data *cmd,
 				struct dsi_panel_cmds ctrl_cmds)
 {
-	mutex_init(&cmd->dbg_mutex);
+	rt_mutex_init(&cmd->dbg_mutex);
 	cmd->buf = ctrl_cmds.buf;
 	cmd->blen = ctrl_cmds.blen;
 	cmd->string_buf = NULL;
@@ -2839,27 +2839,27 @@ skip_cmd_send:
 int mdss_dsi_register_recovery_handler(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct mdss_intf_recovery *recovery)
 {
-	mutex_lock(&ctrl->mutex);
+	rt_mutex_lock(&ctrl->mutex);
 	ctrl->recovery = recovery;
-	mutex_unlock(&ctrl->mutex);
+	rt_mutex_unlock(&ctrl->mutex);
 	return 0;
 }
 
 static int mdss_dsi_register_mdp_callback(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct mdss_intf_recovery *mdp_callback)
 {
-	mutex_lock(&ctrl->mutex);
+	rt_mutex_lock(&ctrl->mutex);
 	ctrl->mdp_callback = mdp_callback;
-	mutex_unlock(&ctrl->mutex);
+	rt_mutex_unlock(&ctrl->mutex);
 	return 0;
 }
 
 static int mdss_dsi_register_clamp_handler(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct mdss_intf_ulp_clamp *clamp_handler)
 {
-	mutex_lock(&ctrl->mutex);
+	rt_mutex_lock(&ctrl->mutex);
 	ctrl->clamp_handler = clamp_handler;
-	mutex_unlock(&ctrl->mutex);
+	rt_mutex_unlock(&ctrl->mutex);
 	return 0;
 }
 
@@ -3900,8 +3900,8 @@ static int mdss_dsi_res_init(struct platform_device *pdev)
 			goto mem_fail;
 		}
 
-		mutex_init(&sdata->phy_reg_lock);
-		mutex_init(&sdata->pm_qos_lock);
+		rt_mutex_init(&sdata->phy_reg_lock);
+		rt_mutex_init(&sdata->pm_qos_lock);
 
 		for (i = 0; i < DSI_CTRL_MAX; i++) {
 			mdss_dsi_res->ctrl_pdata[i] = devm_kzalloc(&pdev->dev,

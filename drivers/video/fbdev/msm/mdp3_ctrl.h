@@ -36,7 +36,7 @@ struct mdp3_buffer_queue {
 };
 
 struct mdp3_session_data {
-	struct mutex lock;
+	struct rt_mutex lock;
 	int status;
 	struct mdp3_dma *dma;
 	struct mdss_panel_data *panel;
@@ -54,7 +54,7 @@ struct mdp3_session_data {
 	struct work_struct dma_done_work;
 	atomic_t dma_done_cnt;
 	int histo_status;
-	struct mutex histo_lock;
+	struct rt_mutex histo_lock;
 	int lut_sel;
 	bool vsync_before_commit;
 	bool first_commit;

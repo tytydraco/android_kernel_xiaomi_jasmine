@@ -57,9 +57,9 @@ struct hdmi_hdcp2p2_ctrl {
 	bool tethered;
 	enum hdmi_hdcp2p2_sink_status sink_status; /* Is sink connected */
 	struct hdcp_init_data init_data; /* Feature data from HDMI drv */
-	struct mutex mutex; /* mutex to protect access to ctrl */
-	struct mutex msg_lock; /* mutex to protect access to msg buffer */
-	struct mutex wakeup_mutex; /* mutex to protect access to wakeup call*/
+	struct rt_mutex mutex; /* mutex to protect access to ctrl */
+	struct rt_mutex msg_lock; /* mutex to protect access to msg buffer */
+	struct rt_mutex wakeup_mutex; /* mutex to protect access to wakeup call*/
 	struct hdcp_ops *ops;
 	void *lib_ctx; /* Handle to HDCP 2.2 Trustzone library */
 	struct hdcp_txmtr_ops *lib; /* Ops for driver to call into TZ */
@@ -101,10 +101,10 @@ static inline bool hdmi_hdcp2p2_is_valid_state(struct hdmi_hdcp2p2_ctrl *ctrl)
 static int hdmi_hdcp2p2_copy_buf(struct hdmi_hdcp2p2_ctrl *ctrl,
 	struct hdmi_hdcp_wakeup_data *data)
 {
-	mutex_lock(&ctrl->msg_lock);
+	rt_mutex_lock(&ctrl->msg_lock);
 
 	if (!data->send_msg_len) {
-		mutex_unlock(&ctrl->msg_lock);
+		rt_mutex_unlock(&ctrl->msg_lock);
 		return 0;
 	}
 
@@ -115,13 +115,13 @@ static int hdmi_hdcp2p2_copy_buf(struct hdmi_hdcp2p2_ctrl *ctrl,
 	ctrl->send_msg_buf = kzalloc(data->send_msg_len, GFP_KERNEL);
 
 	if (!ctrl->send_msg_buf) {
-		mutex_unlock(&ctrl->msg_lock);
+		rt_mutex_unlock(&ctrl->msg_lock);
 		return -ENOMEM;
 	}
 
 	memcpy(ctrl->send_msg_buf, data->send_msg_buf, ctrl->send_msg_len);
 
-	mutex_unlock(&ctrl->msg_lock);
+	rt_mutex_unlock(&ctrl->msg_lock);
 
 	return 0;
 }
@@ -141,7 +141,7 @@ static int hdmi_hdcp2p2_wakeup(struct hdmi_hdcp_wakeup_data *data)
 		return -EINVAL;
 	}
 
-	mutex_lock(&ctrl->wakeup_mutex);
+	rt_mutex_lock(&ctrl->wakeup_mutex);
 
 	pr_debug("cmd: %s, timeout %dms, tethered %d\n",
 		hdmi_hdcp_cmd_to_str(data->cmd),
@@ -191,7 +191,7 @@ static int hdmi_hdcp2p2_wakeup(struct hdmi_hdcp_wakeup_data *data)
 		pr_err("invalid wakeup command %d\n", ctrl->wakeup_cmd);
 	}
 exit:
-	mutex_unlock(&ctrl->wakeup_mutex);
+	rt_mutex_unlock(&ctrl->wakeup_mutex);
 	return 0;
 }
 
@@ -357,9 +357,9 @@ static ssize_t hdmi_hdcp2p2_sysfs_rda_tethered(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&ctrl->mutex);
+	rt_mutex_lock(&ctrl->mutex);
 	ret = snprintf(buf, PAGE_SIZE, "%d\n", ctrl->tethered);
-	mutex_unlock(&ctrl->mutex);
+	rt_mutex_unlock(&ctrl->mutex);
 
 	return ret;
 }
@@ -376,7 +376,7 @@ static ssize_t hdmi_hdcp2p2_sysfs_wta_tethered(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&ctrl->mutex);
+	rt_mutex_lock(&ctrl->mutex);
 	rc = kstrtoint(buf, 10, &tethered);
 	if (rc) {
 		pr_err("kstrtoint failed. rc=%d\n", rc);
@@ -388,7 +388,7 @@ static ssize_t hdmi_hdcp2p2_sysfs_wta_tethered(struct device *dev,
 	if (ctrl->lib && ctrl->lib->update_exec_type && ctrl->lib_ctx)
 		ctrl->lib->update_exec_type(ctrl->lib_ctx, ctrl->tethered);
 exit:
-	mutex_unlock(&ctrl->mutex);
+	rt_mutex_unlock(&ctrl->mutex);
 
 	return count;
 }
@@ -644,24 +644,24 @@ static void hdmi_hdcp2p2_send_msg(struct hdmi_hdcp2p2_ctrl *ctrl)
 		goto exit;
 	}
 
-	mutex_lock(&ctrl->msg_lock);
+	rt_mutex_lock(&ctrl->msg_lock);
 	msglen = ctrl->send_msg_len;
 
 	if (!msglen) {
-		mutex_unlock(&ctrl->msg_lock);
+		rt_mutex_unlock(&ctrl->msg_lock);
 		rc = -EINVAL;
 		goto exit;
 	}
 
 	msg = kzalloc(msglen, GFP_KERNEL);
 	if (!msg) {
-		mutex_unlock(&ctrl->msg_lock);
+		rt_mutex_unlock(&ctrl->msg_lock);
 		rc = -ENOMEM;
 		goto exit;
 	}
 
 	memcpy(msg, ctrl->send_msg_buf, msglen);
-	mutex_unlock(&ctrl->msg_lock);
+	rt_mutex_unlock(&ctrl->msg_lock);
 
 	/* Forward the message to the sink */
 	rc = hdmi_hdcp2p2_ddc_write_message(ctrl, msg, (size_t)msglen);
@@ -1011,9 +1011,9 @@ void hdmi_hdcp2p2_deinit(void *input)
 	sysfs_remove_group(ctrl->init_data.sysfs_kobj,
 				&hdmi_hdcp2p2_fs_attr_group);
 
-	mutex_destroy(&ctrl->mutex);
-	mutex_destroy(&ctrl->msg_lock);
-	mutex_destroy(&ctrl->wakeup_mutex);
+	rt_mutex_destroy(&ctrl->mutex);
+	rt_mutex_destroy(&ctrl->msg_lock);
+	rt_mutex_destroy(&ctrl->wakeup_mutex);
 	kfree(ctrl);
 }
 
@@ -1070,9 +1070,9 @@ void *hdmi_hdcp2p2_init(struct hdcp_init_data *init_data)
 	atomic_set(&ctrl->auth_state, HDCP_STATE_INACTIVE);
 
 	ctrl->ops = &ops;
-	mutex_init(&ctrl->mutex);
-	mutex_init(&ctrl->msg_lock);
-	mutex_init(&ctrl->wakeup_mutex);
+	rt_mutex_init(&ctrl->mutex);
+	rt_mutex_init(&ctrl->msg_lock);
+	rt_mutex_init(&ctrl->wakeup_mutex);
 
 	register_data.hdcp_ctx = &ctrl->lib_ctx;
 	register_data.client_ops = &client_ops;

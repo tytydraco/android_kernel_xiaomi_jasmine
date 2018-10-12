@@ -30,7 +30,7 @@ struct msm_dba_device_list {
 };
 
 static LIST_HEAD(device_list);
-static DEFINE_MUTEX(init_mutex);
+static DEFINE_RT_MUTEX(init_mutex);
 
 int msm_dba_add_probed_device(struct msm_dba_device_info *dev)
 {
@@ -41,11 +41,11 @@ int msm_dba_add_probed_device(struct msm_dba_device_info *dev)
 		return -EINVAL;
 	}
 
-	mutex_lock(&init_mutex);
+	rt_mutex_lock(&init_mutex);
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node) {
-		mutex_unlock(&init_mutex);
+		rt_mutex_unlock(&init_mutex);
 		return -ENOMEM;
 	}
 
@@ -55,7 +55,7 @@ int msm_dba_add_probed_device(struct msm_dba_device_info *dev)
 
 	pr_debug("%s: Added new device (%s, %d)\n", __func__, dev->chip_name,
 						dev->instance_id);
-	mutex_unlock(&init_mutex);
+	rt_mutex_unlock(&init_mutex);
 
 	return 0;
 }
@@ -72,7 +72,7 @@ int msm_dba_get_probed_device(struct msm_dba_reg_info *reg,
 		return -EINVAL;
 	}
 
-	mutex_lock(&init_mutex);
+	rt_mutex_lock(&init_mutex);
 
 	*dev = NULL;
 	list_for_each(position, &device_list) {
@@ -94,7 +94,7 @@ int msm_dba_get_probed_device(struct msm_dba_reg_info *reg,
 		rc = -ENODEV;
 	}
 
-	mutex_unlock(&init_mutex);
+	rt_mutex_unlock(&init_mutex);
 
 	return rc;
 }
@@ -110,7 +110,7 @@ int msm_dba_remove_probed_device(struct msm_dba_device_info *dev)
 		return -EINVAL;
 	}
 
-	mutex_lock(&init_mutex);
+	rt_mutex_lock(&init_mutex);
 
 	list_for_each_safe(position, temp, &device_list) {
 		node = list_entry(position, struct msm_dba_device_list, list);
@@ -124,7 +124,7 @@ int msm_dba_remove_probed_device(struct msm_dba_device_info *dev)
 		}
 	}
 
-	mutex_unlock(&init_mutex);
+	rt_mutex_unlock(&init_mutex);
 
 	return 0;
 }

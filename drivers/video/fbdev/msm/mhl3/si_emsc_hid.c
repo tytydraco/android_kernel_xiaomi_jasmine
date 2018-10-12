@@ -721,7 +721,7 @@ static int mhl3_hid_open(struct hid_device *hid)
 		return 0;
 	mdev = mhid->mdev;
 
-	mutex_lock(&mhl3_hid_open_mutex);
+	rt_mutex_lock(&mhl3_hid_open_mutex);
 	if (!hid->open++) {
 		ret = mhl3_hid_set_power(mdev, MHL3_HID_PWR_ON);
 		if (ret) {
@@ -731,7 +731,7 @@ static int mhl3_hid_open(struct hid_device *hid)
 	mhid->flags |= MHL3_HID_STARTED;
 	}
 done:
-	mutex_unlock(&mhl3_hid_open_mutex);
+	rt_mutex_unlock(&mhl3_hid_open_mutex);
 	return ret;
 }
 
@@ -754,12 +754,12 @@ static void mhl3_hid_close(struct hid_device *hid)
 	 * data acquisition due to a resumption we no longer
 	 * care about
 	 */
-	mutex_lock(&mhl3_hid_open_mutex);
+	rt_mutex_lock(&mhl3_hid_open_mutex);
 	if (!--hid->open) {
 		mhid->flags &= ~MHL3_HID_STARTED;
 		mhl3_hid_set_power(mdev, MHL3_HID_PWR_SLEEP);
 	}
-	mutex_unlock(&mhl3_hid_open_mutex);
+	rt_mutex_unlock(&mhl3_hid_open_mutex);
 }
 
 /*

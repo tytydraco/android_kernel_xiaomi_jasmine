@@ -294,7 +294,7 @@ struct dsi_shared_data {
 	struct dss_module_power power_data[DSI_MAX_PM];
 
 	/* Shared mutex for DSI PHY regulator */
-	struct mutex phy_reg_lock;
+	struct rt_mutex phy_reg_lock;
 
 	/* Data bus(AXI) scale settings */
 	struct msm_bus_scale_pdata *bus_scale_table;
@@ -302,7 +302,7 @@ struct dsi_shared_data {
 	u32 bus_refcount;
 
 	/* Shared mutex for pm_qos ref count */
-	struct mutex pm_qos_lock;
+	struct rt_mutex pm_qos_lock;
 	u32 pm_qos_req_cnt;
 };
 
@@ -555,12 +555,12 @@ struct mdss_dsi_ctrl_pdata {
 	spinlock_t irq_lock;
 	spinlock_t mdp_lock;
 	int mdp_busy;
-	struct mutex mutex;
-	struct mutex cmd_mutex;
-	struct mutex cmdlist_mutex;
+	struct rt_mutex mutex;
+	struct rt_mutex cmd_mutex;
+	struct rt_mutex cmdlist_mutex;
 	struct regulator *lab; /* vreg handle */
 	struct regulator *ibb; /* vreg handle */
-	struct mutex clk_lane_mutex;
+	struct rt_mutex clk_lane_mutex;
 
 	bool null_insert_enabled;
 	bool ulps;

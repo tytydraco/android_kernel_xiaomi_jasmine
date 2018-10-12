@@ -67,7 +67,7 @@ struct mdss_hw mdss_dsi1_hw = {
 #define DSI_BTA_EVENT_TIMEOUT (HZ / 10)
 
 /* Mutex common for both the controllers */
-static struct mutex dsi_mtx;
+static struct rt_mutex dsi_mtx;
 
 /* event */
 struct dsi_event_q {
@@ -121,10 +121,10 @@ void mdss_dsi_ctrl_init(struct device *ctrl_dev,
 	init_completion(&ctrl->bta_comp);
 	spin_lock_init(&ctrl->irq_lock);
 	spin_lock_init(&ctrl->mdp_lock);
-	mutex_init(&ctrl->mutex);
-	mutex_init(&ctrl->cmd_mutex);
-	mutex_init(&ctrl->clk_lane_mutex);
-	mutex_init(&ctrl->cmdlist_mutex);
+	rt_mutex_init(&ctrl->mutex);
+	rt_mutex_init(&ctrl->cmd_mutex);
+	rt_mutex_init(&ctrl->clk_lane_mutex);
+	rt_mutex_init(&ctrl->cmdlist_mutex);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->tx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->rx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->status_buf, SZ_4K);
@@ -135,7 +135,7 @@ void mdss_dsi_ctrl_init(struct device *ctrl_dev,
 	if (dsi_event.inited == 0) {
 		kthread_run(dsi_event_thread, (void *)&dsi_event,
 						"mdss_dsi_event");
-		mutex_init(&dsi_mtx);
+		rt_mutex_init(&dsi_mtx);
 		dsi_event.inited  = 1;
 	}
 }
@@ -176,9 +176,9 @@ void mdss_dsi_clk_req(struct mdss_dsi_ctrl_pdata *ctrl,
 	if (enable == MDSS_DSI_CLK_OFF ||
 		enable == MDSS_DSI_CLK_EARLY_GATE) {
 		/* need wait before disable */
-		mutex_lock(&ctrl->cmd_mutex);
+		rt_mutex_lock(&ctrl->cmd_mutex);
 		mdss_dsi_cmd_mdp_busy(ctrl);
-		mutex_unlock(&ctrl->cmd_mutex);
+		rt_mutex_unlock(&ctrl->cmd_mutex);
 	}
 
 	MDSS_XLOG(ctrl->ndx, enable, ctrl->mdp_busy, current->pid,
@@ -672,7 +672,7 @@ static void mdss_dsi_start_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
 	/* make sure clk lane is stopped */
 	mdss_dsi_stop_hs_clk_lane(ctrl);
 
-	mutex_lock(&ctrl->clk_lane_mutex);
+	rt_mutex_lock(&ctrl->clk_lane_mutex);
 	mdss_dsi_clk_ctrl(ctrl, ctrl->dsi_clk_handle, MDSS_DSI_ALL_CLKS,
 			  MDSS_DSI_CLK_ON);
 	if (ctrl->clk_lane_cnt) {
@@ -688,7 +688,7 @@ static void mdss_dsi_start_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
 				ctrl->ndx, ctrl->clk_lane_cnt);
 	mdss_dsi_clk_ctrl(ctrl, ctrl->dsi_clk_handle, MDSS_DSI_ALL_CLKS,
 			  MDSS_DSI_CLK_OFF);
-	mutex_unlock(&ctrl->clk_lane_mutex);
+	rt_mutex_unlock(&ctrl->clk_lane_mutex);
 }
 
 /*
@@ -701,7 +701,7 @@ static void mdss_dsi_stop_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
 	u32 fifo = 0;
 	u32 lane = 0;
 
-	mutex_lock(&ctrl->clk_lane_mutex);
+	rt_mutex_lock(&ctrl->clk_lane_mutex);
 	if (ctrl->clk_lane_cnt == 0)	/* stopped already */
 		goto release;
 
@@ -738,7 +738,7 @@ release:
 
 	mdss_dsi_clk_ctrl(ctrl, ctrl->dsi_clk_handle, MDSS_DSI_ALL_CLKS,
 			  MDSS_DSI_CLK_OFF);
-	mutex_unlock(&ctrl->clk_lane_mutex);
+	rt_mutex_unlock(&ctrl->clk_lane_mutex);
 }
 
 static void mdss_dsi_cmd_start_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
@@ -1605,7 +1605,7 @@ int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		return 0;
 	}
 
-	mutex_lock(&ctrl_pdata->cmd_mutex);
+	rt_mutex_lock(&ctrl_pdata->cmd_mutex);
 
 	if (ctrl_pdata->panel_mode == DSI_VIDEO_MODE)
 		ignore_underflow = 1;
@@ -1647,7 +1647,7 @@ int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			  MDSS_DSI_ALL_CLKS, MDSS_DSI_CLK_OFF);
 	pr_debug("%s: BTA done with ret: %d\n", __func__, ret);
 
-	mutex_unlock(&ctrl_pdata->cmd_mutex);
+	rt_mutex_unlock(&ctrl_pdata->cmd_mutex);
 
 	return ret;
 }
@@ -2726,12 +2726,12 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	int ret = -EINVAL;
 	int rc = 0;
 	bool hs_req = false;
-	bool cmd_mutex_acquired = false;
+	bool cmd_rt_mutex_acquired = false;
 
 	if (from_mdp) {	/* from mdp kickoff */
 		if (!ctrl->burst_mode_enabled) {
-			mutex_lock(&ctrl->cmd_mutex);
-			cmd_mutex_acquired = true;
+			rt_mutex_lock(&ctrl->cmd_mutex);
+			cmd_rt_mutex_acquired = true;
 		}
 		pinfo = &ctrl->panel_data.panel_info;
 		if (pinfo->partial_update_enabled)
@@ -2740,8 +2740,8 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 
 	req = mdss_dsi_cmdlist_get(ctrl, from_mdp);
 	if (req && from_mdp && ctrl->burst_mode_enabled) {
-		mutex_lock(&ctrl->cmd_mutex);
-		cmd_mutex_acquired = true;
+		rt_mutex_lock(&ctrl->cmd_mutex);
+		cmd_rt_mutex_acquired = true;
 	}
 
 	MDSS_XLOG(ctrl->ndx, from_mdp, ctrl->mdp_busy, current->pid,
@@ -2764,8 +2764,8 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 		if (ctrl->shared_data->hw_rev >= MDSS_DSI_HW_REV_103) {
 			req->flags |= CMD_REQ_DMA_TPG;
 		} else {
-			if (cmd_mutex_acquired)
-				mutex_unlock(&ctrl->cmd_mutex);
+			if (cmd_rt_mutex_acquired)
+				rt_mutex_unlock(&ctrl->cmd_mutex);
 			return -EPERM;
 		}
 	}
@@ -2813,7 +2813,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 		if (rc) {
 			pr_err("%s: Bus bw vote failed\n", __func__);
 			if (from_mdp)
-				mutex_unlock(&ctrl->cmd_mutex);
+				rt_mutex_unlock(&ctrl->cmd_mutex);
 			return rc;
 		}
 
@@ -2821,7 +2821,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 			rc = ctrl->mdss_util->iommu_ctrl(1);
 			if (IS_ERR_VALUE(rc)) {
 				pr_err("IOMMU attach failed\n");
-				mutex_unlock(&ctrl->cmd_mutex);
+				rt_mutex_unlock(&ctrl->cmd_mutex);
 				return rc;
 			}
 			use_iommu = true;
@@ -2836,11 +2836,11 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	 * delay for any commands that are not coming from
 	 * mdp path
 	 */
-	mutex_lock(&ctrl->mutex);
+	rt_mutex_lock(&ctrl->mutex);
 	if (mdss_dsi_delay_cmd(ctrl, from_mdp))
 		ctrl->mdp_callback->fxn(ctrl->mdp_callback->data,
 			MDP_INTF_CALLBACK_DSI_WAIT);
-	mutex_unlock(&ctrl->mutex);
+	rt_mutex_unlock(&ctrl->mutex);
 
 	if (req->flags & CMD_REQ_HS_MODE)
 		mdss_dsi_set_tx_power_mode(0, &ctrl->panel_data);
@@ -2878,8 +2878,8 @@ need_lock:
 		 */
 		if (!roi || (roi->w != 0 || roi->h != 0))
 			mdss_dsi_cmd_mdp_start(ctrl);
-		if (cmd_mutex_acquired)
-			mutex_unlock(&ctrl->cmd_mutex);
+		if (cmd_rt_mutex_acquired)
+			rt_mutex_unlock(&ctrl->cmd_mutex);
 	} else {	/* from dcs send */
 		if (ctrl->shared_data->cmd_clk_ln_recovery_en &&
 				ctrl->panel_mode == DSI_CMD_MODE &&
@@ -2975,13 +2975,13 @@ static int dsi_event_thread(void *data)
 			mdss_dsi_pll_relock(ctrl);
 
 		if (todo & DSI_EV_DLNx_FIFO_UNDERFLOW) {
-			mutex_lock(&ctrl->mutex);
+			rt_mutex_lock(&ctrl->mutex);
 			if (ctrl->recovery) {
 				pr_debug("%s: Handling underflow event\n",
 							__func__);
 				__dsi_fifo_error_handler(ctrl, true);
 			}
-			mutex_unlock(&ctrl->mutex);
+			rt_mutex_unlock(&ctrl->mutex);
 		}
 
 		if (todo & DSI_EV_DSI_FIFO_EMPTY) {
@@ -2989,7 +2989,7 @@ static int dsi_event_thread(void *data)
 		}
 
 		if (todo & DSI_EV_DLNx_FIFO_OVERFLOW) {
-			mutex_lock(&dsi_mtx);
+			rt_mutex_lock(&dsi_mtx);
 			/*
 			 * For targets other than msm8994,
 			 * run the overflow recovery sequence only when
@@ -3037,7 +3037,7 @@ static int dsi_event_thread(void *data)
 						  MDSS_DSI_ALL_CLKS,
 						  MDSS_DSI_CLK_OFF);
 			}
-			mutex_unlock(&dsi_mtx);
+			rt_mutex_unlock(&dsi_mtx);
 		}
 
 		if (todo & DSI_EV_MDP_BUSY_RELEASE) {

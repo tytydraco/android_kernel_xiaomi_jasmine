@@ -399,7 +399,7 @@ static int mdss_mdp_validate_destination_scaler(struct msm_fb_data_type *mfd,
 		ctl   = mfd_to_ctl(mfd);
 		sctl  = mdss_mdp_get_split_ctl(ctl);
 
-		mutex_lock(&ctl->ds_lock);
+		rt_mutex_lock(&ctl->ds_lock);
 		if (ctl->mixer_left)
 			ds_left = ctl->mixer_left->ds;
 
@@ -413,7 +413,7 @@ static int mdss_mdp_validate_destination_scaler(struct msm_fb_data_type *mfd,
 		case DS_DUAL_MODE:
 			if (!ds_left || !ds_right) {
 				pr_err("Cannot support DUAL mode dest scaling\n");
-				mutex_unlock(&ctl->ds_lock);
+				rt_mutex_unlock(&ctl->ds_lock);
 				return -EINVAL;
 			}
 
@@ -459,7 +459,7 @@ static int mdss_mdp_validate_destination_scaler(struct msm_fb_data_type *mfd,
 		case DS_LEFT:
 			if (!ds_left) {
 				pr_err("LM in ctl does not support Destination Scaler\n");
-				mutex_unlock(&ctl->ds_lock);
+				rt_mutex_unlock(&ctl->ds_lock);
 				return -EINVAL;
 			}
 			ds_left->flags &= ~(DS_DUAL_MODE|DS_RIGHT);
@@ -489,7 +489,7 @@ static int mdss_mdp_validate_destination_scaler(struct msm_fb_data_type *mfd,
 		case DS_RIGHT:
 			if (!ds_right) {
 				pr_err("Cannot setup DS_RIGHT because only single DS assigned to ctl\n");
-				mutex_unlock(&ctl->ds_lock);
+				rt_mutex_unlock(&ctl->ds_lock);
 				return -EINVAL;
 			}
 
@@ -562,7 +562,7 @@ static int mdss_mdp_validate_destination_scaler(struct msm_fb_data_type *mfd,
 		goto reset_mixer;
 	}
 
-	mutex_unlock(&ctl->ds_lock);
+	rt_mutex_unlock(&ctl->ds_lock);
 	return ret;
 
 reset_mixer:
@@ -596,7 +596,7 @@ reset_mixer:
 				ctl->mixer_right->height);
 	}
 
-	mutex_unlock(&ctl->ds_lock);
+	rt_mutex_unlock(&ctl->ds_lock);
 	return ret;
 }
 
@@ -1473,7 +1473,7 @@ static int __handle_buffer_fences(struct msm_fb_data_type *mfd,
 		pr_warn("%s: waited on %d active fences\n",
 			sync_pt_data->fence_name, i);
 
-	mutex_lock(&sync_pt_data->sync_mutex);
+	rt_mutex_lock(&sync_pt_data->sync_mutex);
 	for (i = 0, acq_fen_count = 0; i < layer_count; i++) {
 		layer = &layer_list[i];
 
@@ -1516,7 +1516,7 @@ static int __handle_buffer_fences(struct msm_fb_data_type *mfd,
 	sync_fence_install(release_fence, commit->release_fence);
 	sync_fence_install(retire_fence, commit->retire_fence);
 
-	mutex_unlock(&sync_pt_data->sync_mutex);
+	rt_mutex_unlock(&sync_pt_data->sync_mutex);
 	return ret;
 
 retire_fence_err:
@@ -1530,7 +1530,7 @@ sync_fence_err:
 		sync_fence_put(sync_pt_data->acq_fen[i]);
 	sync_pt_data->acq_fen_cnt = 0;
 
-	mutex_unlock(&sync_pt_data->sync_mutex);
+	rt_mutex_unlock(&sync_pt_data->sync_mutex);
 
 	return ret;
 }
@@ -1657,7 +1657,7 @@ static struct mdss_mdp_pipe *__find_layer_in_validate_q(
 	struct mdss_mdp_pipe *pipe;
 	struct mdp_input_layer *layer = vinfo->layer;
 
-	mutex_lock(&mdp5_data->list_lock);
+	rt_mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry(pipe, &mdp5_data->pipes_used, list) {
 		if ((pipe->ndx == layer->pipe_ndx) &&
 		    (pipe->multirect.num == vinfo->multirect.num)) {
@@ -1666,7 +1666,7 @@ static struct mdss_mdp_pipe *__find_layer_in_validate_q(
 			break;
 		}
 	}
-	mutex_unlock(&mdp5_data->list_lock);
+	rt_mutex_unlock(&mdp5_data->list_lock);
 
 	return found ? pipe : NULL;
 }
@@ -1748,7 +1748,7 @@ static struct mdss_mdp_pipe *__assign_pipe_for_layer(
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
 	struct mdss_data_type *mdata = mfd_to_mdata(mfd);
 
-	mutex_lock(&mdp5_data->list_lock);
+	rt_mutex_lock(&mdp5_data->list_lock);
 	__find_pipe_in_list(&mdp5_data->pipes_used, pipe_ndx, &pipe, rect_num);
 	if (IS_ERR_OR_NULL(pipe)) {
 		pipe = __find_and_move_cleanup_pipe(mdp5_data,
@@ -1760,7 +1760,7 @@ static struct mdss_mdp_pipe *__assign_pipe_for_layer(
 	} else {
 		*pipe_q_type = LAYER_USES_USED_PIPE_Q;
 	}
-	mutex_unlock(&mdp5_data->list_lock);
+	rt_mutex_unlock(&mdp5_data->list_lock);
 
 	/* found the pipe from used, destroy or cleanup list */
 	if (!IS_ERR_OR_NULL(pipe)) {
@@ -1789,9 +1789,9 @@ static struct mdss_mdp_pipe *__assign_pipe_for_layer(
 		goto end;
 	}
 
-	mutex_lock(&mdp5_data->list_lock);
+	rt_mutex_lock(&mdp5_data->list_lock);
 	list_add(&pipe->list, &mdp5_data->pipes_used);
-	mutex_unlock(&mdp5_data->list_lock);
+	rt_mutex_unlock(&mdp5_data->list_lock);
 
 end:
 	if (!IS_ERR_OR_NULL(pipe)) {
@@ -1816,7 +1816,7 @@ static int __validate_secure_session(struct mdss_overlay_private *mdp5_data)
 	uint32_t sd_pipes = 0, nonsd_pipes = 0;
 	uint32_t secure_vid_pipes = 0, secure_cam_pipes = 0;
 
-	mutex_lock(&mdp5_data->list_lock);
+	rt_mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry_safe(pipe, tmp, &mdp5_data->pipes_used, list) {
 		if (pipe->flags & MDP_SECURE_DISPLAY_OVERLAY_SESSION)
 			sd_pipes++;
@@ -1827,7 +1827,7 @@ static int __validate_secure_session(struct mdss_overlay_private *mdp5_data)
 		else
 			nonsd_pipes++;
 	}
-	mutex_unlock(&mdp5_data->list_lock);
+	rt_mutex_unlock(&mdp5_data->list_lock);
 
 	pr_debug("pipe count:: secure display:%d non-secure:%d secure-vid:%d,secure-cam:%d\n",
 		sd_pipes, nonsd_pipes, secure_vid_pipes, secure_cam_pipes);
@@ -1882,7 +1882,7 @@ static void __handle_free_list(struct mdss_overlay_private *mdp5_data,
 	struct mdss_mdp_validate_info_t *vinfo;
 	struct mdss_mdp_pipe *pipe, *tmp;
 
-	mutex_lock(&mdp5_data->list_lock);
+	rt_mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry_safe(pipe, tmp, &mdp5_data->pipes_used, list) {
 		for (i = 0; i < layer_count; i++) {
 			vinfo = &validate_info_list[i];
@@ -1901,7 +1901,7 @@ static void __handle_free_list(struct mdss_overlay_private *mdp5_data,
 		if (i == layer_count)
 			list_move(&pipe->list, &mdp5_data->pipes_cleanup);
 	}
-	mutex_unlock(&mdp5_data->list_lock);
+	rt_mutex_unlock(&mdp5_data->list_lock);
 }
 
 static bool __multirect_validate_flip(struct mdp_input_layer **layers,
@@ -2454,7 +2454,7 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 	struct mdp_destination_scaler_data *ds_data;
 	struct mdss_mdp_pipe *pipe_list[MAX_LAYER_COUNT] = {0};
 
-	ret = mutex_lock_interruptible(&mdp5_data->ov_lock);
+	ret = rt_mutex_lock_interruptible(&mdp5_data->ov_lock);
 	if (ret)
 		return ret;
 
@@ -2513,9 +2513,9 @@ static int __validate_layers(struct msm_fb_data_type *mfd,
 	 * dynamic resolution switch, immaterial of the configs in
 	 * the layer.
 	 */
-	mutex_lock(&mfd->switch_lock);
+	rt_mutex_lock(&mfd->switch_lock);
 	force_validate = (mfd->switch_state != MDSS_MDP_NO_UPDATE_REQUESTED);
-	mutex_unlock(&mfd->switch_lock);
+	rt_mutex_unlock(&mfd->switch_lock);
 
 	for (i = 0; i < layer_count; i++) {
 		enum layer_zorder_used z = LAYER_ZORDER_NONE;
@@ -2725,7 +2725,7 @@ validate_exit:
 			left_lm_layers, right_lm_layers,
 			rec_release_ndx[0], rec_release_ndx[1],
 			rec_destroy_ndx[0], rec_destroy_ndx[1], ret);
-	mutex_lock(&mdp5_data->list_lock);
+	rt_mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry_safe(pipe, tmp, &mdp5_data->pipes_used, list) {
 		if (IS_ERR_VALUE(ret)) {
 			if (((pipe->ndx & rec_release_ndx[0]) &&
@@ -2757,10 +2757,10 @@ validate_exit:
 				file);
 		}
 	}
-	mutex_unlock(&mdp5_data->list_lock);
+	rt_mutex_unlock(&mdp5_data->list_lock);
 end:
 	kfree(validate_info_list);
-	mutex_unlock(&mdp5_data->ov_lock);
+	rt_mutex_unlock(&mdp5_data->ov_lock);
 
 	pr_debug("fb%d validated layers =%d\n", mfd->index, i);
 
@@ -2887,7 +2887,7 @@ int mdss_mdp_layer_pre_commit(struct msm_fb_data_type *mfd,
 
 	i = 0;
 
-	mutex_lock(&mdp5_data->list_lock);
+	rt_mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry_safe(pipe, tmp, &mdp5_data->pipes_used, list) {
 		if (pipe->flags & MDP_SOLID_FILL) {
 			src_data[i] = NULL;
@@ -2897,12 +2897,12 @@ int mdss_mdp_layer_pre_commit(struct msm_fb_data_type *mfd,
 			layer_count);
 		if (IS_ERR_OR_NULL(src_data[i++])) {
 			i--;
-			mutex_unlock(&mdp5_data->list_lock);
+			rt_mutex_unlock(&mdp5_data->list_lock);
 			ret =  PTR_ERR(src_data[i]);
 			goto map_err;
 		}
 	}
-	mutex_unlock(&mdp5_data->list_lock);
+	rt_mutex_unlock(&mdp5_data->list_lock);
 
 	ret = mdss_mdp_overlay_start(mfd);
 	if (ret) {
@@ -2939,11 +2939,11 @@ int mdss_mdp_layer_pre_commit(struct msm_fb_data_type *mfd,
 
 map_err:
 	if (ret) {
-		mutex_lock(&mdp5_data->list_lock);
+		rt_mutex_lock(&mdp5_data->list_lock);
 		for (i--; i >= 0; i--)
 			if (src_data[i])
 				mdss_mdp_overlay_buf_free(mfd, src_data[i]);
-		mutex_unlock(&mdp5_data->list_lock);
+		rt_mutex_unlock(&mdp5_data->list_lock);
 	}
 end:
 	kfree(validate_info_list);
@@ -3072,9 +3072,9 @@ int mdss_mdp_layer_pre_commit_cwb(struct msm_fb_data_type *mfd,
 			MDP_COMMIT_CWB_DSPP : 0;
 	mdp5_data->cwb.wb_idx = commit->output_layer->writeback_ndx;
 
-	mutex_lock(&mdp5_data->cwb.queue_lock);
+	rt_mutex_lock(&mdp5_data->cwb.queue_lock);
 	list_add_tail(&cwb_data->next, &mdp5_data->cwb.data_queue);
-	mutex_unlock(&mdp5_data->cwb.queue_lock);
+	rt_mutex_unlock(&mdp5_data->cwb.queue_lock);
 
 	mdp5_data->cwb.valid = 1;
 
@@ -3140,19 +3140,19 @@ int mdss_mdp_layer_pre_commit_wfd(struct msm_fb_data_type *mfd,
 
 	if (fence) {
 		sync_pt_data = &mfd->mdp_sync_pt_data;
-		mutex_lock(&sync_pt_data->sync_mutex);
+		rt_mutex_lock(&sync_pt_data->sync_mutex);
 		count = sync_pt_data->acq_fen_cnt;
 
 		if (count >= MDP_MAX_FENCE_FD) {
 			pr_err("Reached maximum possible value for fence count\n");
-			mutex_unlock(&sync_pt_data->sync_mutex);
+			rt_mutex_unlock(&sync_pt_data->sync_mutex);
 			rc = -EINVAL;
 			goto input_layer_err;
 		}
 
 		sync_pt_data->acq_fen[count] = fence;
 		sync_pt_data->acq_fen_cnt++;
-		mutex_unlock(&sync_pt_data->sync_mutex);
+		rt_mutex_unlock(&sync_pt_data->sync_mutex);
 	}
 	return rc;
 
@@ -3230,10 +3230,10 @@ int mdss_mdp_async_position_update(struct msm_fb_data_type *mfd,
 
 	for (i = 0; i < update_pos->input_layer_cnt; i++) {
 		layer = &update_pos->input_layers[i];
-		mutex_lock(&mdp5_data->list_lock);
+		rt_mutex_lock(&mdp5_data->list_lock);
 		__find_pipe_in_list(&mdp5_data->pipes_used, layer->pipe_ndx,
 			&pipe, MDSS_MDP_PIPE_RECT0);
-		mutex_unlock(&mdp5_data->list_lock);
+		rt_mutex_unlock(&mdp5_data->list_lock);
 		if (!pipe) {
 			pr_err("invalid pipe ndx=0x%x for async update\n",
 					layer->pipe_ndx);

@@ -469,11 +469,11 @@ int mdp3_clk_set_rate(int clk_type, unsigned long clk_rate,
 	struct clk *clk = mdp3_res->clocks[clk_type];
 
 	if (clk) {
-		mutex_lock(&mdp3_res->res_mutex);
+		rt_mutex_lock(&mdp3_res->res_mutex);
 		rounded_rate = clk_round_rate(clk, clk_rate);
 		if (IS_ERR_VALUE(rounded_rate)) {
 			pr_err("unable to round rate err=%ld\n", rounded_rate);
-			mutex_unlock(&mdp3_res->res_mutex);
+			rt_mutex_unlock(&mdp3_res->res_mutex);
 			return -EINVAL;
 		}
 		if (clk_type == MDP3_CLK_MDP_SRC) {
@@ -483,7 +483,7 @@ int mdp3_clk_set_rate(int clk_type, unsigned long clk_rate,
 				mdp3_res->ppp_core_clk_request = rounded_rate;
 			} else {
 				pr_err("unrecognized client=%d\n", client);
-				mutex_unlock(&mdp3_res->res_mutex);
+				rt_mutex_unlock(&mdp3_res->res_mutex);
 				return -EINVAL;
 			}
 			rounded_rate = max(mdp3_res->dma_core_clk_request,
@@ -497,7 +497,7 @@ int mdp3_clk_set_rate(int clk_type, unsigned long clk_rate,
 				pr_debug("mdp clk rate=%lu, client = %d\n",
 					rounded_rate, client);
 		}
-		mutex_unlock(&mdp3_res->res_mutex);
+		rt_mutex_unlock(&mdp3_res->res_mutex);
 	} else {
 		pr_err("mdp src clk not setup properly\n");
 		ret = -EINVAL;
@@ -516,9 +516,9 @@ unsigned long mdp3_get_clk_rate(u32 clk_idx)
 	clk = mdp3_res->clocks[clk_idx];
 
 	if (clk) {
-		mutex_lock(&mdp3_res->res_mutex);
+		rt_mutex_lock(&mdp3_res->res_mutex);
 		clk_rate = clk_get_rate(clk);
-		mutex_unlock(&mdp3_res->res_mutex);
+		rt_mutex_unlock(&mdp3_res->res_mutex);
 	}
 	return clk_rate;
 }
@@ -616,7 +616,7 @@ int mdp3_clk_enable(int enable, int dsi_clk)
 
 	pr_debug("MDP CLKS %s\n", (enable ? "Enable" : "Disable"));
 
-	mutex_lock(&mdp3_res->res_mutex);
+	rt_mutex_lock(&mdp3_res->res_mutex);
 
 	if (enable) {
 		if (mdp3_res->clk_ena == 0)
@@ -650,7 +650,7 @@ int mdp3_clk_enable(int enable, int dsi_clk)
 		}
 	}
 
-	mutex_unlock(&mdp3_res->res_mutex);
+	rt_mutex_unlock(&mdp3_res->res_mutex);
 	return rc;
 }
 
@@ -668,14 +668,14 @@ void mdp3_bus_bw_iommu_enable(int enable, int client)
 		pr_err("invalid bus handle %d\n", bus_handle->handle);
 		return;
 	}
-	mutex_lock(&mdp3_res->res_mutex);
+	rt_mutex_lock(&mdp3_res->res_mutex);
 	if (enable)
 		bus_handle->ref_cnt++;
 	else
 		if (bus_handle->ref_cnt)
 			bus_handle->ref_cnt--;
 	ref_cnt = bus_handle->ref_cnt;
-	mutex_unlock(&mdp3_res->res_mutex);
+	rt_mutex_unlock(&mdp3_res->res_mutex);
 
 	if (enable) {
 		if (mdp3_res->allow_iommu_update)
@@ -751,9 +751,9 @@ int mdp3_get_mdp_dsi_clk(void)
 {
 	int rc;
 
-	mutex_lock(&mdp3_res->res_mutex);
+	rt_mutex_lock(&mdp3_res->res_mutex);
 	rc = mdp3_clk_update(MDP3_CLK_DSI, 1);
-	mutex_unlock(&mdp3_res->res_mutex);
+	rt_mutex_unlock(&mdp3_res->res_mutex);
 	return rc;
 }
 
@@ -761,9 +761,9 @@ int mdp3_put_mdp_dsi_clk(void)
 {
 	int rc;
 
-	mutex_lock(&mdp3_res->res_mutex);
+	rt_mutex_lock(&mdp3_res->res_mutex);
 	rc = mdp3_clk_update(MDP3_CLK_DSI, 0);
-	mutex_unlock(&mdp3_res->res_mutex);
+	rt_mutex_unlock(&mdp3_res->res_mutex);
 	return rc;
 }
 
@@ -917,7 +917,7 @@ int mdp3_iommu_init(void)
 {
 	int ret;
 
-	mutex_init(&mdp3_res->iommu_lock);
+	rt_mutex_init(&mdp3_res->iommu_lock);
 
 	ret = mdp3_iommu_domain_init();
 	if (ret) {
@@ -983,7 +983,7 @@ static int mdp3_hw_init(void)
 		mdp3_res->dma[i].lut_sts = 0;
 		mdp3_res->dma[i].hist_cmap = NULL;
 		mdp3_res->dma[i].gc_cmap = NULL;
-		mutex_init(&mdp3_res->dma[i].pp_lock);
+		rt_mutex_init(&mdp3_res->dma[i].pp_lock);
 	}
 	mdp3_res->dma[MDP3_DMA_S].capability = MDP3_DMA_CAP_DITHER;
 	mdp3_res->dma[MDP3_DMA_E].available = 0;
@@ -1155,10 +1155,10 @@ static void mdp3_res_deinit(void)
 	mdp3_hw = &mdp3_res->mdp3_hw;
 	mdp3_bus_scale_unregister();
 
-	mutex_lock(&mdp3_res->iommu_lock);
+	rt_mutex_lock(&mdp3_res->iommu_lock);
 	for (i = 0; i < MDP3_IOMMU_CTX_MAX; i++)
 		mdp3_iommu_dettach(i);
-	mutex_unlock(&mdp3_res->iommu_lock);
+	rt_mutex_unlock(&mdp3_res->iommu_lock);
 
 	mdp3_iommu_deinit();
 
@@ -1520,9 +1520,9 @@ static void mdp3_iommu_meta_destroy(struct kref *kref)
 static void mdp3_iommu_meta_put(struct mdp3_iommu_meta *meta)
 {
 	/* Need to lock here to prevent race against map/unmap */
-	mutex_lock(&mdp3_res->iommu_lock);
+	rt_mutex_lock(&mdp3_res->iommu_lock);
 	kref_put(&meta->ref, mdp3_iommu_meta_destroy);
-	mutex_unlock(&mdp3_res->iommu_lock);
+	rt_mutex_unlock(&mdp3_res->iommu_lock);
 }
 
 static struct mdp3_iommu_meta *mdp3_iommu_meta_lookup(struct sg_table *table)
@@ -1553,15 +1553,15 @@ void mdp3_unmap_iommu(struct ion_client *client, struct ion_handle *handle)
 
 	table = ion_sg_table(client, handle);
 
-	mutex_lock(&mdp3_res->iommu_lock);
+	rt_mutex_lock(&mdp3_res->iommu_lock);
 	meta = mdp3_iommu_meta_lookup(table);
 	if (!meta) {
 		WARN(1, "%s: buffer was never mapped for %pK\n", __func__,
 				handle);
-		mutex_unlock(&mdp3_res->iommu_lock);
+		rt_mutex_unlock(&mdp3_res->iommu_lock);
 		return;
 	}
-	mutex_unlock(&mdp3_res->iommu_lock);
+	rt_mutex_unlock(&mdp3_res->iommu_lock);
 
 	mdp3_iommu_meta_put(meta);
 }
@@ -1753,7 +1753,7 @@ int mdp3_self_map_iommu(struct ion_client *client, struct ion_handle *handle,
 		goto out;
 	}
 
-	mutex_lock(&mdp3_res->iommu_lock);
+	rt_mutex_lock(&mdp3_res->iommu_lock);
 	iommu_meta = mdp3_iommu_meta_lookup(table);
 
 	if (!iommu_meta) {
@@ -1783,14 +1783,14 @@ int mdp3_self_map_iommu(struct ion_client *client, struct ion_handle *handle,
 		}
 	}
 	BUG_ON(iommu_meta->size != size);
-	mutex_unlock(&mdp3_res->iommu_lock);
+	rt_mutex_unlock(&mdp3_res->iommu_lock);
 
 	*iova = *iova + padding;
 	*buffer_size = size;
 	return ret;
 
 out_unlock:
-	mutex_unlock(&mdp3_res->iommu_lock);
+	rt_mutex_unlock(&mdp3_res->iommu_lock);
 out:
 	mdp3_iommu_meta_put(iommu_meta);
 	return ret;
@@ -1938,7 +1938,7 @@ int mdp3_iommu_enable(int client)
 {
 	int rc = 0;
 
-	mutex_lock(&mdp3_res->iommu_lock);
+	rt_mutex_lock(&mdp3_res->iommu_lock);
 
 	if (mdp3_res->iommu_ref_cnt == 0) {
 		rc = mdss_smmu_attach(mdss_res);
@@ -1948,7 +1948,7 @@ int mdp3_iommu_enable(int client)
 
 	if (!rc)
 		mdp3_res->iommu_ref_cnt++;
-	mutex_unlock(&mdp3_res->iommu_lock);
+	rt_mutex_unlock(&mdp3_res->iommu_lock);
 
 	pr_debug("client :%d total_ref_cnt: %d\n",
 			client, mdp3_res->iommu_ref_cnt);
@@ -1959,7 +1959,7 @@ int mdp3_iommu_disable(int client)
 {
 	int rc = 0;
 
-	mutex_lock(&mdp3_res->iommu_lock);
+	rt_mutex_lock(&mdp3_res->iommu_lock);
 	if (mdp3_res->iommu_ref_cnt) {
 		mdp3_res->iommu_ref_cnt--;
 
@@ -1970,7 +1970,7 @@ int mdp3_iommu_disable(int client)
 	} else {
 		pr_err("iommu ref count unbalanced for client %d\n", client);
 	}
-	mutex_unlock(&mdp3_res->iommu_lock);
+	rt_mutex_unlock(&mdp3_res->iommu_lock);
 
 	return rc;
 }
@@ -2391,9 +2391,9 @@ static int mdp3_debug_init(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mdss_res = mdata;
-	mutex_init(&mdata->reg_lock);
-	mutex_init(&mdata->reg_bus_lock);
-	mutex_init(&mdata->bus_lock);
+	rt_mutex_init(&mdata->reg_lock);
+	rt_mutex_init(&mdata->reg_bus_lock);
+	rt_mutex_init(&mdata->bus_lock);
 	INIT_LIST_HEAD(&mdata->reg_bus_clist);
 	atomic_set(&mdata->sd_client_count, 0);
 	atomic_set(&mdata->active_intf_cnt, 0);
@@ -2735,11 +2735,11 @@ static int mdp3_probe(struct platform_device *pdev)
 
 	pdev->id = 0;
 	mdp3_res->pdev = pdev;
-	mutex_init(&mdp3_res->res_mutex);
+	rt_mutex_init(&mdp3_res->res_mutex);
 	spin_lock_init(&mdp3_res->irq_lock);
 	platform_set_drvdata(pdev, mdp3_res);
 	atomic_set(&mdp3_res->active_intf_cnt, 0);
-	mutex_init(&mdp3_res->reg_bus_lock);
+	rt_mutex_init(&mdp3_res->reg_bus_lock);
 	INIT_LIST_HEAD(&mdp3_res->reg_bus_clist);
 
 	mdp3_res->mdss_util = mdss_get_util_intf();

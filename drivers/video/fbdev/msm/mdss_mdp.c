@@ -95,10 +95,10 @@ struct msm_mdp_interface mdp5 = {
 
 static DEFINE_SPINLOCK(mdp_lock);
 static DEFINE_SPINLOCK(mdss_mdp_intr_lock);
-static DEFINE_MUTEX(mdp_clk_lock);
-static DEFINE_MUTEX(mdp_iommu_ref_cnt_lock);
-static DEFINE_MUTEX(mdp_fs_idle_pc_lock);
-static DEFINE_MUTEX(mdp_sec_ref_cnt_lock);
+static DEFINE_RT_MUTEX(mdp_clk_lock);
+static DEFINE_RT_MUTEX(mdp_iommu_ref_cnt_lock);
+static DEFINE_RT_MUTEX(mdp_fs_idle_pc_lock);
+static DEFINE_RT_MUTEX(mdp_sec_ref_cnt_lock);
 
 static struct mdss_panel_intf pan_types[] = {
 	{"dsi", MDSS_PANEL_INTF_DSI},
@@ -653,7 +653,7 @@ struct reg_bus_client *mdss_reg_bus_vote_client_create(char *client_name)
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&mdss_res->reg_bus_lock);
+	rt_mutex_lock(&mdss_res->reg_bus_lock);
 	strlcpy(client->name, client_name, MAX_CLIENT_NAME_LEN);
 	client->usecase_ndx = VOTE_INDEX_DISABLE;
 	client->id = id;
@@ -661,7 +661,7 @@ struct reg_bus_client *mdss_reg_bus_vote_client_create(char *client_name)
 		client, id);
 	id++;
 	list_add(&client->list, &mdss_res->reg_bus_clist);
-	mutex_unlock(&mdss_res->reg_bus_lock);
+	rt_mutex_unlock(&mdss_res->reg_bus_lock);
 
 	return client;
 }
@@ -673,9 +673,9 @@ void mdss_reg_bus_vote_client_destroy(struct reg_bus_client *client)
 	} else {
 		pr_debug("bus vote client %s destroyed:%pK id:%u\n",
 			client->name, client, client->id);
-		mutex_lock(&mdss_res->reg_bus_lock);
+		rt_mutex_lock(&mdss_res->reg_bus_lock);
 		list_del_init(&client->list);
-		mutex_unlock(&mdss_res->reg_bus_lock);
+		rt_mutex_unlock(&mdss_res->reg_bus_lock);
 		kfree(client);
 	}
 }
@@ -690,7 +690,7 @@ int mdss_update_reg_bus_vote(struct reg_bus_client *bus_client, u32 usecase_ndx)
 	if (!mdss_res || !mdss_res->reg_bus_hdl || !bus_client)
 		return 0;
 
-	mutex_lock(&mdss_res->reg_bus_lock);
+	rt_mutex_lock(&mdss_res->reg_bus_lock);
 	bus_client->usecase_ndx = usecase_ndx;
 	list_for_each_entry_safe(client, temp_client, &mdss_res->reg_bus_clist,
 		list) {
@@ -713,7 +713,7 @@ int mdss_update_reg_bus_vote(struct reg_bus_client *bus_client, u32 usecase_ndx)
 		ret = msm_bus_scale_client_update_request(mdss_res->reg_bus_hdl,
 			max_usecase_ndx);
 
-	mutex_unlock(&mdss_res->reg_bus_lock);
+	rt_mutex_unlock(&mdss_res->reg_bus_lock);
 	return ret;
 }
 
@@ -724,7 +724,7 @@ int mdss_bus_scale_set_quota(int client, u64 ab_quota, u64 ib_quota)
 	u64 total_ab_rt = 0, total_ib_rt = 0;
 	u64 total_ab_nrt = 0, total_ib_nrt = 0;
 
-	mutex_lock(&mdss_res->bus_lock);
+	rt_mutex_lock(&mdss_res->bus_lock);
 
 	mdss_res->ab[client] = ab_quota;
 	mdss_res->ib[client] = ib_quota;
@@ -743,7 +743,7 @@ int mdss_bus_scale_set_quota(int client, u64 ab_quota, u64 ib_quota)
 	rc = mdss_mdp_bus_scale_set_quota(total_ab_rt, total_ab_nrt,
 			total_ib_rt, total_ib_nrt);
 
-	mutex_unlock(&mdss_res->bus_lock);
+	rt_mutex_unlock(&mdss_res->bus_lock);
 
 	return rc;
 }
@@ -787,14 +787,14 @@ void mdss_mdp_vbif_reg_lock(void)
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 
-	mutex_lock(&mdata->reg_lock);
+	rt_mutex_lock(&mdata->reg_lock);
 }
 
 void mdss_mdp_vbif_reg_unlock(void)
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 
-	mutex_unlock(&mdata->reg_lock);
+	rt_mutex_unlock(&mdata->reg_lock);
 }
 
 bool mdss_mdp_handoff_pending(void)
@@ -1241,7 +1241,7 @@ int mdss_mdp_vsync_clk_enable(int enable, bool locked)
 	pr_debug("clk enable=%d\n", enable);
 
 	if (!locked)
-		mutex_lock(&mdp_clk_lock);
+		rt_mutex_lock(&mdp_clk_lock);
 
 	if (mdss_res->vsync_ena != enable) {
 		mdss_res->vsync_ena = enable;
@@ -1249,7 +1249,7 @@ int mdss_mdp_vsync_clk_enable(int enable, bool locked)
 	}
 
 	if (!locked)
-		mutex_unlock(&mdp_clk_lock);
+		rt_mutex_unlock(&mdp_clk_lock);
 	return ret;
 }
 
@@ -1265,7 +1265,7 @@ void mdss_mdp_set_clk_rate(unsigned long rate, bool locked)
 	if (clk) {
 
 		if (!locked)
-			mutex_lock(&mdp_clk_lock);
+			rt_mutex_lock(&mdp_clk_lock);
 		if (min_clk_rate < mdata->max_mdp_clk_rate)
 			clk_rate = clk_round_rate(clk, min_clk_rate);
 		else
@@ -1286,7 +1286,7 @@ void mdss_mdp_set_clk_rate(unsigned long rate, bool locked)
 			}
 		}
 		if (!locked)
-			mutex_unlock(&mdp_clk_lock);
+			rt_mutex_unlock(&mdp_clk_lock);
 	} else {
 		pr_err("mdp src clk not setup properly\n");
 	}
@@ -1299,12 +1299,12 @@ unsigned long mdss_mdp_get_clk_rate(u32 clk_idx, bool locked)
 
 	if (clk) {
 		if (!locked)
-			mutex_lock(&mdp_clk_lock);
+			rt_mutex_lock(&mdp_clk_lock);
 
 		clk_rate = clk_get_rate(clk);
 
 		if (!locked)
-			mutex_unlock(&mdp_clk_lock);
+			rt_mutex_unlock(&mdp_clk_lock);
 	}
 
 	return clk_rate;
@@ -1513,7 +1513,7 @@ int mdss_iommu_ctrl(int enable)
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	int rc = 0;
 
-	mutex_lock(&mdp_iommu_ref_cnt_lock);
+	rt_mutex_lock(&mdp_iommu_ref_cnt_lock);
 	pr_debug("%pS: enable:%d ref_cnt:%d attach:%d hoff:%d\n",
 		__builtin_return_address(0), enable, mdata->iommu_ref_cnt,
 		mdata->iommu_attached, mdata->handoff_pending);
@@ -1539,7 +1539,7 @@ int mdss_iommu_ctrl(int enable)
 			pr_err("unbalanced iommu ref\n");
 		}
 	}
-	mutex_unlock(&mdp_iommu_ref_cnt_lock);
+	rt_mutex_unlock(&mdp_iommu_ref_cnt_lock);
 
 	if (IS_ERR_VALUE(rc))
 		return rc;
@@ -1619,7 +1619,7 @@ static int mdss_mdp_idle_pc_restore(void)
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	int rc = 0;
 
-	mutex_lock(&mdp_fs_idle_pc_lock);
+	rt_mutex_lock(&mdp_fs_idle_pc_lock);
 	if (!mdata->idle_pc) {
 		pr_debug("no idle pc, no need to restore\n");
 		goto end;
@@ -1649,7 +1649,7 @@ end:
 		mdata->mem_retain = false;
 	}
 
-	mutex_unlock(&mdp_fs_idle_pc_lock);
+	rt_mutex_unlock(&mdp_fs_idle_pc_lock);
 	return rc;
 }
 
@@ -1696,7 +1696,7 @@ void mdss_bus_bandwidth_ctrl(int enable)
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	int changed = 0;
 
-	mutex_lock(&mdata->bus_lock);
+	rt_mutex_lock(&mdata->bus_lock);
 	if (enable) {
 		if (mdata->bus_ref_cnt == 0)
 			changed++;
@@ -1733,7 +1733,7 @@ void mdss_bus_bandwidth_ctrl(int enable)
 		}
 	}
 
-	mutex_unlock(&mdata->bus_lock);
+	rt_mutex_unlock(&mdata->bus_lock);
 }
 EXPORT_SYMBOL(mdss_bus_bandwidth_ctrl);
 
@@ -1743,7 +1743,7 @@ void mdss_mdp_clk_ctrl(int enable)
 	static int mdp_clk_cnt;
 	int changed = 0;
 
-	mutex_lock(&mdp_clk_lock);
+	rt_mutex_lock(&mdp_clk_lock);
 	if (enable) {
 		if (mdp_clk_cnt == 0)
 			changed++;
@@ -1771,7 +1771,7 @@ void mdss_mdp_clk_ctrl(int enable)
 	if (enable && changed)
 		mdss_mdp_idle_pc_restore();
 
-	mutex_unlock(&mdp_clk_lock);
+	rt_mutex_unlock(&mdp_clk_lock);
 }
 
 static inline int mdss_mdp_irq_clk_register(struct mdss_data_type *mdata,
@@ -2437,7 +2437,7 @@ static u32 mdss_mdp_scaler_init(struct mdss_data_type *mdata,
 		ret = mdss_mdp_ds_addr_setup(mdata);
 	}
 
-	mutex_init(&mdata->scaler_off->scaler_lock);
+	rt_mutex_init(&mdata->scaler_off->scaler_lock);
 
 	return ret;
 }
@@ -2933,9 +2933,9 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 	mdata->pdev = pdev;
 	platform_set_drvdata(pdev, mdata);
 	mdss_res = mdata;
-	mutex_init(&mdata->reg_lock);
-	mutex_init(&mdata->reg_bus_lock);
-	mutex_init(&mdata->bus_lock);
+	rt_mutex_init(&mdata->reg_lock);
+	rt_mutex_init(&mdata->reg_bus_lock);
+	rt_mutex_init(&mdata->bus_lock);
 	INIT_LIST_HEAD(&mdata->reg_bus_clist);
 	atomic_set(&mdata->sd_client_count, 0);
 	atomic_set(&mdata->active_intf_cnt, 0);
@@ -3195,7 +3195,7 @@ probe_done:
 						&(mdata->gdsc_cb));
 		mdss_mdp_hw.ptr = NULL;
 		mdss_mdp_pp_term(&pdev->dev);
-		mutex_destroy(&mdata->reg_lock);
+		rt_mutex_destroy(&mdata->reg_lock);
 		mdss_res = NULL;
 	}
 
@@ -3837,13 +3837,13 @@ static int mdss_mdp_cdm_addr_setup(struct mdss_data_type *mdata,
 		head[i].num = i;
 		head[i].base = (mdata->mdss_io.base) + cdm_offsets[i];
 		atomic_set(&head[i].kref.refcount, 0);
-		mutex_init(&head[i].lock);
+		rt_mutex_init(&head[i].lock);
 		init_completion(&head[i].free_comp);
 		pr_debug("%s: cdm off (%d) = %pK\n", __func__, i, head[i].base);
 	}
 
 	mdata->cdm_off = head;
-	mutex_init(&mdata->cdm_lock);
+	rt_mutex_init(&mdata->cdm_lock);
 	return 0;
 }
 
@@ -5034,7 +5034,7 @@ void mdss_mdp_set_ot_limit(struct mdss_mdp_set_ot_params *params)
 	trace_mdp_perf_set_ot(params->num, params->xin_id, ot_lim,
 		is_vbif_nrt);
 
-	mutex_lock(&mdata->reg_lock);
+	rt_mutex_lock(&mdata->reg_lock);
 
 	forced_on = force_on_xin_clk(params->bit_off_mdp_clk_ctrl,
 		params->reg_off_mdp_clk_ctrl, true);
@@ -5051,9 +5051,9 @@ void mdss_mdp_set_ot_limit(struct mdss_mdp_set_ot_params *params)
 	MDSS_VBIF_WRITE(mdata, MMSS_VBIF_XIN_HALT_CTRL0,
 		reg_val | BIT(params->xin_id), is_vbif_nrt);
 
-	mutex_unlock(&mdata->reg_lock);
+	rt_mutex_unlock(&mdata->reg_lock);
 	mdss_mdp_wait_for_xin_halt(params->xin_id, is_vbif_nrt);
-	mutex_lock(&mdata->reg_lock);
+	rt_mutex_lock(&mdata->reg_lock);
 
 	reg_val = MDSS_VBIF_READ(mdata, MMSS_VBIF_XIN_HALT_CTRL0,
 		is_vbif_nrt);
@@ -5064,7 +5064,7 @@ void mdss_mdp_set_ot_limit(struct mdss_mdp_set_ot_params *params)
 		force_on_xin_clk(params->bit_off_mdp_clk_ctrl,
 			params->reg_off_mdp_clk_ctrl, false);
 
-	mutex_unlock(&mdata->reg_lock);
+	rt_mutex_unlock(&mdata->reg_lock);
 
 exit:
 	return;
@@ -5294,7 +5294,7 @@ int mdss_mdp_secure_session_ctrl(unsigned int enable, u64 flags)
 	struct scm_desc desc;
 	bool changed = false;
 
-	mutex_lock(&mdp_sec_ref_cnt_lock);
+	rt_mutex_lock(&mdp_sec_ref_cnt_lock);
 
 	if (enable) {
 		if (mdata->sec_session_cnt == 0)
@@ -5418,7 +5418,7 @@ int mdss_mdp_secure_session_ctrl(unsigned int enable, u64 flags)
 	}
 
 end:
-	mutex_unlock(&mdp_sec_ref_cnt_lock);
+	rt_mutex_unlock(&mdp_sec_ref_cnt_lock);
 	return ret;
 
 }

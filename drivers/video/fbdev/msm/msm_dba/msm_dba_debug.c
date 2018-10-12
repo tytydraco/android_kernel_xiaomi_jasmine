@@ -62,7 +62,7 @@ static ssize_t client_list_rda_attr(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&device->dev_mutex);
+	rt_mutex_lock(&device->dev_mutex);
 
 	list_for_each(pos, &device->client_list) {
 		c = list_entry(pos, struct msm_dba_client_info, list);
@@ -70,7 +70,7 @@ static ssize_t client_list_rda_attr(struct device *dev,
 				c->client_name);
 	}
 
-	mutex_unlock(&device->dev_mutex);
+	rt_mutex_unlock(&device->dev_mutex);
 
 	return bytes;
 }
@@ -89,7 +89,7 @@ static ssize_t power_status_rda_attr(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&device->dev_mutex);
+	rt_mutex_lock(&device->dev_mutex);
 	bytes = snprintf(buf, PAGE_SIZE, "power_status:%d\n",
 			 device->power_status);
 
@@ -100,7 +100,7 @@ static ssize_t power_status_rda_attr(struct device *dev,
 				  c->client_name, c->power_on);
 	}
 
-	mutex_unlock(&device->dev_mutex);
+	rt_mutex_unlock(&device->dev_mutex);
 	return bytes;
 }
 
@@ -118,7 +118,7 @@ static ssize_t video_status_rda_attr(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&device->dev_mutex);
+	rt_mutex_lock(&device->dev_mutex);
 	bytes = snprintf(buf, PAGE_SIZE, "video_status:%d\n",
 			 device->video_status);
 
@@ -129,7 +129,7 @@ static ssize_t video_status_rda_attr(struct device *dev,
 				  c->client_name, c->video_on);
 	}
 
-	mutex_unlock(&device->dev_mutex);
+	rt_mutex_unlock(&device->dev_mutex);
 	return bytes;
 }
 
@@ -147,7 +147,7 @@ static ssize_t audio_status_rda_attr(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&device->dev_mutex);
+	rt_mutex_lock(&device->dev_mutex);
 	bytes = snprintf(buf, PAGE_SIZE, "audio_status:%d\n",
 			 device->audio_status);
 
@@ -158,7 +158,7 @@ static ssize_t audio_status_rda_attr(struct device *dev,
 				  c->client_name, c->audio_on);
 	}
 
-	mutex_unlock(&device->dev_mutex);
+	rt_mutex_unlock(&device->dev_mutex);
 	return bytes;
 }
 
@@ -201,7 +201,7 @@ static ssize_t write_reg_wta_attr(struct device *dev,
 	}
 
 	if (!rc) {
-		mutex_lock(&device->dev_mutex);
+		rt_mutex_lock(&device->dev_mutex);
 
 		if (device->dev_ops.write_reg) {
 			rc = device->dev_ops.write_reg(device,
@@ -216,7 +216,7 @@ static ssize_t write_reg_wta_attr(struct device *dev,
 			pr_err("%s: not supported\n", __func__);
 		}
 
-		mutex_unlock(&device->dev_mutex);
+		rt_mutex_unlock(&device->dev_mutex);
 	}
 
 	return count;
@@ -234,11 +234,11 @@ static ssize_t read_reg_rda_attr(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&device->dev_mutex);
+	rt_mutex_lock(&device->dev_mutex);
 
 	bytes = snprintf(buf, PAGE_SIZE, "0x%x\n", device->register_val);
 
-	mutex_unlock(&device->dev_mutex);
+	rt_mutex_unlock(&device->dev_mutex);
 
 	return bytes;
 }
@@ -262,7 +262,7 @@ static ssize_t read_reg_wta_attr(struct device *dev,
 	if (rc) {
 		pr_err("%s: kstrol error %d\n", __func__, rc);
 	} else {
-		mutex_lock(&device->dev_mutex);
+		rt_mutex_lock(&device->dev_mutex);
 
 		if (device->dev_ops.read_reg) {
 			rc = device->dev_ops.read_reg(device,
@@ -279,7 +279,7 @@ static ssize_t read_reg_wta_attr(struct device *dev,
 			pr_err("%s: not supported\n", __func__);
 		}
 
-		mutex_unlock(&device->dev_mutex);
+		rt_mutex_unlock(&device->dev_mutex);
 	}
 
 	return count;

@@ -80,7 +80,7 @@ int mdss_dsi_check_panel_status(struct mdss_dsi_ctrl_pdata *ctrl, void *arg)
 	if (!ctl || !ctrl)
 		return -EINVAL;
 
-	mutex_lock(&ctl->offlock);
+	rt_mutex_lock(&ctl->offlock);
 	/*
 	 * if check_status method is not defined
 	 * then no need to fail this function,
@@ -90,7 +90,7 @@ int mdss_dsi_check_panel_status(struct mdss_dsi_ctrl_pdata *ctrl, void *arg)
 		ret = ctrl->check_status(ctrl);
 	else
 		ret = 1;
-	mutex_unlock(&ctl->offlock);
+	rt_mutex_unlock(&ctl->offlock);
 
 	return ret;
 }

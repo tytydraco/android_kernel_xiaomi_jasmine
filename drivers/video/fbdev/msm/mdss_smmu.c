@@ -40,7 +40,7 @@
 
 #define SZ_4G		0xF0000000
 
-static DEFINE_MUTEX(mdp_iommu_lock);
+static DEFINE_RT_MUTEX(mdp_iommu_lock);
 
 static struct mdss_smmu_private smmu_private;
 
@@ -56,12 +56,12 @@ struct mdss_smmu_private *mdss_smmu_get_private(void)
 
 void mdss_iommu_lock(void)
 {
-	mutex_lock(&mdp_iommu_lock);
+	rt_mutex_lock(&mdp_iommu_lock);
 }
 
 void mdss_iommu_unlock(void)
 {
-	mutex_unlock(&mdp_iommu_lock);
+	rt_mutex_unlock(&mdp_iommu_lock);
 }
 
 static int mdss_smmu_secure_wait(int State, int request)
@@ -145,7 +145,7 @@ int mdss_smmu_request_mappings(msm_smmu_handler_t callback)
 	struct mdss_smmu_private *prv = mdss_smmu_get_private();
 	int ret = 0;
 
-	mutex_lock(&prv->smmu_reg_lock);
+	rt_mutex_lock(&prv->smmu_reg_lock);
 
 	if (!all_devices_probed(prv)) {
 		ndata = kzalloc(sizeof(struct msm_smmu_notifier_data),
@@ -165,7 +165,7 @@ int mdss_smmu_request_mappings(msm_smmu_handler_t callback)
 	}
 
 done:
-	mutex_unlock(&prv->smmu_reg_lock);
+	rt_mutex_unlock(&prv->smmu_reg_lock);
 	return ret;
 }
 
@@ -941,7 +941,7 @@ static int mdss_smmu_register_driver(void)
 
 	INIT_LIST_HEAD(&prv->smmu_device_list);
 	INIT_LIST_HEAD(&prv->user_list);
-	mutex_init(&prv->smmu_reg_lock);
+	rt_mutex_init(&prv->smmu_reg_lock);
 
 	ret = platform_driver_register(&mdss_smmu_driver);
 	if (ret)

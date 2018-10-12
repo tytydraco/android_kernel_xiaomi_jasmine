@@ -72,8 +72,8 @@ struct hdmi_tx_ctrl {
 	struct mdss_util_intf *mdss_util;
 	struct msm_hdmi_mode_timing_info timing;
 	struct hdmi_tx_pinctrl pin_res;
-	struct mutex mutex;
-	struct mutex tx_lock;
+	struct rt_mutex mutex;
+	struct rt_mutex tx_lock;
 	struct list_head cable_notify_handlers;
 	struct kobject *kobj;
 	struct workqueue_struct *workq;

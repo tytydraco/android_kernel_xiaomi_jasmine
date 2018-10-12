@@ -136,7 +136,7 @@ static void mdss_mdp_qos_vbif_remapper_setup_wb(struct mdss_mdp_ctl *ctl,
 		return;
 
 	if (test_bit(MDSS_QOS_REMAPPER, mdata->mdss_qos_map)) {
-		mutex_lock(&mdata->reg_lock);
+		rt_mutex_lock(&mdata->reg_lock);
 		for (i = 0; i < mdata->npriority_lvl; i++) {
 			reg_high = ((ctx->xin_id & 0x8) >> 3) * 4 + (i * 8);
 
@@ -163,7 +163,7 @@ static void mdss_mdp_qos_vbif_remapper_setup_wb(struct mdss_mdp_ctl *ctl,
 			MDSS_VBIF_WRITE(mdata, MDSS_VBIF_QOS_LVL_REMAP_BASE +
 				reg_high, reg_val_lvl, is_nrt_vbif);
 		}
-		mutex_unlock(&mdata->reg_lock);
+		rt_mutex_unlock(&mdata->reg_lock);
 	}
 }
 
@@ -1196,7 +1196,7 @@ int mdss_mdp_writeback_start(struct mdss_mdp_ctl *ctl)
 
 int mdss_mdp_writeback_display_commit(struct mdss_mdp_ctl *ctl, void *arg)
 {
-	if (ctl->shared_lock && !mutex_is_locked(ctl->shared_lock)) {
+	if (ctl->shared_lock && !rt_mutex_is_locked(ctl->shared_lock)) {
 		pr_err("shared mutex is not locked before commit on ctl=%d\n",
 			ctl->num);
 		return -EINVAL;
