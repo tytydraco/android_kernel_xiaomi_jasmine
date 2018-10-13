@@ -756,3 +756,7 @@ config BDI_MIN_RATIO
 config BDI_MAX_RATIO
   int "BDI max ratio default value"
   default 100
+
+config VM_STAT_INTERVAL
+  int "Default timeout (seconds) to update /proc/vmstat"
+  default 1
