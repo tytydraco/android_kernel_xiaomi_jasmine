@@ -751,3 +751,7 @@ config VM_DIRTY_RATIO
 config VM_DIRTY_BACKGROUND_RATIO
 	int "VM dirty background ratio default value"
 	default 10
+
+config VM_STAT_INTERVAL
+  int "Default timeout (seconds) to update /proc/vmstat"
+  default 1
