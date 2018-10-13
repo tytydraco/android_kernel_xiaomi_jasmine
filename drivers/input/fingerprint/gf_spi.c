@@ -107,7 +107,7 @@ struct gf_key_map key_map[] = {
 /*static MODE g_mode = GF_IMAGE_MODE;*/
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 static LIST_HEAD(device_list);
-static DEFINE_MUTEX(device_list_lock);
+static DEFINE_RT_MUTEX(device_list_lock);
 static struct gf_dev gf;
 static int driver_init_partial(struct gf_dev *gf_dev);
 
@@ -504,7 +504,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 	int status = -ENXIO;
 
 	FUNC_ENTRY();
-	mutex_lock(&device_list_lock);
+	rt_mutex_lock(&device_list_lock);
 
 	list_for_each_entry(gf_dev, &device_list, device_entry) {
 		if (gf_dev->devt == inode->i_rdev) {
@@ -532,7 +532,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 	} else {
 		gf_dbg("No device for minor %d\n", iminor(inode));
 	}
-	mutex_unlock(&device_list_lock);
+	rt_mutex_unlock(&device_list_lock);
 	FUNC_EXIT();
 	return status;
 }
@@ -557,7 +557,7 @@ static int gf_release(struct inode *inode, struct file *filp)
 	int status = 0;
 
 	FUNC_ENTRY();
-	mutex_lock(&device_list_lock);
+	rt_mutex_lock(&device_list_lock);
 	gf_dev = filp->private_data;
 	filp->private_data = NULL;
 
@@ -570,7 +570,7 @@ static int gf_release(struct inode *inode, struct file *filp)
 		 gf_dev->device_available = 0;
 		 gf_power_off(gf_dev);
 	}
-	mutex_unlock(&device_list_lock);
+	rt_mutex_unlock(&device_list_lock);
 	FUNC_EXIT();
 	return status;
 }
@@ -727,7 +727,7 @@ static int gf_probe(struct platform_device *pdev)
 	/* If we can allocate a minor number, hook up this device.
 	 * Reusing minors is fine so long as udev or mdev is working.
 	*/
-	mutex_lock(&device_list_lock);
+	rt_mutex_lock(&device_list_lock);
 	minor = find_first_zero_bit(minors, N_SPI_MINORS);
 	if (minor < N_SPI_MINORS) {
 		struct device *dev;
@@ -746,7 +746,7 @@ static int gf_probe(struct platform_device *pdev)
 	} else {
 		gf_dev->devt = 0;
 	}
-	mutex_unlock(&device_list_lock);
+	rt_mutex_unlock(&device_list_lock);
 
 	if (status == 0) {
 		/*input device subsystem */
@@ -817,11 +817,11 @@ error:
 	gf_dev->device_available = 0;
 	if (gf_dev->devt != 0) {
 		dev_info(&gf_dev->spi->dev, "Err: status = %d\n", status);
-		mutex_lock(&device_list_lock);
+		rt_mutex_lock(&device_list_lock);
 		list_del(&gf_dev->device_entry);
 		device_destroy(gf_class, gf_dev->devt);
 		clear_bit(MINOR(gf_dev->devt), minors);
-		mutex_unlock(&device_list_lock);
+		rt_mutex_unlock(&device_list_lock);
 #ifdef AP_CONTROL_CLK
 gfspi_probe_clk_enable_failed:
 		gfspi_ioctl_clk_uninit(gf_dev);
@@ -856,14 +856,14 @@ static int gf_remove(struct platform_device *pdev)
 		input_free_device(gf_dev->input);
 
 	/* prevent new opens */
-	mutex_lock(&device_list_lock);
+	rt_mutex_lock(&device_list_lock);
 	list_del(&gf_dev->device_entry);
 	device_destroy(gf_class, gf_dev->devt);
 	clear_bit(MINOR(gf_dev->devt), minors);
 	if (gf_dev->users == 0)
 		kfree(gf_dev);
 
-	mutex_unlock(&device_list_lock);
+	rt_mutex_unlock(&device_list_lock);
 
 	FUNC_EXIT();
 	return 0;
