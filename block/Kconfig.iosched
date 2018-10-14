@@ -129,16 +129,14 @@ choice
 	config DEFAULT_NOOP
 		bool "No-op"
 
-<<<<<<< HEAD
 	config DEFAULT_MAPLE
 		bool "Maple" if IOSCHED_MAPLE=y
-=======
-	config DEFAULT_SIO
+	
+  config DEFAULT_SIO
 		bool "SIO" if IOSCHED_SIO=y
 
 	config DEFAULT_FIOPS
 		bool "FIOPS" if IOSCHED_FIOPS=y
->>>>>>> 68d192f43bef... Add SIO and FIOPS i/o schedulers
 
 	config DEFAULT_ZEN
 		bool "ZEN" if IOSCHED_ZEN=y
@@ -152,16 +150,10 @@ config DEFAULT_IOSCHED
   default "bfq" if DEFAULT_BFQ
 	default "anxiety" if DEFAULT_ANXIETY
 	default "noop" if DEFAULT_NOOP
-<<<<<<< HEAD
 	default "maple" if DEFAULT_MAPLE
-=======
 	default "fiops" if DEFAULT_FIOPS
 	default "sio" if DEFAULT_SIO
-<<<<<<< HEAD
->>>>>>> 68d192f43bef... Add SIO and FIOPS i/o schedulers
-=======
 	default "zen" if DEFAULT_ZEN
->>>>>>> 63625cd90ed5... block: add zen scheduler
 
 endmenu
 
