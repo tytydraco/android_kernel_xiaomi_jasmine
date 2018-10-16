@@ -35,11 +35,11 @@ static struct workqueue_struct *cpu_boost_wq;
 static struct work_struct input_boost_work;
 static bool input_boost_enabled;
 
-static unsigned int input_boost_ms = 40;
+static unsigned int input_boost_ms = CONFIG_CPU_BOOST_DURATION;
 module_param(input_boost_ms, uint, 0644);
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
-static int dynamic_stune_boost;
+static int dynamic_stune_boost = CONFIG_CPU_BOOST_DYNAMIC_STUNE_BOOST;
 module_param(dynamic_stune_boost, uint, 0644);
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 
