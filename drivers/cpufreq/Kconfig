@@ -239,6 +239,11 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
+config IOWAIT_BOOST_ENABLE:
+  bool "Enable iowait boosting by default"
+  depends on CPU_FREQ_GOV_SCHEDUTIL
+  default y
+
 config CPU_INPUT_BOOST
 	bool "CPU Input Boost"
 	depends on !CPU_BOOST
