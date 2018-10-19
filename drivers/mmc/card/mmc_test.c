@@ -2607,7 +2607,7 @@ static const struct mmc_test_case mmc_test_cases[] = {
 	},
 };
 
-static DEFINE_MUTEX(mmc_test_lock);
+static DEFINE_RT_MUTEX(mmc_test_lock);
 
 static LIST_HEAD(mmc_test_result);
 
@@ -2710,7 +2710,7 @@ static void mmc_test_free_result(struct mmc_card *card)
 {
 	struct mmc_test_general_result *gr, *grs;
 
-	mutex_lock(&mmc_test_lock);
+	rt_mutex_lock(&mmc_test_lock);
 
 	list_for_each_entry_safe(gr, grs, &mmc_test_result, link) {
 		struct mmc_test_transfer_result *tr, *trs;
@@ -2727,7 +2727,7 @@ static void mmc_test_free_result(struct mmc_card *card)
 		kfree(gr);
 	}
 
-	mutex_unlock(&mmc_test_lock);
+	rt_mutex_unlock(&mmc_test_lock);
 }
 
 static LIST_HEAD(mmc_test_file_test);
@@ -2737,7 +2737,7 @@ static int mtf_test_show(struct seq_file *sf, void *data)
 	struct mmc_card *card = (struct mmc_card *)sf->private;
 	struct mmc_test_general_result *gr;
 
-	mutex_lock(&mmc_test_lock);
+	rt_mutex_lock(&mmc_test_lock);
 
 	list_for_each_entry(gr, &mmc_test_result, link) {
 		struct mmc_test_transfer_result *tr;
@@ -2756,7 +2756,7 @@ static int mtf_test_show(struct seq_file *sf, void *data)
 		}
 	}
 
-	mutex_unlock(&mmc_test_lock);
+	rt_mutex_unlock(&mmc_test_lock);
 
 	return 0;
 }
@@ -2801,9 +2801,9 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 #else
 	if (test->buffer) {
 #endif
-		mutex_lock(&mmc_test_lock);
+		rt_mutex_lock(&mmc_test_lock);
 		mmc_test_run(test, testcase);
-		mutex_unlock(&mmc_test_lock);
+		rt_mutex_unlock(&mmc_test_lock);
 	}
 
 #ifdef CONFIG_HIGHMEM
@@ -2828,12 +2828,12 @@ static int mtf_testlist_show(struct seq_file *sf, void *data)
 {
 	int i;
 
-	mutex_lock(&mmc_test_lock);
+	rt_mutex_lock(&mmc_test_lock);
 
 	for (i = 0; i < ARRAY_SIZE(mmc_test_cases); i++)
 		seq_printf(sf, "%d:\t%s\n", i+1, mmc_test_cases[i].name);
 
-	mutex_unlock(&mmc_test_lock);
+	rt_mutex_unlock(&mmc_test_lock);
 
 	return 0;
 }
@@ -2854,7 +2854,7 @@ static void mmc_test_free_dbgfs_file(struct mmc_card *card)
 {
 	struct mmc_test_dbgfs_file *df, *dfs;
 
-	mutex_lock(&mmc_test_lock);
+	rt_mutex_lock(&mmc_test_lock);
 
 	list_for_each_entry_safe(df, dfs, &mmc_test_file_test, link) {
 		if (card && df->card != card)
@@ -2864,7 +2864,7 @@ static void mmc_test_free_dbgfs_file(struct mmc_card *card)
 		kfree(df);
 	}
 
-	mutex_unlock(&mmc_test_lock);
+	rt_mutex_unlock(&mmc_test_lock);
 }
 
 static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
@@ -2903,7 +2903,7 @@ static int mmc_test_register_dbgfs_file(struct mmc_card *card)
 {
 	int ret;
 
-	mutex_lock(&mmc_test_lock);
+	rt_mutex_lock(&mmc_test_lock);
 
 	ret = __mmc_test_register_dbgfs_file(card, "test", S_IWUSR | S_IRUGO,
 		&mmc_test_fops_test);
@@ -2916,7 +2916,7 @@ static int mmc_test_register_dbgfs_file(struct mmc_card *card)
 		goto err;
 
 err:
-	mutex_unlock(&mmc_test_lock);
+	rt_mutex_unlock(&mmc_test_lock);
 
 	return ret;
 }

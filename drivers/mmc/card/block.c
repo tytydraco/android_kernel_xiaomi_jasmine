@@ -91,7 +91,7 @@ MODULE_ALIAS("mmc:block");
 
 static struct mmc_cmdq_req *mmc_cmdq_prep_dcmd(
 		struct mmc_queue_req *mqrq, struct mmc_queue *mq);
-static DEFINE_MUTEX(block_mutex);
+static DEFINE_RT_MUTEX(block_mutex);
 
 /*
  * The defaults come from config options but can be overriden by module
@@ -152,7 +152,7 @@ struct mmc_blk_data {
 	int	area_type;
 };
 
-static DEFINE_MUTEX(open_lock);
+static DEFINE_RT_MUTEX(open_lock);
 
 enum {
 	MMC_PACKED_NR_IDX = -1,
@@ -186,13 +186,13 @@ static struct mmc_blk_data *mmc_blk_get(struct gendisk *disk)
 {
 	struct mmc_blk_data *md;
 
-	mutex_lock(&open_lock);
+	rt_mutex_lock(&open_lock);
 	md = disk->private_data;
 	if (md && md->usage == 0)
 		md = NULL;
 	if (md)
 		md->usage++;
-	mutex_unlock(&open_lock);
+	rt_mutex_unlock(&open_lock);
 
 	return md;
 }
@@ -205,7 +205,7 @@ static inline int mmc_get_devidx(struct gendisk *disk)
 
 static void mmc_blk_put(struct mmc_blk_data *md)
 {
-	mutex_lock(&open_lock);
+	rt_mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
 		int devidx = mmc_get_devidx(md->disk);
@@ -216,7 +216,7 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 		put_disk(md->disk);
 		kfree(md);
 	}
-	mutex_unlock(&open_lock);
+	rt_mutex_unlock(&open_lock);
 }
 
 static ssize_t power_ro_lock_show(struct device *dev,
@@ -691,7 +691,7 @@ static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 	struct mmc_blk_data *md = mmc_blk_get(bdev->bd_disk);
 	int ret = -ENXIO;
 
-	mutex_lock(&block_mutex);
+	rt_mutex_lock(&block_mutex);
 	if (md) {
 		if (md->usage == 2)
 			check_disk_change(bdev);
@@ -702,7 +702,7 @@ static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 			ret = -EROFS;
 		}
 	}
-	mutex_unlock(&block_mutex);
+	rt_mutex_unlock(&block_mutex);
 
 	return ret;
 }
@@ -711,9 +711,9 @@ static void mmc_blk_release(struct gendisk *disk, fmode_t mode)
 {
 	struct mmc_blk_data *md = disk->private_data;
 
-	mutex_lock(&block_mutex);
+	rt_mutex_lock(&block_mutex);
 	mmc_blk_put(md);
-	mutex_unlock(&block_mutex);
+	rt_mutex_unlock(&block_mutex);
 }
 
 static int

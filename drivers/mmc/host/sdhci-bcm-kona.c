@@ -53,7 +53,7 @@
 #define KONA_MMC_AUTOSUSPEND_DELAY		(50)
 
 struct sdhci_bcm_kona_dev {
-	struct mutex	write_lock; /* protect back to back writes */
+	struct rt_mutex	write_lock; /* protect back to back writes */
 };
 
 
@@ -135,7 +135,7 @@ static int sdhci_bcm_kona_sd_card_emulate(struct sdhci_host *host, int insert)
 	 * insert-removal.
 	 * We keep 20uS
 	 */
-	mutex_lock(&kona_dev->write_lock);
+	rt_mutex_lock(&kona_dev->write_lock);
 	udelay(20);
 	val = sdhci_readl(host, KONA_SDHOST_CORESTAT);
 
@@ -153,7 +153,7 @@ static int sdhci_bcm_kona_sd_card_emulate(struct sdhci_host *host, int insert)
 		val &= ~KONA_SDHOST_CD_SW;
 		sdhci_writel(host, val, KONA_SDHOST_CORESTAT);
 	}
-	mutex_unlock(&kona_dev->write_lock);
+	rt_mutex_unlock(&kona_dev->write_lock);
 
 	return 0;
 }
@@ -233,7 +233,7 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 	pltfm_priv = sdhci_priv(host);
 
 	kona_dev = sdhci_pltfm_priv(pltfm_priv);
-	mutex_init(&kona_dev->write_lock);
+	rt_mutex_init(&kona_dev->write_lock);
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)

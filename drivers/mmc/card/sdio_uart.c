@@ -68,7 +68,7 @@ struct sdio_uart_port {
 	struct tty_port		port;
 	unsigned int		index;
 	struct sdio_func	*func;
-	struct mutex		func_lock;
+	struct rt_mutex		func_lock;
 	struct task_struct	*in_sdio_uart_irq;
 	unsigned int		regs_offset;
 	struct kfifo		xmit_fifo;
@@ -91,7 +91,7 @@ static int sdio_uart_add_port(struct sdio_uart_port *port)
 {
 	int index, ret = -EBUSY;
 
-	mutex_init(&port->func_lock);
+	rt_mutex_init(&port->func_lock);
 	spin_lock_init(&port->write_lock);
 	if (kfifo_alloc(&port->xmit_fifo, FIFO_SIZE, GFP_KERNEL))
 		return -ENOMEM;
@@ -148,15 +148,15 @@ static void sdio_uart_port_remove(struct sdio_uart_port *port)
 	 * give up on that port ASAP.
 	 * Beware: the lock ordering is critical.
 	 */
-	mutex_lock(&port->port.mutex);
-	mutex_lock(&port->func_lock);
+	rt_mutex_lock(&port->port.mutex);
+	rt_mutex_lock(&port->func_lock);
 	func = port->func;
 	sdio_claim_host(func);
 	port->func = NULL;
-	mutex_unlock(&port->func_lock);
+	rt_mutex_unlock(&port->func_lock);
 	/* tty_hangup is async so is this safe as is ?? */
 	tty_port_tty_hangup(&port->port, false);
-	mutex_unlock(&port->port.mutex);
+	rt_mutex_unlock(&port->port.mutex);
 	sdio_release_irq(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
@@ -166,14 +166,14 @@ static void sdio_uart_port_remove(struct sdio_uart_port *port)
 
 static int sdio_uart_claim_func(struct sdio_uart_port *port)
 {
-	mutex_lock(&port->func_lock);
+	rt_mutex_lock(&port->func_lock);
 	if (unlikely(!port->func)) {
-		mutex_unlock(&port->func_lock);
+		rt_mutex_unlock(&port->func_lock);
 		return -ENODEV;
 	}
 	if (likely(port->in_sdio_uart_irq != current))
 		sdio_claim_host(port->func);
-	mutex_unlock(&port->func_lock);
+	rt_mutex_unlock(&port->func_lock);
 	return 0;
 }
 

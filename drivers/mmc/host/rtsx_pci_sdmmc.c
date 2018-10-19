@@ -42,7 +42,7 @@ struct realtek_pci_sdmmc {
 #define SDMMC_WORKQ_NAME	"rtsx_pci_sdmmc_workq"
 
 	struct work_struct	work;
-	struct mutex		host_mutex;
+	struct rt_mutex		host_mutex;
 
 	u8			ssc_depth;
 	unsigned int		clock;
@@ -821,7 +821,7 @@ static void sd_request(struct work_struct *work)
 		goto finish;
 	}
 
-	mutex_lock(&pcr->pcr_mutex);
+	rt_mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
 
@@ -831,9 +831,9 @@ static void sd_request(struct work_struct *work)
 	rtsx_pci_write_register(pcr, CARD_SHARE_MODE,
 			CARD_SHARE_MASK, CARD_SHARE_48_SD);
 
-	mutex_lock(&host->host_mutex);
+	rt_mutex_lock(&host->host_mutex);
 	host->mrq = mrq;
-	mutex_unlock(&host->host_mutex);
+	rt_mutex_unlock(&host->host_mutex);
 
 	if (mrq->data)
 		data_size = data->blocks * data->blksz;
@@ -858,7 +858,7 @@ static void sd_request(struct work_struct *work)
 			data->bytes_xfered = data->blocks * data->blksz;
 	}
 
-	mutex_unlock(&pcr->pcr_mutex);
+	rt_mutex_unlock(&pcr->pcr_mutex);
 
 finish:
 	if (cmd->error) {
@@ -866,9 +866,9 @@ finish:
 			cmd->opcode, cmd->arg, cmd->error);
 	}
 
-	mutex_lock(&host->host_mutex);
+	rt_mutex_lock(&host->host_mutex);
 	host->mrq = NULL;
-	mutex_unlock(&host->host_mutex);
+	rt_mutex_unlock(&host->host_mutex);
 
 	mmc_request_done(mmc, mrq);
 }
@@ -878,9 +878,9 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
 
-	mutex_lock(&host->host_mutex);
+	rt_mutex_lock(&host->host_mutex);
 	host->mrq = mrq;
-	mutex_unlock(&host->host_mutex);
+	rt_mutex_unlock(&host->host_mutex);
 
 	if (sd_rw_cmd(mrq->cmd) || sdio_extblock_cmd(mrq->cmd, data))
 		host->using_cookie = sd_pre_dma_transfer(host, data, false);
@@ -1058,7 +1058,7 @@ static void sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (rtsx_pci_card_exclusive_check(host->pcr, RTSX_SD_CARD))
 		return;
 
-	mutex_lock(&pcr->pcr_mutex);
+	rt_mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
 
@@ -1092,7 +1092,7 @@ static void sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	rtsx_pci_switch_clock(pcr, ios->clock, host->ssc_depth,
 			host->initial_mode, host->double_clk, host->vpclk);
 
-	mutex_unlock(&pcr->pcr_mutex);
+	rt_mutex_unlock(&pcr->pcr_mutex);
 }
 
 static int sdmmc_get_ro(struct mmc_host *mmc)
@@ -1105,7 +1105,7 @@ static int sdmmc_get_ro(struct mmc_host *mmc)
 	if (host->eject)
 		return -ENOMEDIUM;
 
-	mutex_lock(&pcr->pcr_mutex);
+	rt_mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
 
@@ -1115,7 +1115,7 @@ static int sdmmc_get_ro(struct mmc_host *mmc)
 	if (val & SD_WRITE_PROTECT)
 		ro = 1;
 
-	mutex_unlock(&pcr->pcr_mutex);
+	rt_mutex_unlock(&pcr->pcr_mutex);
 
 	return ro;
 }
@@ -1130,7 +1130,7 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 	if (host->eject)
 		return cd;
 
-	mutex_lock(&pcr->pcr_mutex);
+	rt_mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
 
@@ -1140,7 +1140,7 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 	if (val & SD_EXIST)
 		cd = 1;
 
-	mutex_unlock(&pcr->pcr_mutex);
+	rt_mutex_unlock(&pcr->pcr_mutex);
 
 	return cd;
 }
@@ -1235,7 +1235,7 @@ static int sdmmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (err)
 		return err;
 
-	mutex_lock(&pcr->pcr_mutex);
+	rt_mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
 
@@ -1265,7 +1265,7 @@ out:
 	err = rtsx_pci_write_register(pcr, SD_BUS_STAT,
 			SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP, 0);
 
-	mutex_unlock(&pcr->pcr_mutex);
+	rt_mutex_unlock(&pcr->pcr_mutex);
 
 	return err;
 }
@@ -1283,7 +1283,7 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	if (err)
 		return err;
 
-	mutex_lock(&pcr->pcr_mutex);
+	rt_mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
 
@@ -1316,7 +1316,7 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		err = sd_change_phase(host, DDR50_RX_PHASE(pcr), true);
 
 out:
-	mutex_unlock(&pcr->pcr_mutex);
+	rt_mutex_unlock(&pcr->pcr_mutex);
 
 	return err;
 }
@@ -1419,7 +1419,7 @@ static int rtsx_pci_sdmmc_drv_probe(struct platform_device *pdev)
 	pcr->slots[RTSX_SD_CARD].p_dev = pdev;
 	pcr->slots[RTSX_SD_CARD].card_event = rtsx_pci_sdmmc_card_event;
 
-	mutex_init(&host->host_mutex);
+	rt_mutex_init(&host->host_mutex);
 
 	realtek_init_host(host);
 
@@ -1444,7 +1444,7 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&host->work);
 
-	mutex_lock(&host->host_mutex);
+	rt_mutex_lock(&host->host_mutex);
 	if (host->mrq) {
 		dev_dbg(&(pdev->dev),
 			"%s: Controller removed during transfer\n",
@@ -1457,7 +1457,7 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 			host->mrq->stop->error = -ENOMEDIUM;
 		mmc_request_done(mmc, host->mrq);
 	}
-	mutex_unlock(&host->host_mutex);
+	rt_mutex_unlock(&host->host_mutex);
 
 	mmc_remove_host(mmc);
 	host->eject = true;

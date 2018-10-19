@@ -150,7 +150,7 @@ static void mmc_host_clk_gate_delayed(struct mmc_host *host)
 		spin_unlock_irqrestore(&host->clk_lock, flags);
 		return;
 	}
-	mutex_lock(&host->clk_gate_mutex);
+	rt_mutex_lock(&host->clk_gate_mutex);
 	spin_lock_irqsave(&host->clk_lock, flags);
 	if (!host->clk_requests) {
 		spin_unlock_irqrestore(&host->clk_lock, flags);
@@ -160,7 +160,7 @@ static void mmc_host_clk_gate_delayed(struct mmc_host *host)
 		pr_debug("%s: gated MCI clock\n", mmc_hostname(host));
 	}
 	spin_unlock_irqrestore(&host->clk_lock, flags);
-	mutex_unlock(&host->clk_gate_mutex);
+	rt_mutex_unlock(&host->clk_gate_mutex);
 }
 
 /*
@@ -188,7 +188,7 @@ void mmc_host_clk_hold(struct mmc_host *host)
 
 	/* cancel any clock gating work scheduled by mmc_host_clk_release() */
 	cancel_delayed_work_sync(&host->clk_gate_work);
-	mutex_lock(&host->clk_gate_mutex);
+	rt_mutex_lock(&host->clk_gate_mutex);
 	spin_lock_irqsave(&host->clk_lock, flags);
 	if (host->clk_gated) {
 		spin_unlock_irqrestore(&host->clk_lock, flags);
@@ -199,7 +199,7 @@ void mmc_host_clk_hold(struct mmc_host *host)
 	}
 	host->clk_requests++;
 	spin_unlock_irqrestore(&host->clk_lock, flags);
-	mutex_unlock(&host->clk_gate_mutex);
+	rt_mutex_unlock(&host->clk_gate_mutex);
 }
 
 /**
@@ -288,7 +288,7 @@ static inline void mmc_host_clk_init(struct mmc_host *host)
 	host->clk_gated = false;
 	INIT_DELAYED_WORK(&host->clk_gate_work, mmc_host_clk_gate_work);
 	spin_lock_init(&host->clk_lock);
-	mutex_init(&host->clk_gate_mutex);
+	rt_mutex_init(&host->clk_gate_mutex);
 }
 
 /**

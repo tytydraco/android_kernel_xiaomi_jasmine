@@ -251,7 +251,7 @@ struct sh_mmcif_host {
 	bool card_present;
 	bool ccs_enable;		/* Command Completion Signal support */
 	bool clk_ctrl2_enable;
-	struct mutex thread_lock;
+	struct rt_mutex thread_lock;
 	u32 clkdiv_map;         /* see CE_CLK_CTRL::CLKDIV */
 
 	/* DMA support */
@@ -1265,13 +1265,13 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 
 	cancel_delayed_work_sync(&host->timeout_work);
 
-	mutex_lock(&host->thread_lock);
+	rt_mutex_lock(&host->thread_lock);
 
 	mrq = host->mrq;
 	if (!mrq) {
 		dev_dbg(dev, "IRQ thread state %u, wait %u: NULL mrq!\n",
 			host->state, host->wait_for);
-		mutex_unlock(&host->thread_lock);
+		rt_mutex_unlock(&host->thread_lock);
 		return IRQ_HANDLED;
 	}
 
@@ -1282,7 +1282,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 	switch (wait_work) {
 	case MMCIF_WAIT_FOR_REQUEST:
 		/* We're too late, the timeout has already kicked in */
-		mutex_unlock(&host->thread_lock);
+		rt_mutex_unlock(&host->thread_lock);
 		return IRQ_HANDLED;
 	case MMCIF_WAIT_FOR_CMD:
 		/* Wait for data? */
@@ -1327,7 +1327,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 	if (wait) {
 		schedule_delayed_work(&host->timeout_work, host->timeout);
 		/* Wait for more data */
-		mutex_unlock(&host->thread_lock);
+		rt_mutex_unlock(&host->thread_lock);
 		return IRQ_HANDLED;
 	}
 
@@ -1341,7 +1341,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 			sh_mmcif_stop_cmd(host, mrq);
 			if (!mrq->stop->error) {
 				schedule_delayed_work(&host->timeout_work, host->timeout);
-				mutex_unlock(&host->thread_lock);
+				rt_mutex_unlock(&host->thread_lock);
 				return IRQ_HANDLED;
 			}
 		}
@@ -1352,7 +1352,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 	host->mrq = NULL;
 	mmc_request_done(host->mmc, mrq);
 
-	mutex_unlock(&host->thread_lock);
+	rt_mutex_unlock(&host->thread_lock);
 
 	return IRQ_HANDLED;
 }
@@ -1567,7 +1567,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 			goto err_clk;
 	}
 
-	mutex_init(&host->thread_lock);
+	rt_mutex_init(&host->thread_lock);
 
 	ret = mmc_add_host(mmc);
 	if (ret < 0)

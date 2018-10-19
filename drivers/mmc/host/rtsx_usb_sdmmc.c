@@ -47,7 +47,7 @@ struct rtsx_usb_sdmmc {
 	struct mmc_host		*mmc;
 	struct mmc_request	*mrq;
 
-	struct mutex		host_mutex;
+	struct rt_mutex		host_mutex;
 
 	u8			ssc_depth;
 	unsigned int		clock;
@@ -770,12 +770,12 @@ static int sdmmc_get_ro(struct mmc_host *mmc)
 	if (host->host_removal)
 		return -ENOMEDIUM;
 
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
 	/* Check SD card detect */
 	err = rtsx_usb_get_card_status(ucr, &val);
 
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 
 
 	/* Treat failed detection as non-ro */
@@ -798,12 +798,12 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 	if (host->host_removal)
 		return -ENOMEDIUM;
 
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
 	/* Check SD card detect */
 	err = rtsx_usb_get_card_status(ucr, &val);
 
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 
 	/* Treat failed detection as non-exist */
 	if (err)
@@ -850,11 +850,11 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto finish;
 	}
 
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
-	mutex_lock(&host->host_mutex);
+	rt_mutex_lock(&host->host_mutex);
 	host->mrq = mrq;
-	mutex_unlock(&host->host_mutex);
+	rt_mutex_unlock(&host->host_mutex);
 
 	if (mrq->data)
 		data_size = data->blocks * data->blksz;
@@ -885,7 +885,7 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			data->bytes_xfered = data->blocks * data->blksz;
 	}
 
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 
 finish_detect_card:
 	if (cmd->error) {
@@ -898,9 +898,9 @@ finish_detect_card:
 	}
 
 finish:
-	mutex_lock(&host->host_mutex);
+	rt_mutex_lock(&host->host_mutex);
 	host->mrq = NULL;
-	mutex_unlock(&host->host_mutex);
+	rt_mutex_unlock(&host->host_mutex);
 
 	mmc_request_done(mmc, mrq);
 }
@@ -1136,7 +1136,7 @@ static void sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct rtsx_ucr *ucr = host->ucr;
 
 	dev_dbg(sdmmc_dev(host), "%s\n", __func__);
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
 	sd_set_power_mode(host, ios->power_mode);
 	sd_set_bus_width(host, ios->bus_width);
@@ -1167,7 +1167,7 @@ static void sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	rtsx_usb_switch_clock(host->ucr, host->clock, host->ssc_depth,
 			host->initial_mode, host->double_clk, host->vpclk);
 
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 	dev_dbg(sdmmc_dev(host), "%s end\n", __func__);
 }
 
@@ -1186,11 +1186,11 @@ static int sdmmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_120)
 		return -EPERM;
 
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
 	err = rtsx_usb_card_exclusive_check(ucr, RTSX_USB_SD_CARD);
 	if (err) {
-		mutex_unlock(&ucr->dev_mutex);
+		rt_mutex_unlock(&ucr->dev_mutex);
 		return err;
 	}
 
@@ -1215,7 +1215,7 @@ static int sdmmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	err = rtsx_usb_send_cmd(ucr, MODE_C, 100);
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 
 	return err;
 }
@@ -1231,7 +1231,7 @@ static int sdmmc_card_busy(struct mmc_host *mmc)
 
 	dev_dbg(sdmmc_dev(host), "%s\n", __func__);
 
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
 	err = rtsx_usb_write_register(ucr, SD_BUS_STAT,
 			SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP,
@@ -1248,7 +1248,7 @@ static int sdmmc_card_busy(struct mmc_host *mmc)
 	err = rtsx_usb_write_register(ucr, SD_BUS_STAT,
 			SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP, 0);
 out:
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 
 	if (err)
 		return err;
@@ -1269,12 +1269,12 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	if (host->host_removal)
 		return -ENOMEDIUM;
 
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
 	if (!host->ddr_mode)
 		err = sd_tuning_rx(host, MMC_SEND_TUNING_BLOCK);
 
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 
 	return err;
 }
@@ -1310,14 +1310,14 @@ static void rtsx_usb_update_led(struct work_struct *work)
 	struct rtsx_ucr *ucr = host->ucr;
 
 	pm_runtime_get_sync(sdmmc_dev(host));
-	mutex_lock(&ucr->dev_mutex);
+	rt_mutex_lock(&ucr->dev_mutex);
 
 	if (host->led.brightness == LED_OFF)
 		rtsx_usb_turn_off_led(ucr);
 	else
 		rtsx_usb_turn_on_led(ucr);
 
-	mutex_unlock(&ucr->dev_mutex);
+	rt_mutex_unlock(&ucr->dev_mutex);
 	pm_runtime_put(sdmmc_dev(host));
 }
 #endif
@@ -1372,7 +1372,7 @@ static int rtsx_usb_sdmmc_drv_probe(struct platform_device *pdev)
 	host->pdev = pdev;
 	platform_set_drvdata(pdev, host);
 
-	mutex_init(&host->host_mutex);
+	rt_mutex_init(&host->host_mutex);
 	rtsx_usb_init_host(host);
 	pm_runtime_enable(&pdev->dev);
 
@@ -1407,7 +1407,7 @@ static int rtsx_usb_sdmmc_drv_remove(struct platform_device *pdev)
 	mmc = host->mmc;
 	host->host_removal = true;
 
-	mutex_lock(&host->host_mutex);
+	rt_mutex_lock(&host->host_mutex);
 	if (host->mrq) {
 		dev_dbg(&(pdev->dev),
 			"%s: Controller removed during transfer\n",
@@ -1417,7 +1417,7 @@ static int rtsx_usb_sdmmc_drv_remove(struct platform_device *pdev)
 			host->mrq->stop->error = -ENOMEDIUM;
 		mmc_request_done(mmc, host->mrq);
 	}
-	mutex_unlock(&host->host_mutex);
+	rt_mutex_unlock(&host->host_mutex);
 
 	mmc_remove_host(mmc);
 

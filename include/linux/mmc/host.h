@@ -461,7 +461,7 @@ struct mmc_host {
 	struct delayed_work	clk_gate_work; /* delayed clock gate */
 	unsigned int		clk_old;	/* old clock value cache */
 	spinlock_t		clk_lock;	/* lock for clk fields */
-	struct mutex		clk_gate_mutex;	/* mutex for clock gating */
+	struct rt_mutex		clk_gate_mutex;	/* mutex for clock gating */
 	struct device_attribute clkgate_delay_attr;
 	unsigned long           clkgate_delay;
 #endif

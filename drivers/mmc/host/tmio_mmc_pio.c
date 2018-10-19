@@ -924,7 +924,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	pm_runtime_get_sync(mmc_dev(mmc));
 
-	mutex_lock(&host->ios_lock);
+	rt_mutex_lock(&host->ios_lock);
 
 	spin_lock_irqsave(&host->lock, flags);
 	if (host->mrq) {
@@ -942,7 +942,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 		spin_unlock_irqrestore(&host->lock, flags);
 
-		mutex_unlock(&host->ios_lock);
+		rt_mutex_unlock(&host->ios_lock);
 		return;
 	}
 
@@ -979,7 +979,7 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	host->clk_cache = ios->clock;
 
-	mutex_unlock(&host->ios_lock);
+	rt_mutex_unlock(&host->ios_lock);
 
 	pm_runtime_mark_last_busy(mmc_dev(mmc));
 	pm_runtime_put_autosuspend(mmc_dev(mmc));
@@ -1177,7 +1177,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	}
 
 	spin_lock_init(&_host->lock);
-	mutex_init(&_host->ios_lock);
+	rt_mutex_init(&_host->ios_lock);
 
 	/* Init delayed work for request timeouts */
 	INIT_DELAYED_WORK(&_host->delayed_reset_work, tmio_mmc_reset_work);

@@ -300,8 +300,8 @@ struct vub300_mmc_host {
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	struct kref kref;
-	struct mutex cmd_mutex;
-	struct mutex irq_mutex;
+	struct rt_mutex cmd_mutex;
+	struct rt_mutex irq_mutex;
 	char vub_name[3 + (9 * 8) + 4 + 1]; /* max of 7 sdio fn's */
 	u8 cmnd_out_ep; /* EndPoint for commands */
 	u8 cmnd_res_ep; /* EndPoint for responses */
@@ -592,13 +592,13 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 
 	switch (vub300->resp.common.header_type) {
 	case RESPONSE_INTERRUPT:
-		mutex_lock(&vub300->irq_mutex);
+		rt_mutex_lock(&vub300->irq_mutex);
 		if (vub300->irq_enabled)
 			mmc_signal_sdio_irq(vub300->mmc);
 		else
 			vub300->irqs_queued += 1;
 		vub300->irq_disabled = 1;
-		mutex_unlock(&vub300->irq_mutex);
+		rt_mutex_unlock(&vub300->irq_mutex);
 		break;
 	case RESPONSE_ERROR:
 		if (vub300->resp.error.error_code == SD_ERROR_NO_DEVICE)
@@ -619,13 +619,13 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 			add_offloaded_reg(vub300, &vub300->resp.irq.reg[ri]);
 			ri += 1;
 		}
-		mutex_lock(&vub300->irq_mutex);
+		rt_mutex_lock(&vub300->irq_mutex);
 		if (vub300->irq_enabled)
 			mmc_signal_sdio_irq(vub300->mmc);
 		else
 			vub300->irqs_queued += 1;
 		vub300->irq_disabled = 1;
-		mutex_unlock(&vub300->irq_mutex);
+		rt_mutex_unlock(&vub300->irq_mutex);
 		break;
 	}
 	case RESPONSE_IRQ_ENABLED:
@@ -637,7 +637,7 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 			add_offloaded_reg(vub300, &vub300->resp.irq.reg[ri]);
 			ri += 1;
 		}
-		mutex_lock(&vub300->irq_mutex);
+		rt_mutex_lock(&vub300->irq_mutex);
 		if (vub300->irq_enabled)
 			mmc_signal_sdio_irq(vub300->mmc);
 		else if (vub300->irqs_queued)
@@ -645,7 +645,7 @@ static void __vub300_irqpoll_response(struct vub300_mmc_host *vub300)
 		else
 			vub300->irqs_queued += 1;
 		vub300->irq_disabled = 0;
-		mutex_unlock(&vub300->irq_mutex);
+		rt_mutex_unlock(&vub300->irq_mutex);
 		break;
 	}
 	case RESPONSE_NO_INTERRUPT:
@@ -687,26 +687,26 @@ static void vub300_pollwork_thread(struct work_struct *work)
 		kref_put(&vub300->kref, vub300_delete);
 		return;
 	}
-	mutex_lock(&vub300->cmd_mutex);
+	rt_mutex_lock(&vub300->cmd_mutex);
 	if (vub300->cmd) {
 		vub300_queue_poll_work(vub300, 1);
 	} else if (!vub300->card_present) {
 		/* no need to do anything */
 	} else { /* vub300->card_present */
-		mutex_lock(&vub300->irq_mutex);
+		rt_mutex_lock(&vub300->irq_mutex);
 		if (!vub300->irq_enabled) {
-			mutex_unlock(&vub300->irq_mutex);
+			rt_mutex_unlock(&vub300->irq_mutex);
 		} else if (vub300->irqs_queued) {
 			vub300->irqs_queued -= 1;
 			mmc_signal_sdio_irq(vub300->mmc);
 			mod_timer(&vub300->inactivity_timer, jiffies + HZ);
-			mutex_unlock(&vub300->irq_mutex);
+			rt_mutex_unlock(&vub300->irq_mutex);
 		} else { /* NOT vub300->irqs_queued */
-			mutex_unlock(&vub300->irq_mutex);
+			rt_mutex_unlock(&vub300->irq_mutex);
 			__do_poll(vub300);
 		}
 	}
-	mutex_unlock(&vub300->cmd_mutex);
+	rt_mutex_unlock(&vub300->cmd_mutex);
 	kref_put(&vub300->kref, vub300_delete);
 }
 
@@ -718,7 +718,7 @@ static void vub300_deadwork_thread(struct work_struct *work)
 		kref_put(&vub300->kref, vub300_delete);
 		return;
 	}
-	mutex_lock(&vub300->cmd_mutex);
+	rt_mutex_lock(&vub300->cmd_mutex);
 	if (vub300->cmd) {
 		/*
 		 * a command got in as the inactivity
@@ -740,7 +740,7 @@ static void vub300_deadwork_thread(struct work_struct *work)
 		check_vub300_port_status(vub300);
 	}
 	mod_timer(&vub300->inactivity_timer, jiffies + HZ);
-	mutex_unlock(&vub300->cmd_mutex);
+	rt_mutex_unlock(&vub300->cmd_mutex);
 	kref_put(&vub300->kref, vub300_delete);
 }
 
@@ -1668,7 +1668,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 			add_offloaded_reg(vub300, &vub300->resp.pig.reg[ri]);
 			ri += 1;
 		}
-		mutex_lock(&vub300->irq_mutex);
+		rt_mutex_lock(&vub300->irq_mutex);
 		if (vub300->irqs_queued) {
 			vub300->irqs_queued += 1;
 		} else if (vub300->irq_enabled) {
@@ -1678,7 +1678,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 			vub300->irqs_queued += 1;
 		}
 		vub300->irq_disabled = 1;
-		mutex_unlock(&vub300->irq_mutex);
+		rt_mutex_unlock(&vub300->irq_mutex);
 		vub300->resp.common.header_size =
 			sizeof(struct sd_register_header);
 		vub300->resp.common.header_type = 0x00;
@@ -1693,7 +1693,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 			add_offloaded_reg(vub300, &vub300->resp.pig.reg[ri]);
 			ri += 1;
 		}
-		mutex_lock(&vub300->irq_mutex);
+		rt_mutex_lock(&vub300->irq_mutex);
 		if (vub300->irqs_queued) {
 			vub300->irqs_queued += 1;
 		} else if (vub300->irq_enabled) {
@@ -1703,7 +1703,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 			vub300->irqs_queued += 1;
 		}
 		vub300->irq_disabled = 0;
-		mutex_unlock(&vub300->irq_mutex);
+		rt_mutex_unlock(&vub300->irq_mutex);
 		vub300->resp.common.header_size =
 			sizeof(struct sd_register_header);
 		vub300->resp.common.header_type = 0x00;
@@ -1754,7 +1754,7 @@ static void vub300_cmndwork_thread(struct work_struct *work)
 		struct mmc_command *cmd = vub300->cmd;
 		struct mmc_data *data = vub300->data;
 		int data_length;
-		mutex_lock(&vub300->cmd_mutex);
+		rt_mutex_lock(&vub300->cmd_mutex);
 		init_completion(&vub300->command_complete);
 		if (likely(vub300->vub_name[0]) || !vub300->mmc->card ||
 		    !mmc_card_present(vub300->mmc->card)) {
@@ -1783,14 +1783,14 @@ static void vub300_cmndwork_thread(struct work_struct *work)
 		if (cmd->error) {
 			if (cmd->error == -ENOMEDIUM)
 				check_vub300_port_status(vub300);
-			mutex_unlock(&vub300->cmd_mutex);
+			rt_mutex_unlock(&vub300->cmd_mutex);
 			mmc_request_done(vub300->mmc, req);
 			kref_put(&vub300->kref, vub300_delete);
 			return;
 		} else {
 			construct_request_response(vub300, cmd);
 			vub300->resp_len = 0;
-			mutex_unlock(&vub300->cmd_mutex);
+			rt_mutex_unlock(&vub300->cmd_mutex);
 			kref_put(&vub300->kref, vub300_delete);
 			mmc_request_done(vub300->mmc, req);
 			return;
@@ -1933,7 +1933,7 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 			return;
 		}
 		kref_get(&vub300->kref);
-		mutex_lock(&vub300->cmd_mutex);
+		rt_mutex_lock(&vub300->cmd_mutex);
 		mod_timer(&vub300->inactivity_timer, jiffies + HZ);
 		/*
 		 * for performance we have to return immediately
@@ -1942,7 +1942,7 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 		if (cmd->opcode == 52 &&
 		    satisfy_request_from_offloaded_data(vub300, cmd)) {
 			cmd->error = 0;
-			mutex_unlock(&vub300->cmd_mutex);
+			rt_mutex_unlock(&vub300->cmd_mutex);
 			kref_put(&vub300->kref, vub300_delete);
 			mmc_request_done(mmc, req);
 			return;
@@ -1955,7 +1955,7 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 			else
 				vub300->datasize = 0;
 			vub300_queue_cmnd_work(vub300);
-			mutex_unlock(&vub300->cmd_mutex);
+			rt_mutex_unlock(&vub300->cmd_mutex);
 			kref_put(&vub300->kref, vub300_delete);
 			/*
 			 * the kernel lock diagnostics complain
@@ -2014,7 +2014,7 @@ static void vub300_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (!vub300->interface)
 		return;
 	kref_get(&vub300->kref);
-	mutex_lock(&vub300->cmd_mutex);
+	rt_mutex_lock(&vub300->cmd_mutex);
 	if ((ios->power_mode == MMC_POWER_OFF) && vub300->card_powered) {
 		vub300->card_powered = 0;
 		usb_control_msg(vub300->udev, usb_sndctrlpipe(vub300->udev, 0),
@@ -2039,7 +2039,7 @@ static void vub300_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	} else {
 		/* this should mean no change of state */
 	}
-	mutex_unlock(&vub300->cmd_mutex);
+	rt_mutex_unlock(&vub300->cmd_mutex);
 	kref_put(&vub300->kref, vub300_delete);
 }
 
@@ -2056,7 +2056,7 @@ static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
 		return;
 	kref_get(&vub300->kref);
 	if (enable) {
-		mutex_lock(&vub300->irq_mutex);
+		rt_mutex_lock(&vub300->irq_mutex);
 		if (vub300->irqs_queued) {
 			vub300->irqs_queued -= 1;
 			mmc_signal_sdio_irq(vub300->mmc);
@@ -2070,7 +2070,7 @@ static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
 			vub300->irq_enabled = 1;
 			vub300_queue_poll_work(vub300, 0);
 		}
-		mutex_unlock(&vub300->irq_mutex);
+		rt_mutex_unlock(&vub300->irq_mutex);
 	} else {
 		vub300->irq_enabled = 0;
 	}
@@ -2189,8 +2189,8 @@ static int vub300_probe(struct usb_interface *interface,
 	vub300->cmnd.head.block_size[0] = 0x00;
 	vub300->cmnd.head.block_size[1] = 0x00;
 	vub300->app_spec = 0;
-	mutex_init(&vub300->cmd_mutex);
-	mutex_init(&vub300->irq_mutex);
+	rt_mutex_init(&vub300->cmd_mutex);
+	rt_mutex_init(&vub300->irq_mutex);
 	vub300->command_out_urb = command_out_urb;
 	vub300->command_res_urb = command_res_urb;
 	vub300->usb_timed_out = 0;
@@ -2404,7 +2404,7 @@ static int vub300_resume(struct usb_interface *intf)
 static int vub300_pre_reset(struct usb_interface *intf)
 {				/* NOT irq */
 	struct vub300_mmc_host *vub300 = usb_get_intfdata(intf);
-	mutex_lock(&vub300->cmd_mutex);
+	rt_mutex_lock(&vub300->cmd_mutex);
 	return 0;
 }
 
@@ -2413,7 +2413,7 @@ static int vub300_post_reset(struct usb_interface *intf)
 	struct vub300_mmc_host *vub300 = usb_get_intfdata(intf);
 	/* we are sure no URBs are active - no locking needed */
 	vub300->errors = -EPIPE;
-	mutex_unlock(&vub300->cmd_mutex);
+	rt_mutex_unlock(&vub300->cmd_mutex);
 	return 0;
 }
 
