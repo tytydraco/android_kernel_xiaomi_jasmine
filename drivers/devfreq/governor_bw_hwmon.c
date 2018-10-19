@@ -85,12 +85,12 @@ struct hwmon_node {
 static DEFINE_SPINLOCK(irq_lock);
 
 static LIST_HEAD(hwmon_list);
-static DEFINE_MUTEX(list_lock);
-static DEFINE_MUTEX(sync_lock);
+static DEFINE_RT_MUTEX(list_lock);
+static DEFINE_RT_MUTEX(sync_lock);
 
 
 static int use_cnt;
-static DEFINE_MUTEX(state_lock);
+static DEFINE_RT_MUTEX(state_lock);
 
 #define show_attr(name) \
 static ssize_t show_##name(struct device *dev,				\
@@ -497,7 +497,7 @@ static struct hwmon_node *find_hwmon_node(struct devfreq *df)
 {
 	struct hwmon_node *node, *found = NULL;
 
-	mutex_lock(&list_lock);
+	rt_mutex_lock(&list_lock);
 	list_for_each_entry(node, &hwmon_list, list)
 		if (node->hw->dev == df->dev.parent ||
 		    node->hw->of_node == df->dev.parent->of_node ||
@@ -506,7 +506,7 @@ static struct hwmon_node *find_hwmon_node(struct devfreq *df)
 			found = node;
 			break;
 		}
-	mutex_unlock(&list_lock);
+	rt_mutex_unlock(&list_lock);
 
 	return found;
 }
@@ -532,12 +532,12 @@ int update_bw_hwmon(struct bw_hwmon *hwmon)
 	dev_dbg(df->dev.parent, "Got update request\n");
 	devfreq_monitor_stop(df);
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	ret = update_devfreq(df);
 	if (ret)
 		dev_err(df->dev.parent,
 			"Unable to update freq on request!\n");
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 
 	devfreq_monitor_start(df);
 
@@ -682,9 +682,9 @@ static int gov_suspend(struct devfreq *df)
 
 	stop_monitor(df, false);
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	update_devfreq(df);
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 
 	node->resume_freq = resume_freq;
 	node->resume_ab = resume_ab;
@@ -704,9 +704,9 @@ static int gov_resume(struct devfreq *df)
 		return -EBUSY;
 	}
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	update_devfreq(df);
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 
 	node->resume_freq = 0;
 	node->resume_ab = 0;
@@ -848,7 +848,7 @@ static int devfreq_bw_hwmon_ev_handler(struct devfreq *df,
 		break;
 
 	case DEVFREQ_GOV_INTERVAL:
-		mutex_lock(&sync_lock);
+		rt_mutex_lock(&sync_lock);
 		sample_ms = *(unsigned int *)data;
 		sample_ms = max(MIN_MS, sample_ms);
 		sample_ms = min(MAX_MS, sample_ms);
@@ -868,7 +868,7 @@ static int devfreq_bw_hwmon_ev_handler(struct devfreq *df,
 				"Unable to resume HW monitor (%d)\n", ret);
 			return ret;
 		}
-		mutex_unlock(&sync_lock);
+		rt_mutex_unlock(&sync_lock);
 		break;
 
 	case DEVFREQ_GOV_SUSPEND:
@@ -956,19 +956,19 @@ int register_bw_hwmon(struct device *dev, struct bw_hwmon *hwmon)
 	node->mbps_zones[0] = 0;
 	node->hw = hwmon;
 
-	mutex_lock(&list_lock);
+	rt_mutex_lock(&list_lock);
 	list_add_tail(&node->list, &hwmon_list);
-	mutex_unlock(&list_lock);
+	rt_mutex_unlock(&list_lock);
 
 	if (hwmon->gov) {
 		ret = devfreq_add_governor(hwmon->gov);
 	} else {
-		mutex_lock(&state_lock);
+		rt_mutex_lock(&state_lock);
 		if (!use_cnt)
 			ret = devfreq_add_governor(&devfreq_gov_bw_hwmon);
 		if (!ret)
 			use_cnt++;
-		mutex_unlock(&state_lock);
+		rt_mutex_unlock(&state_lock);
 	}
 
 	if (!ret)

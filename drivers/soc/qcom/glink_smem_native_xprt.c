@@ -251,7 +251,7 @@ static uint32_t negotiate_features_v1(struct glink_transport_if *if_ptr,
 static void register_debugfs_info(struct edge_info *einfo);
 
 static struct edge_info *edge_infos[NUM_SMEM_SUBSYSTEMS];
-static DEFINE_MUTEX(probe_lock);
+static DEFINE_RT_MUTEX(probe_lock);
 static struct glink_core_version versions[] = {
 	{1, TRACER_PKT_FEATURE, negotiate_features_v1},
 };
@@ -2341,16 +2341,16 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 	spin_lock_init(&einfo->rt_vote_lock);
 	einfo->rt_votes = 0;
 
-	mutex_lock(&probe_lock);
+	rt_mutex_lock(&probe_lock);
 	if (edge_infos[einfo->remote_proc_id]) {
 		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
 								subsys_name);
 		rc = -ENODEV;
-		mutex_unlock(&probe_lock);
+		rt_mutex_unlock(&probe_lock);
 		goto invalid_key;
 	}
 	edge_infos[einfo->remote_proc_id] = einfo;
-	mutex_unlock(&probe_lock);
+	rt_mutex_unlock(&probe_lock);
 
 	einfo->out_irq_mask = irq_mask;
 	einfo->out_irq_reg = ioremap_nocache(r->start, resource_size(r));
@@ -2438,9 +2438,9 @@ smem_alloc_fail:
 kthread_fail:
 	iounmap(einfo->out_irq_reg);
 ioremap_fail:
-	mutex_lock(&probe_lock);
+	rt_mutex_lock(&probe_lock);
 	edge_infos[einfo->remote_proc_id] = NULL;
-	mutex_unlock(&probe_lock);
+	rt_mutex_unlock(&probe_lock);
 invalid_key:
 missing_key:
 	kfree(einfo);
@@ -2527,16 +2527,16 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 	spin_lock_init(&einfo->rx_lock);
 	INIT_LIST_HEAD(&einfo->deferred_cmds);
 
-	mutex_lock(&probe_lock);
+	rt_mutex_lock(&probe_lock);
 	if (edge_infos[einfo->remote_proc_id]) {
 		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
 								subsys_name);
 		rc = -ENODEV;
-		mutex_unlock(&probe_lock);
+		rt_mutex_unlock(&probe_lock);
 		goto invalid_key;
 	}
 	edge_infos[einfo->remote_proc_id] = einfo;
-	mutex_unlock(&probe_lock);
+	rt_mutex_unlock(&probe_lock);
 
 	einfo->out_irq_mask = irq_mask;
 	einfo->out_irq_reg = ioremap_nocache(irq_r->start,
@@ -2686,9 +2686,9 @@ kthread_fail:
 msgram_ioremap_fail:
 	iounmap(einfo->out_irq_reg);
 irq_ioremap_fail:
-	mutex_lock(&probe_lock);
+	rt_mutex_lock(&probe_lock);
 	edge_infos[einfo->remote_proc_id] = NULL;
-	mutex_unlock(&probe_lock);
+	rt_mutex_unlock(&probe_lock);
 invalid_key:
 missing_key:
 	kfree(einfo);
@@ -2815,16 +2815,16 @@ static int glink_mailbox_probe(struct platform_device *pdev)
 	spin_lock_init(&einfo->rx_lock);
 	INIT_LIST_HEAD(&einfo->deferred_cmds);
 
-	mutex_lock(&probe_lock);
+	rt_mutex_lock(&probe_lock);
 	if (edge_infos[einfo->remote_proc_id]) {
 		pr_err("%s: duplicate subsys %s is not valid\n", __func__,
 								subsys_name);
 		rc = -ENODEV;
-		mutex_unlock(&probe_lock);
+		rt_mutex_unlock(&probe_lock);
 		goto invalid_key;
 	}
 	edge_infos[einfo->remote_proc_id] = einfo;
-	mutex_unlock(&probe_lock);
+	rt_mutex_unlock(&probe_lock);
 
 	einfo->out_irq_mask = irq_mask;
 	einfo->out_irq_reg = ioremap_nocache(irq_r->start,
@@ -2939,9 +2939,9 @@ mbox_size_ioremap_fail:
 mbox_loc_ioremap_fail:
 	iounmap(einfo->out_irq_reg);
 irq_ioremap_fail:
-	mutex_lock(&probe_lock);
+	rt_mutex_lock(&probe_lock);
 	edge_infos[einfo->remote_proc_id] = NULL;
-	mutex_unlock(&probe_lock);
+	rt_mutex_unlock(&probe_lock);
 invalid_key:
 missing_key:
 	kfree(einfo);

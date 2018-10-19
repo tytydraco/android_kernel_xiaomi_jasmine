@@ -30,7 +30,7 @@ struct devfreq_event_dev {
 	struct list_head node;
 
 	struct device dev;
-	struct mutex lock;
+	struct rt_mutex lock;
 	u32 enable_count;
 
 	const struct devfreq_event_desc *desc;

@@ -52,8 +52,8 @@ struct devfreq_node {
 	unsigned long prev_tgt;
 };
 static LIST_HEAD(devfreq_list);
-static DEFINE_MUTEX(state_lock);
-static DEFINE_MUTEX(cpufreq_reg_lock);
+static DEFINE_RT_MUTEX(state_lock);
+static DEFINE_RT_MUTEX(cpufreq_reg_lock);
 
 #define show_attr(name) \
 static ssize_t show_##name(struct device *dev,				\
@@ -97,7 +97,7 @@ static int update_node(struct devfreq_node *node)
 
 	cancel_delayed_work_sync(&node->dwork);
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	node->drop = false;
 	ret = update_devfreq(df);
 	if (ret) {
@@ -114,7 +114,7 @@ static int update_node(struct devfreq_node *node)
 	schedule_delayed_work(&node->dwork,
 			      msecs_to_jiffies(node->timeout));
 out:
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 	return ret;
 }
 
@@ -133,10 +133,10 @@ static void do_timeout(struct work_struct *work)
 						struct devfreq_node, dwork);
 	struct devfreq *df = node->df;
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	node->drop = true;
 	update_devfreq(df);
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 }
 
 static struct devfreq_node *find_devfreq_node(struct device *dev)
@@ -183,19 +183,19 @@ static int cpufreq_policy_notifier(struct notifier_block *nb,
 
 	switch (event) {
 	case CPUFREQ_CREATE_POLICY:
-		mutex_lock(&state_lock);
+		rt_mutex_lock(&state_lock);
 		add_policy(policy);
 		update_all_devfreqs();
-		mutex_unlock(&state_lock);
+		rt_mutex_unlock(&state_lock);
 		break;
 
 	case CPUFREQ_REMOVE_POLICY:
-		mutex_lock(&state_lock);
+		rt_mutex_lock(&state_lock);
 		if (state[policy->cpu]) {
 			state[policy->cpu]->on = false;
 			update_all_devfreqs();
 		}
-		mutex_unlock(&state_lock);
+		rt_mutex_unlock(&state_lock);
 		break;
 	}
 
@@ -215,7 +215,7 @@ static int cpufreq_trans_notifier(struct notifier_block *nb,
 	if (event != CPUFREQ_POSTCHANGE)
 		return 0;
 
-	mutex_lock(&state_lock);
+	rt_mutex_lock(&state_lock);
 
 	s = state[freq->cpu];
 	if (!s)
@@ -227,7 +227,7 @@ static int cpufreq_trans_notifier(struct notifier_block *nb,
 	}
 
 out:
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 	return 0;
 }
 
@@ -241,7 +241,7 @@ static int register_cpufreq(void)
 	unsigned int cpu;
 	struct cpufreq_policy *policy;
 
-	mutex_lock(&cpufreq_reg_lock);
+	rt_mutex_lock(&cpufreq_reg_lock);
 
 	if (cpufreq_cnt)
 		goto cnt_not_zero;
@@ -272,7 +272,7 @@ out:
 cnt_not_zero:
 	if (!ret)
 		cpufreq_cnt++;
-	mutex_unlock(&cpufreq_reg_lock);
+	rt_mutex_unlock(&cpufreq_reg_lock);
 	return ret;
 }
 
@@ -281,7 +281,7 @@ static int unregister_cpufreq(void)
 	int ret = 0;
 	int cpu;
 
-	mutex_lock(&cpufreq_reg_lock);
+	rt_mutex_lock(&cpufreq_reg_lock);
 
 	if (cpufreq_cnt > 1)
 		goto out;
@@ -301,7 +301,7 @@ static int unregister_cpufreq(void)
 
 out:
 	cpufreq_cnt--;
-	mutex_unlock(&cpufreq_reg_lock);
+	rt_mutex_unlock(&cpufreq_reg_lock);
 	return ret;
 }
 
@@ -420,7 +420,7 @@ static ssize_t show_map(struct device *dev, struct device_attribute *attr,
 	struct freq_map *map;
 	unsigned int cnt = 0, cpu;
 
-	mutex_lock(&state_lock);
+	rt_mutex_lock(&state_lock);
 	if (n->common_map) {
 		map = n->common_map;
 		cnt += snprintf(buf + cnt, PAGE_SIZE - cnt,
@@ -443,7 +443,7 @@ static ssize_t show_map(struct device *dev, struct device_attribute *attr,
 		cnt += snprintf(buf + cnt, PAGE_SIZE - cnt,
 				"Device freq interpolated based on CPU freq\n");
 	}
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 
 	return cnt;
 }
@@ -478,7 +478,7 @@ static int devfreq_cpufreq_gov_start(struct devfreq *devfreq)
 		return ret;
 	}
 
-	mutex_lock(&state_lock);
+	rt_mutex_lock(&state_lock);
 
 	node = find_devfreq_node(devfreq->dev.parent);
 	if (node == NULL) {
@@ -503,7 +503,7 @@ static int devfreq_cpufreq_gov_start(struct devfreq *devfreq)
 	if (ret)
 		goto update_fail;
 
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 	return 0;
 
 update_fail:
@@ -513,7 +513,7 @@ update_fail:
 		kfree(node);
 	}
 alloc_fail:
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 	sysfs_remove_group(&devfreq->dev.kobj, &dev_attr_group);
 	unregister_cpufreq();
 	return ret;
@@ -525,7 +525,7 @@ static void devfreq_cpufreq_gov_stop(struct devfreq *devfreq)
 
 	cancel_delayed_work_sync(&node->dwork);
 
-	mutex_lock(&state_lock);
+	rt_mutex_lock(&state_lock);
 	devfreq->data = node->orig_data;
 	if (node->map || node->common_map) {
 		node->df = NULL;
@@ -533,7 +533,7 @@ static void devfreq_cpufreq_gov_stop(struct devfreq *devfreq)
 		list_del(&node->list);
 		kfree(node);
 	}
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 
 	sysfs_remove_group(&devfreq->dev.kobj, &dev_attr_group);
 	unregister_cpufreq();
@@ -645,12 +645,12 @@ static int add_table_from_of(struct device_node *of_node)
 		return -EINVAL;
 	}
 
-	mutex_lock(&state_lock);
+	rt_mutex_lock(&state_lock);
 	node->of_node = target_of_node;
 	node->map = tbl_list;
 	node->common_map = common_tbl;
 	list_add_tail(&node->list, &devfreq_list);
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 
 	return 0;
 }
@@ -693,7 +693,7 @@ static void __exit devfreq_cpufreq_exit(void)
 	if (ret)
 		pr_err("Governor remove failed!\n");
 
-	mutex_lock(&state_lock);
+	rt_mutex_lock(&state_lock);
 	list_for_each_entry_safe(node, tmp, &devfreq_list, list) {
 		kfree(node->common_map);
 		for_each_possible_cpu(cpu)
@@ -702,7 +702,7 @@ static void __exit devfreq_cpufreq_exit(void)
 		list_del(&node->list);
 		kfree(node);
 	}
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 
 	return;
 }

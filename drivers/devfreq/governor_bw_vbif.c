@@ -19,7 +19,7 @@ unsigned long (*extern_get_bw)(void) = NULL;
 unsigned long *dev_ab;
 static unsigned long dev_ib;
 
-DEFINE_MUTEX(df_lock);
+DEFINE_RT_MUTEX(df_lock);
 static struct devfreq *df;
 
 /*
@@ -56,15 +56,15 @@ int devfreq_vbif_update_bw(unsigned long ib, unsigned long ab)
 {
 	int ret = 0;
 
-	mutex_lock(&df_lock);
+	rt_mutex_lock(&df_lock);
 	if (df) {
-		mutex_lock(&df->lock);
+		rt_mutex_lock(&df->lock);
 		dev_ib = ib;
 		*dev_ab = ab;
 		ret = update_devfreq(df);
-		mutex_unlock(&df->lock);
+		rt_mutex_unlock(&df->lock);
 	}
-	mutex_unlock(&df_lock);
+	rt_mutex_unlock(&df_lock);
 	return ret;
 }
 
@@ -76,7 +76,7 @@ static int devfreq_vbif_ev_handler(struct devfreq *devfreq,
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
-		mutex_lock(&df_lock);
+		rt_mutex_lock(&df_lock);
 		df = devfreq;
 		if (df->profile->get_dev_status &&
 			!df->profile->get_dev_status(df->dev.parent, &stat) &&
@@ -85,7 +85,7 @@ static int devfreq_vbif_ev_handler(struct devfreq *devfreq,
 		else
 			pr_warn("Device doesn't take AB votes!\n");
 
-		mutex_unlock(&df_lock);
+		rt_mutex_unlock(&df_lock);
 
 		ret = devfreq_vbif_update_bw(0, 0);
 		if (ret) {
@@ -102,9 +102,9 @@ static int devfreq_vbif_ev_handler(struct devfreq *devfreq,
 		break;
 
 	case DEVFREQ_GOV_STOP:
-		mutex_lock(&df_lock);
+		rt_mutex_lock(&df_lock);
 		df = NULL;
-		mutex_unlock(&df_lock);
+		rt_mutex_unlock(&df_lock);
 
 		pr_debug("Disabled MSM VBIF governor\n");
 		break;

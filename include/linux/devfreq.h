@@ -156,13 +156,13 @@ struct devfreq_governor {
  * Note that when a governor accesses entries in struct devfreq in its
  * functions except for the context of callbacks defined in struct
  * devfreq_governor, the governor should protect its access with the
- * struct mutex lock in struct devfreq. A governor may use this mutex
+ * struct rt_mutex lock in struct devfreq. A governor may use this mutex
  * to protect its own private data in void *data as well.
  */
 struct devfreq {
 	struct list_head node;
 
-	struct mutex lock;
+	struct rt_mutex lock;
 	struct device dev;
 	struct devfreq_dev_profile *profile;
 	const struct devfreq_governor *governor;

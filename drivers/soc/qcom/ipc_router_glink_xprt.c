@@ -150,7 +150,7 @@ struct ipc_router_glink_xprt_config {
 };
 
 #define MODULE_NAME "ipc_router_glink_xprt"
-static DEFINE_MUTEX(glink_xprt_list_lock_lha1);
+static DEFINE_RT_MUTEX(glink_xprt_list_lock_lha1);
 static LIST_HEAD(glink_xprt_list);
 
 static struct workqueue_struct *glink_xprt_wq;
@@ -636,18 +636,18 @@ static void glink_xprt_link_state_worker(struct work_struct *work)
 	if (xs_info->link_state == GLINK_LINK_STATE_UP) {
 		D("%s: LINK_STATE_UP %s:%s\n",
 		  __func__, xs_info->edge, xs_info->transport);
-		mutex_lock(&glink_xprt_list_lock_lha1);
+		rt_mutex_lock(&glink_xprt_list_lock_lha1);
 		list_for_each_entry(glink_xprtp, &glink_xprt_list, list) {
 			if (strcmp(glink_xprtp->edge, xs_info->edge) ||
 			    strcmp(glink_xprtp->transport, xs_info->transport))
 				continue;
 			glink_xprt_ch_open(glink_xprtp);
 		}
-		mutex_unlock(&glink_xprt_list_lock_lha1);
+		rt_mutex_unlock(&glink_xprt_list_lock_lha1);
 	} else if (xs_info->link_state == GLINK_LINK_STATE_DOWN) {
 		D("%s: LINK_STATE_DOWN %s:%s\n",
 		  __func__, xs_info->edge, xs_info->transport);
-		mutex_lock(&glink_xprt_list_lock_lha1);
+		rt_mutex_lock(&glink_xprt_list_lock_lha1);
 		list_for_each_entry(glink_xprtp, &glink_xprt_list, list) {
 			if (strcmp(glink_xprtp->edge, xs_info->edge) ||
 			    strcmp(glink_xprtp->transport, xs_info->transport)
@@ -657,7 +657,7 @@ static void glink_xprt_link_state_worker(struct work_struct *work)
 			glink_xprtp->ch_hndl = NULL;
 			msm_ipc_unload_subsystem(glink_xprtp);
 		}
-		mutex_unlock(&glink_xprt_list_lock_lha1);
+		rt_mutex_unlock(&glink_xprt_list_lock_lha1);
 
 	}
 	kfree(xs_info);
@@ -771,9 +771,9 @@ static int ipc_router_glink_config_init(
 			"%s_%s_rx", glink_xprtp->ch_name, glink_xprtp->edge);
 	wakeup_source_init(&glink_xprtp->notify_rxv_ws,
 				glink_xprtp->notify_rx_ws_name);
-	mutex_lock(&glink_xprt_list_lock_lha1);
+	rt_mutex_lock(&glink_xprt_list_lock_lha1);
 	list_add(&glink_xprtp->list, &glink_xprt_list);
-	mutex_unlock(&glink_xprt_list_lock_lha1);
+	rt_mutex_unlock(&glink_xprt_list_lock_lha1);
 
 	glink_xprt_link_info.edge = glink_xprt_config->edge;
 	glink_xprt_link_state_notif_handle = glink_register_link_state_cb(

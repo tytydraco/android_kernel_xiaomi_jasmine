@@ -75,7 +75,7 @@ struct wdsp_glink_ch {
 
 	/* Channel states like connect, disconnect */
 	int channel_state;
-	struct mutex mutex;
+	struct rt_mutex mutex;
 
 	/* To free up the channel memory */
 	bool free_mem;
@@ -110,10 +110,10 @@ struct wdsp_glink_priv {
 	u8 rsp_cnt;
 	struct wdsp_glink_rsp_que rsp[RESP_QUEUE_SIZE];
 	struct completion rsp_complete;
-	struct mutex rsp_mutex;
+	struct rt_mutex rsp_mutex;
 
 	/* Glink channel related */
-	struct mutex glink_mutex;
+	struct rt_mutex glink_mutex;
 	struct wdsp_glink_state glink_state;
 	struct wdsp_glink_ch **ch;
 	u8 no_of_channels;
@@ -199,7 +199,7 @@ static void wdsp_glink_notify_rx(void *handle, const void *priv,
 		size = WDSP_MAX_READ_SIZE;
 	}
 
-	mutex_lock(&wpriv->rsp_mutex);
+	rt_mutex_lock(&wpriv->rsp_mutex);
 	rsp_cnt = wpriv->rsp_cnt;
 	if (rsp_cnt >= RESP_QUEUE_SIZE) {
 		dev_err(wpriv->dev, "%s: Resp Queue is Full\n", __func__);
@@ -210,7 +210,7 @@ static void wdsp_glink_notify_rx(void *handle, const void *priv,
 	memcpy(wpriv->rsp[rsp_cnt].buf, rx_buf, size);
 	wpriv->rsp[rsp_cnt].buf_size = size;
 	wpriv->rsp_cnt = ++rsp_cnt;
-	mutex_unlock(&wpriv->rsp_mutex);
+	rt_mutex_unlock(&wpriv->rsp_mutex);
 
 	glink_rx_done(handle, ptr, true);
 	complete(&wpriv->rsp_complete);
@@ -272,15 +272,15 @@ static bool wdsp_glink_notify_rx_intent_req(void *handle, const void *priv,
 	dev_dbg(wpriv->dev, "%s: intent size %zd requested for ch name %s",
 		 __func__, req_size, ch->ch_cfg.name);
 
-	mutex_lock(&ch->mutex);
+	rt_mutex_lock(&ch->mutex);
 	rc = glink_queue_rx_intent(ch->handle, ch, req_size);
 	if (IS_ERR_VALUE(rc)) {
 		dev_err(wpriv->dev, "%s: Failed to queue rx intent, rc = %d\n",
 			__func__, rc);
-		mutex_unlock(&ch->mutex);
+		rt_mutex_unlock(&ch->mutex);
 		goto done;
 	}
-	mutex_unlock(&ch->mutex);
+	rt_mutex_unlock(&ch->mutex);
 	ret = true;
 
 done:
@@ -338,7 +338,7 @@ static void wdsp_glink_notify_state(void *handle, const void *priv,
 	ch = (struct wdsp_glink_ch *)priv;
 	wpriv = ch->wpriv;
 
-	mutex_lock(&ch->mutex);
+	rt_mutex_lock(&ch->mutex);
 	ch->channel_state = event;
 	if (event == GLINK_CONNECTED) {
 		dev_info(wpriv->dev, "%s: glink channel: %s connected\n",
@@ -370,7 +370,7 @@ static void wdsp_glink_notify_state(void *handle, const void *priv,
 		 */
 		pr_info("%s: channel: %s disconnected locally\n",
 			 __func__, ch->ch_cfg.name);
-		mutex_unlock(&ch->mutex);
+		rt_mutex_unlock(&ch->mutex);
 		ch->free_mem = true;
 		wake_up(&ch->ch_free_wait);
 		return;
@@ -385,7 +385,7 @@ static void wdsp_glink_notify_state(void *handle, const void *priv,
 		if (wpriv && wpriv->work_queue != NULL)
 			queue_work(wpriv->work_queue, &ch->lcl_ch_cls_wrk);
 	}
-	mutex_unlock(&ch->mutex);
+	rt_mutex_unlock(&ch->mutex);
 }
 
 /*
@@ -397,7 +397,7 @@ static int wdsp_glink_close_ch(struct wdsp_glink_ch *ch)
 	struct wdsp_glink_priv *wpriv = ch->wpriv;
 	int ret = 0;
 
-	mutex_lock(&wpriv->glink_mutex);
+	rt_mutex_lock(&wpriv->glink_mutex);
 	if (ch->handle) {
 		ret = glink_close(ch->handle);
 		ch->handle = NULL;
@@ -412,7 +412,7 @@ static int wdsp_glink_close_ch(struct wdsp_glink_ch *ch)
 		dev_dbg(wpriv->dev, "%s: ch %s is already closed\n", __func__,
 			ch->ch_cfg.name);
 	}
-	mutex_unlock(&wpriv->glink_mutex);
+	rt_mutex_unlock(&wpriv->glink_mutex);
 
 
 	return ret;
@@ -428,7 +428,7 @@ static int wdsp_glink_open_ch(struct wdsp_glink_ch *ch)
 	struct glink_open_config open_cfg;
 	int ret = 0;
 
-	mutex_lock(&wpriv->glink_mutex);
+	rt_mutex_lock(&wpriv->glink_mutex);
 	if (!ch->handle) {
 		memset(&open_cfg, 0, sizeof(open_cfg));
 		open_cfg.options = GLINK_OPT_INITIAL_XPORT;
@@ -457,7 +457,7 @@ static int wdsp_glink_open_ch(struct wdsp_glink_ch *ch)
 		dev_err(wpriv->dev, "%s: ch %s is already opened\n", __func__,
 			ch->ch_cfg.name);
 	}
-	mutex_unlock(&wpriv->glink_mutex);
+	rt_mutex_unlock(&wpriv->glink_mutex);
 
 	return ret;
 }
@@ -543,10 +543,10 @@ static void wdsp_glink_link_state_cb(struct glink_link_state_cb_info *cb_info,
 
 	wpriv = (struct wdsp_glink_priv *)priv;
 
-	mutex_lock(&wpriv->glink_mutex);
+	rt_mutex_lock(&wpriv->glink_mutex);
 	wpriv->glink_state.link_state = cb_info->link_state;
 	wake_up(&wpriv->link_state_wait);
-	mutex_unlock(&wpriv->glink_mutex);
+	rt_mutex_unlock(&wpriv->glink_mutex);
 
 	queue_work(wpriv->work_queue, &wpriv->ch_open_cls_wrk);
 }
@@ -570,7 +570,7 @@ static int wdsp_glink_ch_info_init(struct wdsp_glink_priv *wpriv,
 	u32 ch_size, ch_cfg_size;
 	size_t size = WDSP_WRITE_PKT_SIZE + WDSP_REG_PKT_SIZE;
 
-	mutex_lock(&wpriv->glink_mutex);
+	rt_mutex_lock(&wpriv->glink_mutex);
 	if (wpriv->ch) {
 		dev_err_ratelimited(wpriv->dev, "%s: glink ch memory is already allocated\n",
 			 __func__);
@@ -652,7 +652,7 @@ static int wdsp_glink_ch_info_init(struct wdsp_glink_priv *wpriv,
 			goto err_ch_mem;
 		}
 
-		mutex_init(&ch[i]->mutex);
+		rt_mutex_init(&ch[i]->mutex);
 		ch[i]->wpriv = wpriv;
 		INIT_WORK(&ch[i]->lcl_ch_open_wrk, wdsp_glink_lcl_ch_open_wrk);
 		INIT_WORK(&ch[i]->lcl_ch_cls_wrk, wdsp_glink_lcl_ch_cls_wrk);
@@ -680,7 +680,7 @@ static int wdsp_glink_ch_info_init(struct wdsp_glink_priv *wpriv,
 
 err_ch_mem:
 	for (j = 0; j < i; j++) {
-		mutex_destroy(&ch[j]->mutex);
+		rt_mutex_destroy(&ch[j]->mutex);
 		kfree(wpriv->ch[j]);
 		wpriv->ch[j] = NULL;
 	}
@@ -689,7 +689,7 @@ err_ch_mem:
 	wpriv->no_of_channels = 0;
 
 done:
-	mutex_unlock(&wpriv->glink_mutex);
+	rt_mutex_unlock(&wpriv->glink_mutex);
 	return ret;
 }
 
@@ -715,9 +715,9 @@ static void wdsp_glink_tx_buf_work(struct work_struct *work)
 	dev_dbg(wpriv->dev, "%s: ch name = %s, payload size = %d\n",
 		__func__, cpkt->ch_name, cpkt->payload_size);
 
-	mutex_lock(&tx_buf->ch->mutex);
+	rt_mutex_lock(&tx_buf->ch->mutex);
 	if (ch->channel_state == GLINK_CONNECTED) {
-		mutex_unlock(&tx_buf->ch->mutex);
+		rt_mutex_unlock(&tx_buf->ch->mutex);
 		ret = glink_tx(ch->handle, tx_buf,
 			       cpkt->payload, cpkt->payload_size,
 			       GLINK_TX_REQ_INTENT);
@@ -732,7 +732,7 @@ static void wdsp_glink_tx_buf_work(struct work_struct *work)
 			vfree(tx_buf);
 		}
 	} else {
-		mutex_unlock(&tx_buf->ch->mutex);
+		rt_mutex_unlock(&tx_buf->ch->mutex);
 		dev_err(wpriv->dev, "%s: channel %s is not in connected state\n",
 			__func__, ch->ch_cfg.name);
 		/*
@@ -778,7 +778,7 @@ static ssize_t wdsp_glink_read(struct file *file, char __user *buf,
 	if (ret)
 		goto done;
 
-	mutex_lock(&wpriv->rsp_mutex);
+	rt_mutex_lock(&wpriv->rsp_mutex);
 	if (wpriv->rsp_cnt) {
 		wpriv->rsp_cnt--;
 		dev_dbg(wpriv->dev, "%s: read from buffer %d\n",
@@ -796,7 +796,7 @@ static ssize_t wdsp_glink_read(struct file *file, char __user *buf,
 		}
 
 		if (ret1) {
-			mutex_unlock(&wpriv->rsp_mutex);
+			rt_mutex_unlock(&wpriv->rsp_mutex);
 			dev_err_ratelimited(wpriv->dev, "%s: copy_to_user failed %d\n",
 				__func__, ret);
 			ret = -EFAULT;
@@ -811,7 +811,7 @@ static ssize_t wdsp_glink_read(struct file *file, char __user *buf,
 			wpriv->rsp_cnt);
 		ret = -EINVAL;
 	}
-	mutex_unlock(&wpriv->rsp_mutex);
+	rt_mutex_unlock(&wpriv->rsp_mutex);
 
 done:
 	return ret;
@@ -905,16 +905,16 @@ static ssize_t wdsp_glink_write(struct file *file, const char __user *buf,
 			ret = -EINVAL;
 			goto free_buf;
 		}
-		mutex_lock(&wpriv->glink_mutex);
+		rt_mutex_lock(&wpriv->glink_mutex);
 		if (wpriv->glink_state.link_state == GLINK_LINK_STATE_DOWN) {
-			mutex_unlock(&wpriv->glink_mutex);
+			rt_mutex_unlock(&wpriv->glink_mutex);
 			dev_err_ratelimited(wpriv->dev, "%s: Link state is Down\n",
 				__func__);
 
 			ret = -ENETRESET;
 			goto free_buf;
 		}
-		mutex_unlock(&wpriv->glink_mutex);
+		rt_mutex_unlock(&wpriv->glink_mutex);
 		cpkt = (struct wdsp_cmd_pkt *)wpkt->payload;
 		pkt_max_size =  sizeof(struct wdsp_write_pkt) +
 					sizeof(struct wdsp_cmd_pkt) +
@@ -1009,8 +1009,8 @@ static int wdsp_glink_open(struct inode *inode, struct file *file)
 	wpriv->glink_state.link_state = GLINK_LINK_STATE_DOWN;
 	init_completion(&wpriv->rsp_complete);
 	init_waitqueue_head(&wpriv->link_state_wait);
-	mutex_init(&wpriv->rsp_mutex);
-	mutex_init(&wpriv->glink_mutex);
+	rt_mutex_init(&wpriv->rsp_mutex);
+	rt_mutex_init(&wpriv->glink_mutex);
 	file->private_data = wpriv;
 
 	goto done;
@@ -1107,8 +1107,8 @@ static int wdsp_glink_release(struct inode *inode, struct file *file)
 	kfree(wpriv->ch);
 	wpriv->ch = NULL;
 
-	mutex_destroy(&wpriv->glink_mutex);
-	mutex_destroy(&wpriv->rsp_mutex);
+	rt_mutex_destroy(&wpriv->glink_mutex);
+	rt_mutex_destroy(&wpriv->rsp_mutex);
 	kfree(wpriv);
 	file->private_data = NULL;
 

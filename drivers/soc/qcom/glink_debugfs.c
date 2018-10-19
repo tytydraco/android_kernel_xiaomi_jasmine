@@ -68,7 +68,7 @@ struct glink_dbgfs_dent {
 
 static struct dentry *dent;
 static LIST_HEAD(dent_list);
-static DEFINE_MUTEX(dent_list_lock_lha0);
+static DEFINE_RT_MUTEX(dent_list_lock_lha0);
 
 static int debugfs_show(struct seq_file *s, void *data)
 {
@@ -562,9 +562,9 @@ void glink_dfs_update_list(struct dentry *curr_dent, struct dentry *parent,
 				curr, strlen(dbgfs_dent_s->self_name) + 1);
 			strlcpy(dbgfs_dent_s->par_name, par_dir,
 					strlen(dbgfs_dent_s->par_name) + 1);
-			mutex_lock(&dent_list_lock_lha0);
+			rt_mutex_lock(&dent_list_lock_lha0);
 			list_add_tail(&dbgfs_dent_s->list_node, &dent_list);
-			mutex_unlock(&dent_list_lock_lha0);
+			rt_mutex_unlock(&dent_list_lock_lha0);
 		}
 	} else {
 		GLINK_DBG("%s:create directory failed for par:curr [%s:%s]\n",
@@ -625,7 +625,7 @@ void glink_debugfs_remove_recur(struct glink_dbgfs *rm_dfs)
 	c_dir_name = rm_dfs->curr_name;
 	p_dir_name = rm_dfs->par_name;
 
-	mutex_lock(&dent_list_lock_lha0);
+	rt_mutex_lock(&dent_list_lock_lha0);
 	list_for_each_entry_safe(entry, entry_temp, &dent_list, list_node) {
 		if (!strcmp(entry->par_name, c_dir_name)) {
 			glink_remove_dfs_entry(entry);
@@ -635,7 +635,7 @@ void glink_debugfs_remove_recur(struct glink_dbgfs *rm_dfs)
 			glink_remove_dfs_entry(entry);
 		}
 	}
-	mutex_unlock(&dent_list_lock_lha0);
+	rt_mutex_unlock(&dent_list_lock_lha0);
 	if (par_dent != NULL)
 		debugfs_remove_recursive(par_dent);
 }
@@ -677,14 +677,14 @@ struct dentry *glink_debugfs_create(const char *name,
 	c_dir_name = dir->curr_name;
 	p_dir_name = dir->par_name;
 
-	mutex_lock(&dent_list_lock_lha0);
+	rt_mutex_lock(&dent_list_lock_lha0);
 	list_for_each_entry(entry, &dent_list, list_node)
 		if (!strcmp(entry->par_name, p_dir_name)
 				&& !strcmp(entry->self_name, c_dir_name)) {
 			parent = entry->self;
 			break;
 		}
-	mutex_unlock(&dent_list_lock_lha0);
+	rt_mutex_unlock(&dent_list_lock_lha0);
 	p_dir_name = c_dir_name;
 	c_dir_name = name;
 	if (parent != NULL) {

@@ -102,11 +102,11 @@ struct edge_info {
 	bool in_ssr;
 	struct delayed_work ssr_work;
 	smd_channel_t *smd_ch;
-	struct mutex smd_lock;
-	struct mutex in_ssr_lock;
+	struct rt_mutex smd_lock;
+	struct rt_mutex in_ssr_lock;
 	bool smd_ctl_ch_open;
 	struct work_struct work;
-	struct mutex rx_cmd_lock;
+	struct rt_mutex rx_cmd_lock;
 };
 
 /**
@@ -141,8 +141,8 @@ struct channel {
 	char name[GLINK_NAME_SIZE];
 	uint32_t lcid;
 	uint32_t rcid;
-	struct mutex ch_probe_lock;
-	struct mutex ch_tasklet_lock;
+	struct rt_mutex ch_probe_lock;
+	struct rt_mutex ch_tasklet_lock;
 	bool wait_for_probe;
 	bool had_probed;
 	struct edge_info *edge;
@@ -233,7 +233,7 @@ static struct glink_core_version versions[] = {
 };
 
 static LIST_HEAD(pdrv_list);
-static DEFINE_MUTEX(pdrv_list_mutex);
+static DEFINE_RT_MUTEX(pdrv_list_mutex);
 
 static void process_data_event(unsigned long param);
 static int add_platform_driver(struct channel *ch);
@@ -288,12 +288,12 @@ static void process_ctl_event(struct work_struct *work)
 
 	einfo = container_of(work, struct edge_info, work);
 
-	mutex_lock(&einfo->in_ssr_lock);
+	rt_mutex_lock(&einfo->in_ssr_lock);
 	if (einfo->in_ssr) {
 		einfo->in_ssr = false;
 		einfo->xprt_if.glink_core_if_ptr->link_up(&einfo->xprt_if);
 	}
-	mutex_unlock(&einfo->in_ssr_lock);
+	rt_mutex_unlock(&einfo->in_ssr_lock);
 
 	while (smd_read_avail(einfo->smd_ch)) {
 		found = false;
@@ -328,19 +328,19 @@ static void process_ctl_event(struct work_struct *work)
 				}
 				strlcpy(ch->name, name, GLINK_NAME_SIZE);
 				ch->edge = einfo;
-				mutex_init(&ch->ch_probe_lock);
-				mutex_init(&ch->ch_tasklet_lock);
+				rt_mutex_init(&ch->ch_probe_lock);
+				rt_mutex_init(&ch->ch_tasklet_lock);
 				init_completion(&ch->open_notifier);
 				INIT_LIST_HEAD(&ch->intents);
 				INIT_LIST_HEAD(&ch->used_intents);
 				spin_lock_init(&ch->intents_lock);
 				spin_lock_init(&ch->rx_data_lock);
-				mutex_lock(&ch->ch_tasklet_lock);
+				rt_mutex_lock(&ch->ch_tasklet_lock);
 				tasklet_init(&ch->data_tasklet,
 				process_data_event, (unsigned long)ch);
 				tasklet_disable(&ch->data_tasklet);
 				ch->is_tasklet_enabled = false;
-				mutex_unlock(&ch->ch_tasklet_lock);
+				rt_mutex_unlock(&ch->ch_tasklet_lock);
 				ch->wq = create_singlethread_workqueue(
 								ch->name);
 				if (!ch->wq) {
@@ -385,12 +385,12 @@ static void process_ctl_event(struct work_struct *work)
 						__func__, name);
 				cmd.cmd = CMD_OPEN_ACK;
 				cmd.priority = SMD_TRANS_XPRT_ID;
-				mutex_lock(&einfo->smd_lock);
+				rt_mutex_lock(&einfo->smd_lock);
 				while (smd_write_avail(einfo->smd_ch) <
 								sizeof(cmd))
 					msleep(20);
 				smd_write(einfo->smd_ch, &cmd, sizeof(cmd));
-				mutex_unlock(&einfo->smd_lock);
+				rt_mutex_unlock(&einfo->smd_lock);
 				continue;
 			} else {
 				SMDXPRT_DBG(einfo,
@@ -399,13 +399,13 @@ static void process_ctl_event(struct work_struct *work)
 			}
 
 			ch->rcid = cmd.id;
-			mutex_lock(&einfo->rx_cmd_lock);
+			rt_mutex_lock(&einfo->rx_cmd_lock);
 			einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_remote_open(
 								&einfo->xprt_if,
 								cmd.id,
 								name,
 								cmd.priority);
-			mutex_unlock(&einfo->rx_cmd_lock);
+			rt_mutex_unlock(&einfo->rx_cmd_lock);
 		} else if (cmd.cmd == CMD_OPEN_ACK) {
 			SMDXPRT_INFO(einfo,
 				"%s RX OPEN ACK lcid %u; xprt_req %u\n",
@@ -425,12 +425,12 @@ static void process_ctl_event(struct work_struct *work)
 			}
 			reinit_completion(&ch->open_notifier);
 			add_platform_driver(ch);
-			mutex_lock(&einfo->rx_cmd_lock);
+			rt_mutex_lock(&einfo->rx_cmd_lock);
 			einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_open_ack(
 								&einfo->xprt_if,
 								cmd.id,
 								cmd.priority);
-			mutex_unlock(&einfo->rx_cmd_lock);
+			rt_mutex_unlock(&einfo->rx_cmd_lock);
 			complete_all(&ch->open_notifier);
 		} else if (cmd.cmd == CMD_CLOSE) {
 			SMDXPRT_INFO(einfo, "%s RX REMOTE CLOSE rcid %u\n",
@@ -448,24 +448,24 @@ static void process_ctl_event(struct work_struct *work)
 						__func__, cmd.id);
 
 			if (found && !ch->remote_legacy) {
-				mutex_lock(&einfo->rx_cmd_lock);
+				rt_mutex_lock(&einfo->rx_cmd_lock);
 				einfo->xprt_if.glink_core_if_ptr->
 							rx_cmd_ch_remote_close(
 								&einfo->xprt_if,
 								cmd.id);
-				mutex_unlock(&einfo->rx_cmd_lock);
+				rt_mutex_unlock(&einfo->rx_cmd_lock);
 			} else {
 				/* not found or a legacy channel */
 				SMDXPRT_INFO(einfo,
 						"%s Sim RX CLOSE ACK lcid %u\n",
 						__func__, cmd.id);
 				cmd.cmd = CMD_CLOSE_ACK;
-				mutex_lock(&einfo->smd_lock);
+				rt_mutex_lock(&einfo->smd_lock);
 				while (smd_write_avail(einfo->smd_ch) <
 								sizeof(cmd))
 					msleep(20);
 				smd_write(einfo->smd_ch, &cmd, sizeof(cmd));
-				mutex_unlock(&einfo->smd_lock);
+				rt_mutex_unlock(&einfo->smd_lock);
 			}
 		} else if (cmd.cmd == CMD_CLOSE_ACK) {
 			int rcu_id;
@@ -490,11 +490,11 @@ static void process_ctl_event(struct work_struct *work)
 			rcu_id = srcu_read_lock(&einfo->ssr_sync);
 			smd_data_ch_close(ch);
 			srcu_read_unlock(&einfo->ssr_sync, rcu_id);
-			mutex_lock(&einfo->rx_cmd_lock);
+			rt_mutex_lock(&einfo->rx_cmd_lock);
 			einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_close_ack(
 								&einfo->xprt_if,
 								cmd.id);
-			mutex_unlock(&einfo->rx_cmd_lock);
+			rt_mutex_unlock(&einfo->rx_cmd_lock);
 		}
 	}
 }
@@ -553,12 +553,12 @@ static void ssr_work_func(struct work_struct *work)
 	w = container_of(work, struct delayed_work, work);
 	einfo = container_of(w, struct edge_info, ssr_work);
 
-	mutex_lock(&einfo->in_ssr_lock);
+	rt_mutex_lock(&einfo->in_ssr_lock);
 	if (einfo->in_ssr) {
 		einfo->in_ssr = false;
 		einfo->xprt_if.glink_core_if_ptr->link_up(&einfo->xprt_if);
 	}
-	mutex_unlock(&einfo->in_ssr_lock);
+	rt_mutex_unlock(&einfo->in_ssr_lock);
 }
 
 /**
@@ -572,10 +572,10 @@ static void deferred_close_ack(struct work_struct *work)
 
 	ch_work = container_of(work, struct channel_work, work);
 	ch = ch_work->ch;
-	mutex_lock(&ch->edge->rx_cmd_lock);
+	rt_mutex_lock(&ch->edge->rx_cmd_lock);
 	ch->edge->xprt_if.glink_core_if_ptr->rx_cmd_ch_close_ack(
 				&ch->edge->xprt_if, ch->lcid);
-	mutex_unlock(&ch->edge->rx_cmd_lock);
+	rt_mutex_unlock(&ch->edge->rx_cmd_lock);
 	kfree(ch_work);
 }
 
@@ -626,20 +626,20 @@ static void process_open_event(struct work_struct *work)
 	if (ch->remote_legacy || !ch->rcid) {
 		ch->remote_legacy = true;
 		ch->rcid = ch->lcid + LEGACY_RCID_CHANNEL_OFFSET;
-		mutex_lock(&einfo->rx_cmd_lock);
+		rt_mutex_lock(&einfo->rx_cmd_lock);
 		einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_remote_open(
 							&einfo->xprt_if,
 							ch->rcid,
 							ch->name,
 							SMD_TRANS_XPRT_ID);
-		mutex_unlock(&einfo->rx_cmd_lock);
+		rt_mutex_unlock(&einfo->rx_cmd_lock);
 	}
-	mutex_lock(&ch->ch_tasklet_lock);
+	rt_mutex_lock(&ch->ch_tasklet_lock);
 	if (!ch->is_tasklet_enabled) {
 		tasklet_enable(&ch->data_tasklet);
 		ch->is_tasklet_enabled = true;
 	}
-	mutex_unlock(&ch->ch_tasklet_lock);
+	rt_mutex_unlock(&ch->ch_tasklet_lock);
 	wait_for_completion(&ch->open_notifier);
 	kfree(ch_work);
 }
@@ -659,18 +659,18 @@ static void process_close_event(struct work_struct *work)
 	einfo = ch->edge;
 	kfree(ch_work);
 	if (ch->remote_legacy) {
-		mutex_lock(&einfo->rx_cmd_lock);
+		rt_mutex_lock(&einfo->rx_cmd_lock);
 		einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_remote_close(
 								&einfo->xprt_if,
 								ch->rcid);
-		mutex_unlock(&einfo->rx_cmd_lock);
+		rt_mutex_unlock(&einfo->rx_cmd_lock);
 	}
-	mutex_lock(&ch->ch_tasklet_lock);
+	rt_mutex_lock(&ch->ch_tasklet_lock);
 	if (ch->is_tasklet_enabled) {
 		tasklet_disable(&ch->data_tasklet);
 		ch->is_tasklet_enabled = false;
 	}
-	mutex_unlock(&ch->ch_tasklet_lock);
+	rt_mutex_unlock(&ch->ch_tasklet_lock);
 	ch->rcid = 0;
 }
 
@@ -724,19 +724,19 @@ static void process_reopen_event(struct work_struct *work)
 	einfo = ch->edge;
 	kfree(ch_work);
 	if (ch->remote_legacy) {
-		mutex_lock(&einfo->rx_cmd_lock);
+		rt_mutex_lock(&einfo->rx_cmd_lock);
 		einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_remote_close(
 								&einfo->xprt_if,
 								ch->rcid);
-		mutex_unlock(&einfo->rx_cmd_lock);
+		rt_mutex_unlock(&einfo->rx_cmd_lock);
 	}
 	if (ch->local_legacy) {
 		ch->local_legacy = false;
-		mutex_lock(&einfo->rx_cmd_lock);
+		rt_mutex_lock(&einfo->rx_cmd_lock);
 		einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_close_ack(
 								&einfo->xprt_if,
 								ch->lcid);
-		mutex_unlock(&einfo->rx_cmd_lock);
+		rt_mutex_unlock(&einfo->rx_cmd_lock);
 	}
 }
 
@@ -930,15 +930,15 @@ static void smd_data_ch_close(struct channel *ch)
 
 	ch->is_closing = true;
 	ch->tx_resume_needed = false;
-	mutex_lock(&ch->ch_tasklet_lock);
+	rt_mutex_lock(&ch->ch_tasklet_lock);
 	if (ch->is_tasklet_enabled) {
 		tasklet_disable(&ch->data_tasklet);
 		ch->is_tasklet_enabled = false;
 	}
-	mutex_unlock(&ch->ch_tasklet_lock);
+	rt_mutex_unlock(&ch->ch_tasklet_lock);
 	flush_workqueue(ch->wq);
 
-	mutex_lock(&ch->ch_probe_lock);
+	rt_mutex_lock(&ch->ch_probe_lock);
 	ch->wait_for_probe = false;
 	if (ch->smd_ch) {
 		smd_close(ch->smd_ch);
@@ -952,7 +952,7 @@ static void smd_data_ch_close(struct channel *ch)
 			queue_work(ch->wq, &ch_work->work);
 		}
 	}
-	mutex_unlock(&ch->ch_probe_lock);
+	rt_mutex_unlock(&ch->ch_probe_lock);
 
 
 	spin_lock_irqsave(&ch->intents_lock, flags);
@@ -1024,9 +1024,9 @@ static int channel_probe(struct platform_device *pdev)
 	if (!found)
 		return -EPROBE_DEFER;
 
-	mutex_lock(&ch->ch_probe_lock);
+	rt_mutex_lock(&ch->ch_probe_lock);
 	if (!ch->wait_for_probe) {
-		mutex_unlock(&ch->ch_probe_lock);
+		rt_mutex_unlock(&ch->ch_probe_lock);
 		return -EPROBE_DEFER;
 	}
 
@@ -1034,7 +1034,7 @@ static int channel_probe(struct platform_device *pdev)
 	ch->had_probed = true;
 
 	data_ch_probe_body(ch);
-	mutex_unlock(&ch->ch_probe_lock);
+	rt_mutex_unlock(&ch->ch_probe_lock);
 
 	return 0;
 }
@@ -1074,8 +1074,8 @@ static int add_platform_driver(struct channel *ch)
 	int ret = 0;
 	static bool first = true;
 
-	mutex_lock(&pdrv_list_mutex);
-	mutex_lock(&ch->ch_probe_lock);
+	rt_mutex_lock(&pdrv_list_mutex);
+	rt_mutex_lock(&ch->ch_probe_lock);
 	ch->wait_for_probe = true;
 	list_for_each_entry(pdrv, &pdrv_list, node) {
 		if (!strcmp(ch->name, pdrv->pdrv.driver.name)) {
@@ -1085,13 +1085,13 @@ static int add_platform_driver(struct channel *ch)
 	}
 
 	if (!found) {
-		mutex_unlock(&ch->ch_probe_lock);
+		rt_mutex_unlock(&ch->ch_probe_lock);
 		pdrv = kzalloc(sizeof(*pdrv), GFP_KERNEL);
 		if (!pdrv) {
 			ret = -ENOMEM;
-			mutex_lock(&ch->ch_probe_lock);
+			rt_mutex_lock(&ch->ch_probe_lock);
 			ch->wait_for_probe = false;
-			mutex_unlock(&ch->ch_probe_lock);
+			rt_mutex_unlock(&ch->ch_probe_lock);
 			goto out;
 		}
 		pdrv->pdrv.driver.name = ch->name;
@@ -1102,14 +1102,14 @@ static int add_platform_driver(struct channel *ch)
 		if (ret) {
 			list_del(&pdrv->node);
 			kfree(pdrv);
-			mutex_lock(&ch->ch_probe_lock);
+			rt_mutex_lock(&ch->ch_probe_lock);
 			ch->wait_for_probe = false;
-			mutex_unlock(&ch->ch_probe_lock);
+			rt_mutex_unlock(&ch->ch_probe_lock);
 		}
 	} else {
 		if (ch->had_probed)
 			data_ch_probe_body(ch);
-		mutex_unlock(&ch->ch_probe_lock);
+		rt_mutex_unlock(&ch->ch_probe_lock);
 		/*
 		 * channel_probe might have seen the device we want, but
 		 * returned EPROBE_DEFER so we need to kick the deferred list
@@ -1123,7 +1123,7 @@ static int add_platform_driver(struct channel *ch)
 	}
 
 out:
-	mutex_unlock(&pdrv_list_mutex);
+	rt_mutex_unlock(&pdrv_list_mutex);
 	return ret;
 }
 
@@ -1239,19 +1239,19 @@ static int tx_cmd_ch_open(struct glink_transport_if *if_ptr, uint32_t lcid,
 		}
 		strlcpy(ch->name, name, GLINK_NAME_SIZE);
 		ch->edge = einfo;
-		mutex_init(&ch->ch_probe_lock);
-		mutex_init(&ch->ch_tasklet_lock);
+		rt_mutex_init(&ch->ch_probe_lock);
+		rt_mutex_init(&ch->ch_tasklet_lock);
 		init_completion(&ch->open_notifier);
 		INIT_LIST_HEAD(&ch->intents);
 		INIT_LIST_HEAD(&ch->used_intents);
 		spin_lock_init(&ch->intents_lock);
 		spin_lock_init(&ch->rx_data_lock);
-		mutex_lock(&ch->ch_tasklet_lock);
+		rt_mutex_lock(&ch->ch_tasklet_lock);
 		tasklet_init(&ch->data_tasklet, process_data_event,
 				(unsigned long)ch);
 		tasklet_disable(&ch->data_tasklet);
 		ch->is_tasklet_enabled = false;
-		mutex_unlock(&ch->ch_tasklet_lock);
+		rt_mutex_unlock(&ch->ch_tasklet_lock);
 		ch->wq = create_singlethread_workqueue(ch->name);
 		if (!ch->wq) {
 			SMDXPRT_ERR(einfo,
@@ -1298,14 +1298,14 @@ static int tx_cmd_ch_open(struct glink_transport_if *if_ptr, uint32_t lcid,
 		cmd.priority = req_xprt;
 		len = strlen(name) + 1;
 		len += sizeof(cmd);
-		mutex_lock(&einfo->smd_lock);
+		rt_mutex_lock(&einfo->smd_lock);
 		while (smd_write_avail(einfo->smd_ch) < len)
 			msleep(20);
 		smd_write_start(einfo->smd_ch, len);
 		smd_write_segment(einfo->smd_ch, &cmd, sizeof(cmd));
 		smd_write_segment(einfo->smd_ch, name, strlen(name) + 1);
 		smd_write_end(einfo->smd_ch);
-		mutex_unlock(&einfo->smd_lock);
+		rt_mutex_unlock(&einfo->smd_lock);
 	} else {
 		SMDXPRT_INFO(einfo, "%s Legacy Open '%s' lcid %u reqxprt %u\n",
 				__func__, name, lcid, req_xprt);
@@ -1315,11 +1315,11 @@ static int tx_cmd_ch_open(struct glink_transport_if *if_ptr, uint32_t lcid,
 		reinit_completion(&ch->open_notifier);
 		ret = add_platform_driver(ch);
 		if (!ret) {
-			mutex_lock(&einfo->rx_cmd_lock);
+			rt_mutex_lock(&einfo->rx_cmd_lock);
 			einfo->xprt_if.glink_core_if_ptr->rx_cmd_ch_open_ack(
 						&einfo->xprt_if,
 						ch->lcid, SMD_TRANS_XPRT_ID);
-			mutex_unlock(&einfo->rx_cmd_lock);
+			rt_mutex_unlock(&einfo->rx_cmd_lock);
 		}
 		complete_all(&ch->open_notifier);
 	}
@@ -1377,11 +1377,11 @@ static int tx_cmd_ch_close(struct glink_transport_if *if_ptr, uint32_t lcid)
 		cmd.cmd = CMD_CLOSE;
 		cmd.id = lcid;
 		cmd.reserved = 0;
-		mutex_lock(&einfo->smd_lock);
+		rt_mutex_lock(&einfo->smd_lock);
 		while (smd_write_avail(einfo->smd_ch) < sizeof(cmd))
 			msleep(20);
 		smd_write(einfo->smd_ch, &cmd, sizeof(cmd));
-		mutex_unlock(&einfo->smd_lock);
+		rt_mutex_unlock(&einfo->smd_lock);
 	} else {
 		smd_data_ch_close(ch);
 	}
@@ -1442,12 +1442,12 @@ static void tx_cmd_ch_remote_open_ack(struct glink_transport_if *if_ptr,
 	cmd.id = ch->rcid;
 	cmd.priority = xprt_resp;
 
-	mutex_lock(&einfo->smd_lock);
+	rt_mutex_lock(&einfo->smd_lock);
 	while (smd_write_avail(einfo->smd_ch) < sizeof(cmd))
 		msleep(20);
 
 	smd_write(einfo->smd_ch, &cmd, sizeof(cmd));
-	mutex_unlock(&einfo->smd_lock);
+	rt_mutex_unlock(&einfo->smd_lock);
 }
 
 /**
@@ -1493,11 +1493,11 @@ static void tx_cmd_ch_remote_close_ack(struct glink_transport_if *if_ptr,
 		cmd.cmd = CMD_CLOSE_ACK;
 		cmd.id = rcid;
 		cmd.reserved = 0;
-		mutex_lock(&einfo->smd_lock);
+		rt_mutex_lock(&einfo->smd_lock);
 		while (smd_write_avail(einfo->smd_ch) < sizeof(cmd))
 			msleep(20);
 		smd_write(einfo->smd_ch, &cmd, sizeof(cmd));
-		mutex_unlock(&einfo->smd_lock);
+		rt_mutex_unlock(&einfo->smd_lock);
 	}
 	ch->remote_legacy = false;
 	ch->rcid = 0;
@@ -1527,20 +1527,20 @@ static int ssr(struct glink_transport_if *if_ptr)
 	list_for_each_entry(ch, &einfo->channels, node) {
 		spin_unlock_irqrestore(&einfo->channels_lock, flags);
 		ch->is_closing = true;
-		mutex_lock(&ch->ch_tasklet_lock);
+		rt_mutex_lock(&ch->ch_tasklet_lock);
 		if (ch->is_tasklet_enabled) {
 			tasklet_disable(&ch->data_tasklet);
 			ch->is_tasklet_enabled = false;
 		}
-		mutex_unlock(&ch->ch_tasklet_lock);
+		rt_mutex_unlock(&ch->ch_tasklet_lock);
 		flush_workqueue(ch->wq);
-		mutex_lock(&ch->ch_probe_lock);
+		rt_mutex_lock(&ch->ch_probe_lock);
 		ch->wait_for_probe = false;
 		if (ch->smd_ch) {
 			smd_close(ch->smd_ch);
 			ch->smd_ch = NULL;
 		}
-		mutex_unlock(&ch->ch_probe_lock);
+		rt_mutex_unlock(&ch->ch_probe_lock);
 		ch->local_legacy = false;
 		ch->remote_legacy = false;
 		ch->rcid = 0;
@@ -2084,9 +2084,9 @@ static int __init glink_smd_xprt_init(void)
 		INIT_LIST_HEAD(&einfo->channels);
 		spin_lock_init(&einfo->channels_lock);
 		init_srcu_struct(&einfo->ssr_sync);
-		mutex_init(&einfo->smd_lock);
-		mutex_init(&einfo->in_ssr_lock);
-		mutex_init(&einfo->rx_cmd_lock);
+		rt_mutex_init(&einfo->smd_lock);
+		rt_mutex_init(&einfo->in_ssr_lock);
+		rt_mutex_init(&einfo->rx_cmd_lock);
 		INIT_DELAYED_WORK(&einfo->ssr_work, ssr_work_func);
 		INIT_WORK(&einfo->work, process_ctl_event);
 		rc = glink_core_register_transport(&einfo->xprt_if,

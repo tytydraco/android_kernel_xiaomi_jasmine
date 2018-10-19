@@ -115,7 +115,7 @@ struct rx_work_info {
 
 struct ch_info {
 	struct list_head list;
-	struct mutex ch_info_lock;
+	struct rt_mutex ch_info_lock;
 	char name[MAX_NAME_LEN];
 	char edge[GLINK_NAME_SIZE];
 	char transport[GLINK_NAME_SIZE];
@@ -143,9 +143,9 @@ static struct ctl_ch_info ctl_ch_tbl[] = {
 	{"LOOPBACK_CTL_APSS", "spss", "mailbox"},
 };
 
-static DEFINE_MUTEX(ctl_ch_list_lock);
+static DEFINE_RT_MUTEX(ctl_ch_list_lock);
 static LIST_HEAD(ctl_ch_list);
-static DEFINE_MUTEX(data_ch_list_lock);
+static DEFINE_RT_MUTEX(data_ch_list_lock);
 static LIST_HEAD(data_ch_list);
 
 struct workqueue_struct *glink_lbsrv_wq;
@@ -222,7 +222,7 @@ static int create_ch_info(char *name, char *edge, char *transport,
 	}
 
 	INIT_LIST_HEAD(&tmp_ch_info->list);
-	mutex_init(&tmp_ch_info->ch_info_lock);
+	rt_mutex_init(&tmp_ch_info->ch_info_lock);
 	strlcpy(tmp_ch_info->name, name, MAX_NAME_LEN);
 	strlcpy(tmp_ch_info->edge, edge, GLINK_NAME_SIZE);
 	strlcpy(tmp_ch_info->transport, transport, GLINK_NAME_SIZE);
@@ -234,13 +234,13 @@ static int create_ch_info(char *name, char *edge, char *transport,
 	tmp_ch_info->tx_config.echo_count = 1;
 
 	if (type == CTL) {
-		mutex_lock(&ctl_ch_list_lock);
+		rt_mutex_lock(&ctl_ch_list_lock);
 		list_add_tail(&tmp_ch_info->list, &ctl_ch_list);
-		mutex_unlock(&ctl_ch_list_lock);
+		rt_mutex_unlock(&ctl_ch_list_lock);
 	} else if (type == DATA) {
-		mutex_lock(&data_ch_list_lock);
+		rt_mutex_lock(&data_ch_list_lock);
 		list_add_tail(&tmp_ch_info->list, &data_ch_list);
-		mutex_unlock(&data_ch_list_lock);
+		rt_mutex_unlock(&data_ch_list_lock);
 	} else {
 		LBSRV_ERR("%s:%s:%s %s: Invalid ch type %d\n", transport,
 				edge, name, __func__, type);
@@ -255,7 +255,7 @@ struct ch_info *lookup_ch_list(char *name, char *edge, char *transport,
 			       uint32_t type)
 {
 	struct list_head *ch_list;
-	struct mutex *lock;
+	struct rt_mutex *lock;
 	struct ch_info *tmp_ch_info;
 
 	if (type == DATA) {
@@ -270,16 +270,16 @@ struct ch_info *lookup_ch_list(char *name, char *edge, char *transport,
 		return NULL;
 	}
 
-	mutex_lock(lock);
+	rt_mutex_lock(lock);
 	list_for_each_entry(tmp_ch_info, ch_list, list) {
 		if (!strcmp(name, tmp_ch_info->name) &&
 		    !strcmp(edge, tmp_ch_info->edge) &&
 		    !strcmp(transport, tmp_ch_info->transport)) {
-			mutex_unlock(lock);
+			rt_mutex_unlock(lock);
 			return tmp_ch_info;
 		}
 	}
-	mutex_unlock(lock);
+	rt_mutex_unlock(lock);
 	return NULL;
 }
 
@@ -386,9 +386,9 @@ int glink_lbsrv_handle_queue_rx_intent_config_req(struct ch_info *rx_ch_info,
 			  glink_lbsrv_queue_rx_intent_worker);
 	tmp_work_info->work_ch_info = tmp_ch_info;
 
-	mutex_lock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 	if (tmp_ch_info->fully_opened) {
-		mutex_unlock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 		delay_ms = calc_delay_ms(tmp_work_info->random_delay,
 					 tmp_work_info->delay_ms);
 		queue_delayed_work(glink_lbsrv_wq, &tmp_work_info->work,
@@ -400,7 +400,7 @@ int glink_lbsrv_handle_queue_rx_intent_config_req(struct ch_info *rx_ch_info,
 	} else {
 		tmp_work_info->deferred = true;
 		tmp_ch_info->queue_rx_intent_work_info = tmp_work_info;
-		mutex_unlock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 
 		glink_lbsrv_send_response(rx_ch_info->handle, req_id,
 				QUEUE_RX_INTENT_CONFIG, 0);
@@ -435,12 +435,12 @@ int glink_lbsrv_handle_tx_config_req(struct ch_info *rx_ch_info,
 		return -EINVAL;
 	}
 
-	mutex_lock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 	tmp_ch_info->tx_config.random_delay = req.random_delay;
 	tmp_ch_info->tx_config.delay_ms = req.delay_ms;
 	tmp_ch_info->tx_config.echo_count = req.echo_count;
 	tmp_ch_info->tx_config.transform_type = req.transform_type;
-	mutex_unlock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 	return 0;
 }
 
@@ -470,10 +470,10 @@ int glink_lbsrv_handle_rx_done_config_req(struct ch_info *rx_ch_info,
 		return -EINVAL;
 	}
 
-	mutex_lock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 	tmp_ch_info->rx_done_config.random_delay = req.random_delay;
 	tmp_ch_info->rx_done_config.delay_ms = req.delay_ms;
-	mutex_unlock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 	return 0;
 }
 
@@ -690,7 +690,7 @@ static int glink_lbsrv_handle_data(struct rx_work_info *tmp_rx_work_info)
 		glink_lbsrv_free_data(data, tmp_rx_work_info->buf_type);
 		return -ENOMEM;
 	}
-	mutex_lock(&rx_ch_info->ch_info_lock);
+	rt_mutex_lock(&rx_ch_info->ch_info_lock);
 	tmp_tx_work_info->tx_config.random_delay =
 					rx_ch_info->tx_config.random_delay;
 	tmp_tx_work_info->tx_config.delay_ms = rx_ch_info->tx_config.delay_ms;
@@ -698,7 +698,7 @@ static int glink_lbsrv_handle_data(struct rx_work_info *tmp_rx_work_info)
 					rx_ch_info->tx_config.echo_count;
 	tmp_tx_work_info->tx_config.transform_type =
 					rx_ch_info->tx_config.transform_type;
-	mutex_unlock(&rx_ch_info->ch_info_lock);
+	rt_mutex_unlock(&rx_ch_info->ch_info_lock);
 	INIT_DELAYED_WORK(&tmp_tx_work_info->work, glink_lbsrv_tx_worker);
 	tmp_tx_work_info->tx_ch_info = rx_ch_info;
 	tmp_tx_work_info->data = data;
@@ -850,11 +850,11 @@ void glink_lpbsrv_notify_state(void *handle, const void *priv, unsigned event)
 	} else if (tmp_ch_info->type == DATA) {
 
 		if (event == GLINK_CONNECTED) {
-			mutex_lock(&tmp_ch_info->ch_info_lock);
+			rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 			tmp_ch_info->fully_opened = true;
 			tmp_work_info = tmp_ch_info->queue_rx_intent_work_info;
 			tmp_ch_info->queue_rx_intent_work_info = NULL;
-			mutex_unlock(&tmp_ch_info->ch_info_lock);
+			rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 
 			if (tmp_work_info) {
 				delay_ms = calc_delay_ms(
@@ -867,7 +867,7 @@ void glink_lpbsrv_notify_state(void *handle, const void *priv, unsigned event)
 		} else if (event == GLINK_LOCAL_DISCONNECTED ||
 			event == GLINK_REMOTE_DISCONNECTED) {
 
-			mutex_lock(&tmp_ch_info->ch_info_lock);
+			rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 			tmp_ch_info->fully_opened = false;
 			/*
 			* If the state has changed to LOCAL_DISCONNECTED,
@@ -888,7 +888,7 @@ void glink_lpbsrv_notify_state(void *handle, const void *priv, unsigned event)
 					queue_delayed_work(
 					glink_lbsrv_wq,
 					&tmp_ch_info->close_work, 0);
-			mutex_unlock(&tmp_ch_info->ch_info_lock);
+			rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 		}
 	}
 }
@@ -960,9 +960,9 @@ static void glink_lbsrv_open_worker(struct work_struct *work)
 	struct glink_open_config open_cfg;
 
 	LBSRV_INFO("%s: glink_loopback_server_init\n", __func__);
-	mutex_lock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 	if (!IS_ERR_OR_NULL(tmp_ch_info->handle)) {
-		mutex_unlock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 		return;
 	}
 
@@ -988,10 +988,10 @@ static void glink_lbsrv_open_worker(struct work_struct *work)
 		LBSRV_ERR("%s:%s:%s %s: unable to open channel\n",
 			  open_cfg.transport, open_cfg.edge, open_cfg.name,
 			  __func__);
-		mutex_unlock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 		return;
 	}
-	mutex_unlock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 	LBSRV_INFO("%s:%s:%s %s: Open complete\n", open_cfg.transport,
 			open_cfg.edge, open_cfg.name, __func__);
 }
@@ -1002,12 +1002,12 @@ static void glink_lbsrv_close_worker(struct work_struct *work)
 	struct ch_info *tmp_ch_info =
 		container_of(close_work, struct ch_info, close_work);
 
-	mutex_lock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 	if (!IS_ERR_OR_NULL(tmp_ch_info->handle)) {
 		glink_close(tmp_ch_info->handle);
 		tmp_ch_info->handle = NULL;
 	}
-	mutex_unlock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 	LBSRV_INFO("%s:%s:%s %s: Close complete\n", tmp_ch_info->transport,
 			tmp_ch_info->edge, tmp_ch_info->name, __func__);
 }
@@ -1022,9 +1022,9 @@ static void glink_lbsrv_rmt_rx_intent_req_worker(struct work_struct *work)
 	struct ch_info *tmp_ch_info = tmp_work_info->work_ch_info;
 	int ret;
 
-	mutex_lock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 	if (IS_ERR_OR_NULL(tmp_ch_info->handle)) {
-		mutex_unlock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 		LBSRV_ERR("%s:%s:%s %s: Invalid CH handle\n",
 				  tmp_ch_info->transport,
 				  tmp_ch_info->edge,
@@ -1034,7 +1034,7 @@ static void glink_lbsrv_rmt_rx_intent_req_worker(struct work_struct *work)
 	}
 	ret = glink_queue_rx_intent(tmp_ch_info->handle,
 			(void *)tmp_ch_info, tmp_work_info->req_intent_size);
-	mutex_unlock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 	LBSRV_INFO("%s:%s:%s %s: QUEUE RX INTENT size[%zu] ret[%d]\n",
 		   tmp_ch_info->transport, tmp_ch_info->edge,
 		   tmp_ch_info->name, __func__, tmp_work_info->req_intent_size,
@@ -1060,15 +1060,15 @@ static void glink_lbsrv_queue_rx_intent_worker(struct work_struct *work)
 	uint32_t delay_ms;
 
 	while (1) {
-		mutex_lock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 		if (IS_ERR_OR_NULL(tmp_ch_info->handle)) {
-			mutex_unlock(&tmp_ch_info->ch_info_lock);
+			rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 			return;
 		}
 
 		ret = glink_queue_rx_intent(tmp_ch_info->handle,
 			(void *)tmp_ch_info, tmp_work_info->intent_size);
-		mutex_unlock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 		if (ret < 0) {
 			LBSRV_ERR("%s:%s:%s %s: Err %d q'ing intent size %d\n",
 				  tmp_ch_info->transport, tmp_ch_info->edge,
@@ -1112,10 +1112,10 @@ static void glink_lbsrv_rx_done_worker(struct work_struct *work)
 		container_of(rx_done_work, struct rx_done_work_info, work);
 	struct ch_info *tmp_ch_info = tmp_work_info->rx_done_ch_info;
 
-	mutex_lock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 	if (!IS_ERR_OR_NULL(tmp_ch_info->handle))
 		glink_rx_done(tmp_ch_info->handle, tmp_work_info->ptr, false);
-	mutex_unlock(&tmp_ch_info->ch_info_lock);
+	rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 	kfree(tmp_work_info);
 }
 
@@ -1133,9 +1133,9 @@ static void glink_lbsrv_tx_worker(struct work_struct *work)
 		   tmp_ch_info->transport, tmp_ch_info->edge, tmp_ch_info->name,
 		   __func__, tmp_work_info->data, tmp_work_info->size);
 	while (1) {
-		mutex_lock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_lock(&tmp_ch_info->ch_info_lock);
 		if (IS_ERR_OR_NULL(tmp_ch_info->handle)) {
-			mutex_unlock(&tmp_ch_info->ch_info_lock);
+			rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 			return;
 		}
 
@@ -1164,7 +1164,7 @@ static void glink_lbsrv_tx_worker(struct work_struct *work)
 				tmp_work_info->vbuf_provider,
 				tmp_work_info->pbuf_provider,
 				flags);
-		mutex_unlock(&tmp_ch_info->ch_info_lock);
+		rt_mutex_unlock(&tmp_ch_info->ch_info_lock);
 		if (ret < 0 && ret != -EAGAIN) {
 			LBSRV_ERR("%s:%s:%s %s: TX Error %d\n",
 					tmp_ch_info->transport,
@@ -1209,7 +1209,7 @@ static void glink_lbsrv_link_state_worker(struct work_struct *work)
 	if (ls_info->link_state == GLINK_LINK_STATE_UP) {
 		LBSRV_INFO("%s: LINK_STATE_UP %s:%s\n",
 			  __func__, ls_info->edge, ls_info->transport);
-		mutex_lock(&ctl_ch_list_lock);
+		rt_mutex_lock(&ctl_ch_list_lock);
 		list_for_each_entry(tmp_ch_info, &ctl_ch_list, list) {
 			if (strcmp(tmp_ch_info->edge, ls_info->edge) ||
 			    strcmp(tmp_ch_info->transport, ls_info->transport))
@@ -1217,7 +1217,7 @@ static void glink_lbsrv_link_state_worker(struct work_struct *work)
 			queue_delayed_work(glink_lbsrv_wq,
 					   &tmp_ch_info->open_work, 0);
 		}
-		mutex_unlock(&ctl_ch_list_lock);
+		rt_mutex_unlock(&ctl_ch_list_lock);
 	} else if (ls_info->link_state == GLINK_LINK_STATE_DOWN) {
 		LBSRV_INFO("%s: LINK_STATE_DOWN %s:%s\n",
 			  __func__, ls_info->edge, ls_info->transport);

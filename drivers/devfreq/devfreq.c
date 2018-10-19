@@ -41,7 +41,7 @@ static struct workqueue_struct *devfreq_wq;
 static LIST_HEAD(devfreq_governor_list);
 /* The list of all device-devfreq */
 static LIST_HEAD(devfreq_list);
-static DEFINE_MUTEX(devfreq_list_lock);
+static DEFINE_RT_MUTEX(devfreq_list_lock);
 
 /* List of devices to boost when the screen is woken */
 static const char *boost_devices[] = {
@@ -67,7 +67,7 @@ static struct devfreq *find_device_devfreq(struct device *dev)
 		pr_err("DEVFREQ: %s: Invalid parameters\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
-	WARN(!mutex_is_locked(&devfreq_list_lock),
+	WARN(!rt_mutex_is_locked(&devfreq_list_lock),
 	     "devfreq_list_lock must be locked.");
 
 	list_for_each_entry(tmp_devfreq, &devfreq_list, node) {
@@ -171,7 +171,7 @@ static struct devfreq_governor *find_devfreq_governor(const char *name)
 		pr_err("DEVFREQ: %s: Invalid parameters\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
-	WARN(!mutex_is_locked(&devfreq_list_lock),
+	WARN(!rt_mutex_is_locked(&devfreq_list_lock),
 	     "devfreq_list_lock must be locked.");
 
 	list_for_each_entry(tmp_governor, &devfreq_governor_list, node) {
@@ -197,7 +197,7 @@ int update_devfreq(struct devfreq *devfreq)
 	int err = 0;
 	u32 flags = 0;
 
-	if (!mutex_is_locked(&devfreq->lock)) {
+	if (!rt_mutex_is_locked(&devfreq->lock)) {
 		WARN(true, "devfreq->lock must be locked by the caller.\n");
 		return -EINVAL;
 	}
@@ -257,14 +257,14 @@ static void devfreq_monitor(struct work_struct *work)
 	struct devfreq *devfreq = container_of(work,
 					struct devfreq, work.work);
 
-	mutex_lock(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	err = update_devfreq(devfreq);
 	if (err)
 		dev_err(&devfreq->dev, "dvfs failed with (%d) error\n", err);
 
 	queue_delayed_work(devfreq_wq, &devfreq->work,
 				msecs_to_jiffies(devfreq->profile->polling_ms));
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 }
 
 /**
@@ -313,15 +313,15 @@ EXPORT_SYMBOL(devfreq_monitor_stop);
  */
 void devfreq_monitor_suspend(struct devfreq *devfreq)
 {
-	mutex_lock(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	if (devfreq->stop_polling) {
-		mutex_unlock(&devfreq->lock);
+		rt_mutex_unlock(&devfreq->lock);
 		return;
 	}
 
 	devfreq_update_status(devfreq, devfreq->previous_freq);
 	devfreq->stop_polling = true;
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 	cancel_delayed_work_sync(&devfreq->work);
 }
 EXPORT_SYMBOL(devfreq_monitor_suspend);
@@ -338,7 +338,7 @@ void devfreq_monitor_resume(struct devfreq *devfreq)
 {
 	unsigned long freq;
 
-	mutex_lock(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	if (!devfreq->stop_polling)
 		goto out;
 
@@ -355,7 +355,7 @@ void devfreq_monitor_resume(struct devfreq *devfreq)
 		devfreq->previous_freq = freq;
 
 out:
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 }
 EXPORT_SYMBOL(devfreq_monitor_resume);
 
@@ -372,7 +372,7 @@ void devfreq_interval_update(struct devfreq *devfreq, unsigned int *delay)
 	unsigned int cur_delay = devfreq->profile->polling_ms;
 	unsigned int new_delay = *delay;
 
-	mutex_lock(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	devfreq->profile->polling_ms = new_delay;
 
 	if (devfreq->stop_polling)
@@ -380,7 +380,7 @@ void devfreq_interval_update(struct devfreq *devfreq, unsigned int *delay)
 
 	/* if new delay is zero, stop polling */
 	if (!new_delay) {
-		mutex_unlock(&devfreq->lock);
+		rt_mutex_unlock(&devfreq->lock);
 		cancel_delayed_work_sync(&devfreq->work);
 		return;
 	}
@@ -394,15 +394,15 @@ void devfreq_interval_update(struct devfreq *devfreq, unsigned int *delay)
 
 	/* if current delay is greater than new delay, restart polling */
 	if (cur_delay > new_delay) {
-		mutex_unlock(&devfreq->lock);
+		rt_mutex_unlock(&devfreq->lock);
 		cancel_delayed_work_sync(&devfreq->work);
-		mutex_lock(&devfreq->lock);
+		rt_mutex_lock(&devfreq->lock);
 		if (!devfreq->stop_polling)
 			queue_delayed_work(devfreq_wq, &devfreq->work,
 			      msecs_to_jiffies(devfreq->profile->polling_ms));
 	}
 out:
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 }
 EXPORT_SYMBOL(devfreq_interval_update);
 
@@ -421,9 +421,9 @@ static int devfreq_notifier_call(struct notifier_block *nb, unsigned long type,
 	struct devfreq *devfreq = container_of(nb, struct devfreq, nb);
 	int ret;
 
-	mutex_lock(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	ret = update_devfreq(devfreq);
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 
 	return ret;
 }
@@ -434,14 +434,14 @@ static int devfreq_notifier_call(struct notifier_block *nb, unsigned long type,
  */
 static void _remove_devfreq(struct devfreq *devfreq)
 {
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	if (IS_ERR(find_device_devfreq(devfreq->dev.parent))) {
-		mutex_unlock(&devfreq_list_lock);
+		rt_mutex_unlock(&devfreq_list_lock);
 		dev_warn(&devfreq->dev, "releasing devfreq which doesn't exist\n");
 		return;
 	}
 	list_del(&devfreq->node);
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 
 	if (devfreq->governor)
 		devfreq->governor->event_handler(devfreq,
@@ -450,7 +450,7 @@ static void _remove_devfreq(struct devfreq *devfreq)
 	if (devfreq->profile->exit)
 		devfreq->profile->exit(devfreq->dev.parent);
 
-	mutex_destroy(&devfreq->lock);
+	rt_mutex_destroy(&devfreq->lock);
 	kfree(devfreq);
 }
 
@@ -489,9 +489,9 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	devfreq = find_device_devfreq(dev);
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 	if (!IS_ERR(devfreq)) {
 		dev_err(dev, "%s: Unable to create devfreq for the device. It already has one.\n", __func__);
 		err = -EINVAL;
@@ -506,8 +506,8 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_out;
 	}
 
-	mutex_init(&devfreq->lock);
-	mutex_lock(&devfreq->lock);
+	rt_mutex_init(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	devfreq->dev.parent = dev;
 	devfreq->dev.class = devfreq_class;
 	devfreq->dev.release = devfreq_dev_release;
@@ -531,13 +531,13 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	err = device_register(&devfreq->dev);
 	if (err) {
 		put_device(&devfreq->dev);
-		mutex_unlock(&devfreq->lock);
+		rt_mutex_unlock(&devfreq->lock);
 		goto err_out;
 	}
 
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	list_add(&devfreq->node, &devfreq_list);
 
 	governor = find_devfreq_governor(devfreq->governor_name);
@@ -546,7 +546,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	if (devfreq->governor)
 		err = devfreq->governor->event_handler(devfreq,
 					DEVFREQ_GOV_START, NULL);
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 	if (err) {
 		dev_err(dev, "%s: Unable to start governor for the device\n",
 			__func__);
@@ -708,7 +708,7 @@ int devfreq_add_governor(struct devfreq_governor *governor)
 		return -EINVAL;
 	}
 
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	g = find_devfreq_governor(governor->name);
 	if (!IS_ERR(g)) {
 		pr_err("%s: governor %s already registered\n", __func__,
@@ -752,7 +752,7 @@ int devfreq_add_governor(struct devfreq_governor *governor)
 	}
 
 err_out:
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 
 	return err;
 }
@@ -773,7 +773,7 @@ int devfreq_remove_governor(struct devfreq_governor *governor)
 		return -EINVAL;
 	}
 
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	g = find_devfreq_governor(governor->name);
 	if (IS_ERR(g)) {
 		pr_err("%s: governor %s not registered\n", __func__,
@@ -807,7 +807,7 @@ int devfreq_remove_governor(struct devfreq_governor *governor)
 
 	list_del(&governor->node);
 err_out:
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 
 	return err;
 }
@@ -834,7 +834,7 @@ static ssize_t governor_store(struct device *dev, struct device_attribute *attr,
 	if (ret != 1)
 		return -EINVAL;
 
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	governor = find_devfreq_governor(str_governor);
 	if (IS_ERR(governor)) {
 		ret = PTR_ERR(governor);
@@ -869,7 +869,7 @@ static ssize_t governor_store(struct device *dev, struct device_attribute *attr,
 		}
 	}
 out:
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 
 	if (!ret)
 		ret = count;
@@ -884,11 +884,11 @@ static ssize_t available_governors_show(struct device *d,
 	struct devfreq_governor *tmp_governor;
 	ssize_t count = 0;
 
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	list_for_each_entry(tmp_governor, &devfreq_governor_list, node)
 		count += scnprintf(&buf[count], (PAGE_SIZE - count - 2),
 				   "%s ", tmp_governor->name);
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 
 	/* Truncate the trailing space */
 	if (count)
@@ -965,7 +965,7 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret != 1)
 		return -EINVAL;
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	max = df->max_freq;
 	if (value && max && value > max) {
 		ret = -EINVAL;
@@ -976,7 +976,7 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 	update_devfreq(df);
 	ret = count;
 unlock:
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 	return ret;
 }
 
@@ -998,7 +998,7 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret != 1)
 		return -EINVAL;
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	min = df->min_freq;
 	if (value && min && value < min) {
 		ret = -EINVAL;
@@ -1009,7 +1009,7 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 	update_devfreq(df);
 	ret = count;
 unlock:
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 	return ret;
 }
 static DEVICE_ATTR_RW(min_freq);
@@ -1120,17 +1120,17 @@ static void set_wake_boost(bool enable)
 {
 	struct devfreq *df;
 
-	mutex_lock(&devfreq_list_lock);
+	rt_mutex_lock(&devfreq_list_lock);
 	list_for_each_entry(df, &devfreq_list, node) {
 		if (!df->needs_wake_boost)
 			continue;
 
-		mutex_lock(&df->lock);
+		rt_mutex_lock(&df->lock);
 		df->do_wake_boost = enable;
 		update_devfreq(df);
-		mutex_unlock(&df->lock);
+		rt_mutex_unlock(&df->lock);
 	}
-	mutex_unlock(&devfreq_list_lock);
+	rt_mutex_unlock(&devfreq_list_lock);
 }
 
 static void wake_boost_fn(struct work_struct *work)

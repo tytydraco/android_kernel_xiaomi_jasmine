@@ -44,10 +44,10 @@ struct memlat_node {
 };
 
 static LIST_HEAD(memlat_list);
-static DEFINE_MUTEX(list_lock);
+static DEFINE_RT_MUTEX(list_lock);
 
 static int use_cnt;
-static DEFINE_MUTEX(state_lock);
+static DEFINE_RT_MUTEX(state_lock);
 
 #define show_attr(name) \
 static ssize_t show_##name(struct device *dev,				\
@@ -129,14 +129,14 @@ static struct memlat_node *find_memlat_node(struct devfreq *df)
 {
 	struct memlat_node *node, *found = NULL;
 
-	mutex_lock(&list_lock);
+	rt_mutex_lock(&list_lock);
 	list_for_each_entry(node, &memlat_list, list)
 		if (node->hw->dev == df->dev.parent ||
 		    node->hw->of_node == df->dev.parent->of_node) {
 			found = node;
 			break;
 		}
-	mutex_unlock(&list_lock);
+	rt_mutex_unlock(&list_lock);
 
 	return found;
 }
@@ -391,16 +391,16 @@ int register_memlat(struct device *dev, struct memlat_hwmon *hw)
 		return -EINVAL;
 	}
 
-	mutex_lock(&list_lock);
+	rt_mutex_lock(&list_lock);
 	list_add_tail(&node->list, &memlat_list);
-	mutex_unlock(&list_lock);
+	rt_mutex_unlock(&list_lock);
 
-	mutex_lock(&state_lock);
+	rt_mutex_lock(&state_lock);
 	if (!use_cnt)
 		ret = devfreq_add_governor(&devfreq_gov_memlat);
 	if (!ret)
 		use_cnt++;
-	mutex_unlock(&state_lock);
+	rt_mutex_unlock(&state_lock);
 
 	if (!ret)
 		dev_info(dev, "Memory Latency governor registered.\n");

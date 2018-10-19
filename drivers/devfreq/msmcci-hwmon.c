@@ -63,7 +63,7 @@ struct msmcci_hwmon {
 	 * Multiple interrupts might fire together for one device.
 	 * In that case, only one re-evaluation needs to be done.
 	 */
-	struct mutex update_lock;
+	struct rt_mutex update_lock;
 
 	/* For counter state save and restore */
 	unsigned long cur_limit[MAX_NUM_GROUPS];
@@ -79,10 +79,10 @@ struct msmcci_hwmon {
 #define to_mon(ptr) container_of(ptr, struct msmcci_hwmon, hw)
 
 static LIST_HEAD(msmcci_hwmon_list);
-static DEFINE_MUTEX(list_lock);
+static DEFINE_RT_MUTEX(list_lock);
 
 static int use_cnt;
-static DEFINE_MUTEX(notifier_reg_lock);
+static DEFINE_RT_MUTEX(notifier_reg_lock);
 
 static inline int write_mon_reg(struct msmcci_hwmon *m, int idx,
 				unsigned long offset, u32 value)
@@ -200,10 +200,10 @@ static irqreturn_t msmcci_hwmon_intr_handler(int irq, void *dev)
 	 * flags for all counters, interrupts for other counters can
 	 * simply return if their match flags have already been cleared.
 	 */
-	mutex_lock(&m->update_lock);
+	rt_mutex_lock(&m->update_lock);
 	if (mon_is_match_flag_set(m, idx))
 		update_cache_hwmon(&m->hw);
-	mutex_unlock(&m->update_lock);
+	rt_mutex_unlock(&m->update_lock);
 	return IRQ_HANDLED;
 }
 
@@ -375,28 +375,28 @@ static int register_pm_notifier(struct msmcci_hwmon *m)
 {
 	int ret;
 
-	mutex_lock(&notifier_reg_lock);
+	rt_mutex_lock(&notifier_reg_lock);
 	if (!use_cnt) {
 		ret = cpu_pm_register_notifier(&pm_notifier_block);
 		if (ret) {
 			dev_err(m->dev, "Failed to register for PM notification\n");
-			mutex_unlock(&notifier_reg_lock);
+			rt_mutex_unlock(&notifier_reg_lock);
 			return ret;
 		}
 	}
 	use_cnt++;
-	mutex_unlock(&notifier_reg_lock);
+	rt_mutex_unlock(&notifier_reg_lock);
 
 	return 0;
 }
 
 static void unregister_pm_nofitifier(void)
 {
-	mutex_lock(&notifier_reg_lock);
+	rt_mutex_lock(&notifier_reg_lock);
 	use_cnt--;
 	if (!use_cnt)
 		cpu_pm_unregister_notifier(&pm_notifier_block);
-	mutex_unlock(&notifier_reg_lock);
+	rt_mutex_unlock(&notifier_reg_lock);
 }
 
 static int request_shared_interrupt(struct msmcci_hwmon *m)
@@ -571,7 +571,7 @@ static int msmcci_hwmon_driver_probe(struct platform_device *pdev)
 	m->hw.start_hwmon = &start_hwmon;
 	m->hw.stop_hwmon = &stop_hwmon;
 	m->hw.meas_mrps_and_set_irq = &meas_mrps_and_set_irq;
-	mutex_init(&m->update_lock);
+	rt_mutex_init(&m->update_lock);
 
 	/*
 	 * This tests whether secure IO for monitor registers
@@ -589,9 +589,9 @@ static int msmcci_hwmon_driver_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mutex_lock(&list_lock);
+	rt_mutex_lock(&list_lock);
 	list_add_tail(&m->list, &msmcci_hwmon_list);
-	mutex_unlock(&list_lock);
+	rt_mutex_unlock(&list_lock);
 
 	dev_info(dev, "MSMCCI cache hwmon registered\n");
 	return 0;

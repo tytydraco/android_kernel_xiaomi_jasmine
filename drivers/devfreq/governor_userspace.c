@@ -52,7 +52,7 @@ static ssize_t store_freq(struct device *dev, struct device_attribute *attr,
 	int err = 0;
 
 
-	mutex_lock(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	data = devfreq->data;
 
 	sscanf(buf, "%lu", &wanted);
@@ -61,7 +61,7 @@ static ssize_t store_freq(struct device *dev, struct device_attribute *attr,
 	err = update_devfreq(devfreq);
 	if (err == 0)
 		err = count;
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 	return err;
 }
 
@@ -72,14 +72,14 @@ static ssize_t show_freq(struct device *dev, struct device_attribute *attr,
 	struct userspace_data *data;
 	int err = 0;
 
-	mutex_lock(&devfreq->lock);
+	rt_mutex_lock(&devfreq->lock);
 	data = devfreq->data;
 
 	if (data->valid)
 		err = sprintf(buf, "%lu\n", data->user_frequency);
 	else
 		err = sprintf(buf, "undefined\n");
-	mutex_unlock(&devfreq->lock);
+	rt_mutex_unlock(&devfreq->lock);
 	return err;
 }
 

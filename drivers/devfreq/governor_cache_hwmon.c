@@ -51,12 +51,12 @@ struct cache_hwmon_node {
 };
 
 static LIST_HEAD(cache_hwmon_list);
-static DEFINE_MUTEX(list_lock);
+static DEFINE_RT_MUTEX(list_lock);
 
 static int use_cnt;
-static DEFINE_MUTEX(register_lock);
+static DEFINE_RT_MUTEX(register_lock);
 
-static DEFINE_MUTEX(monitor_lock);
+static DEFINE_RT_MUTEX(monitor_lock);
 
 #define show_attr(name) \
 static ssize_t show_##name(struct device *dev,				\
@@ -97,14 +97,14 @@ static struct cache_hwmon_node *find_hwmon_node(struct devfreq *df)
 {
 	struct cache_hwmon_node *node, *found = NULL;
 
-	mutex_lock(&list_lock);
+	rt_mutex_lock(&list_lock);
 	list_for_each_entry(node, &cache_hwmon_list, list)
 		if (node->hw->dev == df->dev.parent ||
 		    node->hw->of_node == df->dev.parent->of_node) {
 			found = node;
 			break;
 		}
-	mutex_unlock(&list_lock);
+	rt_mutex_unlock(&list_lock);
 
 	return found;
 }
@@ -187,9 +187,9 @@ int update_cache_hwmon(struct cache_hwmon *hwmon)
 	if (!node)
 		return -ENODEV;
 
-	mutex_lock(&monitor_lock);
+	rt_mutex_lock(&monitor_lock);
 	if (!node->mon_started) {
-		mutex_unlock(&monitor_lock);
+		rt_mutex_unlock(&monitor_lock);
 		return -EBUSY;
 	}
 
@@ -211,17 +211,17 @@ int update_cache_hwmon(struct cache_hwmon *hwmon)
 	ts = ktime_get();
 	us = ktime_to_us(ktime_sub(ts, node->prev_ts));
 	if (us > TOO_SOON_US) {
-		mutex_lock(&df->lock);
+		rt_mutex_lock(&df->lock);
 		ret = update_devfreq(df);
 		if (ret)
 			dev_err(df->dev.parent,
 				"Unable to update freq on request!\n");
-		mutex_unlock(&df->lock);
+		rt_mutex_unlock(&df->lock);
 	}
 
 	devfreq_monitor_start(df);
 
-	mutex_unlock(&monitor_lock);
+	rt_mutex_unlock(&monitor_lock);
 	return 0;
 }
 
@@ -295,10 +295,10 @@ static int start_monitoring(struct devfreq *df)
 		goto err_start;
 	}
 
-	mutex_lock(&monitor_lock);
+	rt_mutex_lock(&monitor_lock);
 	devfreq_monitor_start(df);
 	node->mon_started = true;
-	mutex_unlock(&monitor_lock);
+	rt_mutex_unlock(&monitor_lock);
 
 	ret = sysfs_create_group(&df->dev.kobj, &dev_attr_group);
 	if (ret) {
@@ -309,10 +309,10 @@ static int start_monitoring(struct devfreq *df)
 	return 0;
 
 sysfs_fail:
-	mutex_lock(&monitor_lock);
+	rt_mutex_lock(&monitor_lock);
 	node->mon_started = false;
 	devfreq_monitor_stop(df);
-	mutex_unlock(&monitor_lock);
+	rt_mutex_unlock(&monitor_lock);
 	hw->stop_hwmon(hw);
 err_start:
 	df->data = node->orig_data;
@@ -327,10 +327,10 @@ static void stop_monitoring(struct devfreq *df)
 	struct cache_hwmon *hw = node->hw;
 
 	sysfs_remove_group(&df->dev.kobj, &dev_attr_group);
-	mutex_lock(&monitor_lock);
+	rt_mutex_lock(&monitor_lock);
 	node->mon_started = false;
 	devfreq_monitor_stop(df);
-	mutex_unlock(&monitor_lock);
+	rt_mutex_unlock(&monitor_lock);
 	hw->stop_hwmon(hw);
 	df->data = node->orig_data;
 	node->orig_data = NULL;
@@ -403,13 +403,13 @@ int register_cache_hwmon(struct device *dev, struct cache_hwmon *hwmon)
 	node->hw = hwmon;
 	node->attr_grp = &dev_attr_group;
 
-	mutex_lock(&register_lock);
+	rt_mutex_lock(&register_lock);
 	if (!use_cnt) {
 		ret = devfreq_add_governor(&devfreq_cache_hwmon);
 		if (!ret)
 			use_cnt++;
 	}
-	mutex_unlock(&register_lock);
+	rt_mutex_unlock(&register_lock);
 
 	if (!ret) {
 		dev_info(dev, "Cache HWmon governor registered.\n");
@@ -418,9 +418,9 @@ int register_cache_hwmon(struct device *dev, struct cache_hwmon *hwmon)
 		return ret;
 	}
 
-	mutex_lock(&list_lock);
+	rt_mutex_lock(&list_lock);
 	list_add_tail(&node->list, &cache_hwmon_list);
-	mutex_unlock(&list_lock);
+	rt_mutex_unlock(&list_lock);
 
 	return ret;
 }

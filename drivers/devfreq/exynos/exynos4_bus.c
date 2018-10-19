@@ -81,7 +81,7 @@ struct busfreq_data {
 	struct busfreq_ppmu_data ppmu_data;
 
 	struct notifier_block pm_notifier;
-	struct mutex lock;
+	struct rt_mutex lock;
 
 	/* Dividers calculated at boot/probe-time */
 	unsigned int dmc_divtable[_LV_END]; /* DMC0 */
@@ -590,7 +590,7 @@ static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
 
 	dev_dbg(dev, "targeting %lukHz %luuV\n", freq, new_oppinfo.volt);
 
-	mutex_lock(&data->lock);
+	rt_mutex_lock(&data->lock);
 
 	if (data->disabled)
 		goto out;
@@ -624,7 +624,7 @@ static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
 
 	data->curr_oppinfo = new_oppinfo;
 out:
-	mutex_unlock(&data->lock);
+	rt_mutex_unlock(&data->lock);
 	return err;
 }
 
@@ -841,7 +841,7 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		/* Set Fastest and Deactivate DVFS */
-		mutex_lock(&data->lock);
+		rt_mutex_lock(&data->lock);
 
 		data->disabled = true;
 
@@ -851,7 +851,7 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 			rcu_read_unlock();
 			dev_err(data->dev, "%s: unable to find a min freq\n",
 				__func__);
-			mutex_unlock(&data->lock);
+			rt_mutex_unlock(&data->lock);
 			return PTR_ERR(opp);
 		}
 		new_oppinfo.rate = dev_pm_opp_get_freq(opp);
@@ -878,16 +878,16 @@ static int exynos4_busfreq_pm_notifier_event(struct notifier_block *this,
 
 		data->curr_oppinfo = new_oppinfo;
 unlock:
-		mutex_unlock(&data->lock);
+		rt_mutex_unlock(&data->lock);
 		if (err)
 			return err;
 		return NOTIFY_OK;
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
 		/* Reactivate */
-		mutex_lock(&data->lock);
+		rt_mutex_lock(&data->lock);
 		data->disabled = false;
-		mutex_unlock(&data->lock);
+		rt_mutex_unlock(&data->lock);
 		return NOTIFY_OK;
 	}
 
@@ -923,7 +923,7 @@ static int exynos4_busfreq_probe(struct platform_device *pdev)
 	ppmu_data->ppmu[PPMU_DMC1].hw_base = S5P_VA_DMC1;
 	data->pm_notifier.notifier_call = exynos4_busfreq_pm_notifier_event;
 	data->dev = dev;
-	mutex_init(&data->lock);
+	rt_mutex_init(&data->lock);
 
 	switch (data->type) {
 	case TYPE_BUSF_EXYNOS4210:

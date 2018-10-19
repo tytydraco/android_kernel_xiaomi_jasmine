@@ -54,7 +54,7 @@ struct sysmon_subsys {
 	void			*glink_handle;
 	int			intent_count;
 	struct completion	resp_ready;
-	struct mutex		lock;
+	struct rt_mutex		lock;
 	struct workqueue_struct *glink_event_wq;
 	struct work_struct	work;
 	struct list_head	list;
@@ -68,7 +68,7 @@ static const char *notif_name[SUBSYS_NOTIF_TYPE_COUNT] = {
 };
 
 static LIST_HEAD(sysmon_glink_list);
-static DEFINE_MUTEX(sysmon_glink_list_lock);
+static DEFINE_RT_MUTEX(sysmon_glink_list_lock);
 
 static struct sysmon_subsys *_find_subsys(struct subsys_desc *desc)
 {
@@ -77,14 +77,14 @@ static struct sysmon_subsys *_find_subsys(struct subsys_desc *desc)
 	if (desc == NULL)
 		return NULL;
 
-	mutex_lock(&sysmon_glink_list_lock);
+	rt_mutex_lock(&sysmon_glink_list_lock);
 	list_for_each_entry(ss, &sysmon_glink_list, list) {
 		if (!strcmp(ss->name, desc->name)) {
-			mutex_unlock(&sysmon_glink_list_lock);
+			rt_mutex_unlock(&sysmon_glink_list_lock);
 			return ss;
 		}
 	}
-	mutex_unlock(&sysmon_glink_list_lock);
+	rt_mutex_unlock(&sysmon_glink_list_lock);
 
 	return NULL;
 }
@@ -168,21 +168,21 @@ int sysmon_send_event_no_qmi(struct subsys_desc *dest_desc,
 	snprintf(tx_buf, sizeof(tx_buf), "ssr:%s:%s", event_desc->name,
 		 notif_name[notif]);
 
-	mutex_lock(&ss->lock);
+	rt_mutex_lock(&ss->lock);
 	ret = sysmon_send_msg(ss, tx_buf, strlen(tx_buf));
 	if (ret < 0) {
-		mutex_unlock(&ss->lock);
+		rt_mutex_unlock(&ss->lock);
 		pr_err("Message sending failed %d\n", ret);
 		goto out;
 	}
 
 	if (strcmp(ss->rx_buf, "ssr:ack")) {
-		mutex_unlock(&ss->lock);
+		rt_mutex_unlock(&ss->lock);
 		pr_debug("Unexpected response %s\n", ss->rx_buf);
 		ret = -ENOSYS;
 		goto out;
 	}
-	mutex_unlock(&ss->lock);
+	rt_mutex_unlock(&ss->lock);
 out:
 	return ret;
 }
@@ -210,21 +210,21 @@ int sysmon_send_shutdown_no_qmi(struct subsys_desc *dest_desc)
 	if (ss == NULL)
 		return -EINVAL;
 
-	mutex_lock(&ss->lock);
+	rt_mutex_lock(&ss->lock);
 	ret = sysmon_send_msg(ss, tx_buf, sizeof(tx_buf));
 	if (ret < 0) {
-		mutex_unlock(&ss->lock);
+		rt_mutex_unlock(&ss->lock);
 		pr_err("Message sending failed %d\n", ret);
 		goto out;
 	}
 
 	if (strcmp(ss->rx_buf, expect)) {
-		mutex_unlock(&ss->lock);
+		rt_mutex_unlock(&ss->lock);
 		pr_err("Unexpected response %s\n", ss->rx_buf);
 		ret = -ENOSYS;
 		goto out;
 	}
-	mutex_unlock(&ss->lock);
+	rt_mutex_unlock(&ss->lock);
 out:
 	return ret;
 }
@@ -256,22 +256,22 @@ int sysmon_get_reason_no_qmi(struct subsys_desc *dest_desc,
 	if (ss == NULL || buf == NULL || len == 0)
 		return -EINVAL;
 
-	mutex_lock(&ss->lock);
+	rt_mutex_lock(&ss->lock);
 	ret = sysmon_send_msg(ss, tx_buf, sizeof(tx_buf));
 	if (ret < 0) {
-		mutex_unlock(&ss->lock);
+		rt_mutex_unlock(&ss->lock);
 		pr_err("Message sending failed %d\n", ret);
 		goto out;
 	}
 
 	if (strncmp(ss->rx_buf, expect, prefix_len)) {
-		mutex_unlock(&ss->lock);
+		rt_mutex_unlock(&ss->lock);
 		pr_err("Unexpected response %s\n", ss->rx_buf);
 		ret = -ENOSYS;
 		goto out;
 	}
 	strlcpy(buf, ss->rx_buf + prefix_len, len);
-	mutex_unlock(&ss->lock);
+	rt_mutex_unlock(&ss->lock);
 out:
 	return ret;
 }
@@ -317,7 +317,7 @@ static void glink_notify_state(void *handle, const void *priv, unsigned event)
 		return;
 	}
 
-	mutex_lock(&ss->lock);
+	rt_mutex_lock(&ss->lock);
 	ss->event = event;
 	switch (event) {
 	case GLINK_CONNECTED:
@@ -329,7 +329,7 @@ static void glink_notify_state(void *handle, const void *priv, unsigned event)
 	default:
 		break;
 	}
-	mutex_unlock(&ss->lock);
+	rt_mutex_unlock(&ss->lock);
 }
 
 static void glink_state_up_work_hdlr(struct work_struct *work)
@@ -382,7 +382,7 @@ static void sysmon_glink_cb(struct glink_link_state_cb_info *cb_info,
 		return;
 	}
 
-	mutex_lock(&ss->lock);
+	rt_mutex_lock(&ss->lock);
 	switch (cb_info->link_state) {
 	case GLINK_LINK_STATE_UP:
 		pr_debug("LINK UP %s\n", ss->edge);
@@ -398,7 +398,7 @@ static void sysmon_glink_cb(struct glink_link_state_cb_info *cb_info,
 		pr_warn("Invalid event notification\n");
 		break;
 	}
-	mutex_unlock(&ss->lock);
+	rt_mutex_unlock(&ss->lock);
 }
 
 int sysmon_glink_register(struct subsys_desc *desc)
@@ -426,7 +426,7 @@ int sysmon_glink_register(struct subsys_desc *desc)
 		ret = -ENOMEM;
 		goto err_wq;
 	}
-	mutex_init(&ss->lock);
+	rt_mutex_init(&ss->lock);
 
 	ss->name = desc->name;
 	ss->handle = NULL;
@@ -444,10 +444,10 @@ int sysmon_glink_register(struct subsys_desc *desc)
 		goto err;
 	}
 
-	mutex_lock(&sysmon_glink_list_lock);
+	rt_mutex_lock(&sysmon_glink_list_lock);
 	INIT_LIST_HEAD(&ss->list);
 	list_add_tail(&ss->list, &sysmon_glink_list);
-	mutex_unlock(&sysmon_glink_list_lock);
+	rt_mutex_unlock(&sysmon_glink_list_lock);
 	return 0;
 err:
 	destroy_workqueue(ss->glink_event_wq);

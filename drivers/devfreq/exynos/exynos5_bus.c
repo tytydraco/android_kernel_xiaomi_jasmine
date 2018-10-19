@@ -55,7 +55,7 @@ struct busfreq_data_int {
 	bool disabled;
 
 	struct notifier_block pm_notifier;
-	struct mutex lock;
+	struct rt_mutex lock;
 	struct pm_qos_request int_req;
 	struct clk *int_clk;
 };
@@ -111,7 +111,7 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 
 	dev_dbg(dev, "targeting %lukHz %luuV\n", freq, volt);
 
-	mutex_lock(&data->lock);
+	rt_mutex_lock(&data->lock);
 
 	if (data->disabled)
 		goto out;
@@ -138,7 +138,7 @@ static int exynos5_busfreq_int_target(struct device *dev, unsigned long *_freq,
 
 	data->curr_freq = freq;
 out:
-	mutex_unlock(&data->lock);
+	rt_mutex_unlock(&data->lock);
 	return err;
 }
 
@@ -201,7 +201,7 @@ static int exynos5_busfreq_int_pm_notifier_event(struct notifier_block *this,
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
 		/* Set Fastest and Deactivate DVFS */
-		mutex_lock(&data->lock);
+		rt_mutex_lock(&data->lock);
 
 		data->disabled = true;
 
@@ -227,16 +227,16 @@ static int exynos5_busfreq_int_pm_notifier_event(struct notifier_block *this,
 
 		data->curr_freq = freq;
 unlock:
-		mutex_unlock(&data->lock);
+		rt_mutex_unlock(&data->lock);
 		if (err)
 			return NOTIFY_BAD;
 		return NOTIFY_OK;
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
 		/* Reactivate */
-		mutex_lock(&data->lock);
+		rt_mutex_lock(&data->lock);
 		data->disabled = false;
-		mutex_unlock(&data->lock);
+		rt_mutex_unlock(&data->lock);
 		return NOTIFY_OK;
 	}
 
@@ -288,7 +288,7 @@ static int exynos5_busfreq_int_probe(struct platform_device *pdev)
 	}
 	data->pm_notifier.notifier_call = exynos5_busfreq_int_pm_notifier_event;
 	data->dev = dev;
-	mutex_init(&data->lock);
+	rt_mutex_init(&data->lock);
 
 	err = exynos5250_init_int_tables(data);
 	if (err)

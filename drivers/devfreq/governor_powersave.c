@@ -31,9 +31,9 @@ static int devfreq_powersave_handler(struct devfreq *devfreq,
 	int ret = 0;
 
 	if (event == DEVFREQ_GOV_START || event == DEVFREQ_GOV_RESUME) {
-		mutex_lock(&devfreq->lock);
+		rt_mutex_lock(&devfreq->lock);
 		ret = update_devfreq(devfreq);
-		mutex_unlock(&devfreq->lock);
+		rt_mutex_unlock(&devfreq->lock);
 	}
 
 	return ret;

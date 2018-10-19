@@ -24,7 +24,7 @@ static struct class *devfreq_event_class;
 
 /* The list of all devfreq event list */
 static LIST_HEAD(devfreq_event_list);
-static DEFINE_MUTEX(devfreq_event_list_lock);
+static DEFINE_RT_MUTEX(devfreq_event_list_lock);
 
 #define to_devfreq_event(DEV) container_of(DEV, struct devfreq_event_dev, dev)
 
@@ -44,7 +44,7 @@ int devfreq_event_enable_edev(struct devfreq_event_dev *edev)
 	if (!edev || !edev->desc)
 		return -EINVAL;
 
-	mutex_lock(&edev->lock);
+	rt_mutex_lock(&edev->lock);
 	if (edev->desc->ops && edev->desc->ops->enable
 			&& edev->enable_count == 0) {
 		ret = edev->desc->ops->enable(edev);
@@ -53,7 +53,7 @@ int devfreq_event_enable_edev(struct devfreq_event_dev *edev)
 	}
 	edev->enable_count++;
 err:
-	mutex_unlock(&edev->lock);
+	rt_mutex_unlock(&edev->lock);
 
 	return ret;
 }
@@ -76,7 +76,7 @@ int devfreq_event_disable_edev(struct devfreq_event_dev *edev)
 	if (!edev || !edev->desc)
 		return -EINVAL;
 
-	mutex_lock(&edev->lock);
+	rt_mutex_lock(&edev->lock);
 	if (edev->enable_count <= 0) {
 		dev_warn(&edev->dev, "unbalanced enable_count\n");
 		ret = -EIO;
@@ -91,7 +91,7 @@ int devfreq_event_disable_edev(struct devfreq_event_dev *edev)
 	}
 	edev->enable_count--;
 err:
-	mutex_unlock(&edev->lock);
+	rt_mutex_unlock(&edev->lock);
 
 	return ret;
 }
@@ -113,12 +113,12 @@ bool devfreq_event_is_enabled(struct devfreq_event_dev *edev)
 	if (!edev || !edev->desc)
 		return enabled;
 
-	mutex_lock(&edev->lock);
+	rt_mutex_lock(&edev->lock);
 
 	if (edev->enable_count > 0)
 		enabled = true;
 
-	mutex_unlock(&edev->lock);
+	rt_mutex_unlock(&edev->lock);
 
 	return enabled;
 }
@@ -144,9 +144,9 @@ int devfreq_event_set_event(struct devfreq_event_dev *edev)
 	if (!devfreq_event_is_enabled(edev))
 		return -EPERM;
 
-	mutex_lock(&edev->lock);
+	rt_mutex_lock(&edev->lock);
 	ret = edev->desc->ops->set_event(edev);
-	mutex_unlock(&edev->lock);
+	rt_mutex_unlock(&edev->lock);
 
 	return ret;
 }
@@ -176,11 +176,11 @@ int devfreq_event_get_event(struct devfreq_event_dev *edev,
 
 	edata->total_count = edata->load_count = 0;
 
-	mutex_lock(&edev->lock);
+	rt_mutex_lock(&edev->lock);
 	ret = edev->desc->ops->get_event(edev, edata);
 	if (ret < 0)
 		edata->total_count = edata->load_count = 0;
-	mutex_unlock(&edev->lock);
+	rt_mutex_unlock(&edev->lock);
 
 	return ret;
 }
@@ -203,10 +203,10 @@ int devfreq_event_reset_event(struct devfreq_event_dev *edev)
 	if (!devfreq_event_is_enabled(edev))
 		return -EPERM;
 
-	mutex_lock(&edev->lock);
+	rt_mutex_lock(&edev->lock);
 	if (edev->desc->ops && edev->desc->ops->reset)
 		ret = edev->desc->ops->reset(edev);
-	mutex_unlock(&edev->lock);
+	rt_mutex_unlock(&edev->lock);
 
 	return ret;
 }
@@ -238,14 +238,14 @@ struct devfreq_event_dev *devfreq_event_get_edev_by_phandle(struct device *dev,
 		return ERR_PTR(-ENODEV);
 	}
 
-	mutex_lock(&devfreq_event_list_lock);
+	rt_mutex_lock(&devfreq_event_list_lock);
 	list_for_each_entry(edev, &devfreq_event_list, node) {
 		if (!strcmp(edev->desc->name, node->name))
 			goto out;
 	}
 	edev = NULL;
 out:
-	mutex_unlock(&devfreq_event_list_lock);
+	rt_mutex_unlock(&devfreq_event_list_lock);
 
 	if (!edev) {
 		dev_err(dev, "unable to get devfreq-event device : %s\n",
@@ -324,7 +324,7 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 	if (!edev)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&edev->lock);
+	rt_mutex_init(&edev->lock);
 	edev->desc = desc;
 	edev->enable_count = 0;
 	edev->dev.parent = dev;
@@ -341,9 +341,9 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 
 	INIT_LIST_HEAD(&edev->node);
 
-	mutex_lock(&devfreq_event_list_lock);
+	rt_mutex_lock(&devfreq_event_list_lock);
 	list_add(&edev->node, &devfreq_event_list);
-	mutex_unlock(&devfreq_event_list_lock);
+	rt_mutex_unlock(&devfreq_event_list_lock);
 
 	return edev;
 }
@@ -362,9 +362,9 @@ int devfreq_event_remove_edev(struct devfreq_event_dev *edev)
 
 	WARN_ON(edev->enable_count);
 
-	mutex_lock(&devfreq_event_list_lock);
+	rt_mutex_lock(&devfreq_event_list_lock);
 	list_del(&edev->node);
-	mutex_unlock(&devfreq_event_list_lock);
+	rt_mutex_unlock(&devfreq_event_list_lock);
 
 	device_unregister(&edev->dev);
 

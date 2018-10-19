@@ -32,7 +32,7 @@ enum msm_spdm_rt_res {
 };
 
 static LIST_HEAD(devfreqs);
-static DEFINE_MUTEX(devfreqs_lock);
+static DEFINE_RT_MUTEX(devfreqs_lock);
 
 static int enable_clocks(void)
 {
@@ -82,7 +82,7 @@ static irqreturn_t threaded_isr(int irq, void *dev_id)
 	if (ext_status)
 		pr_err("External command %u failed with error %u",
 			(int)desc.arg[0], ext_status);
-	mutex_lock(&devfreqs_lock);
+	rt_mutex_lock(&devfreqs_lock);
 	list_for_each_entry(data, &devfreqs, list) {
 		if (data == NULL || data->devfreq == NULL) {
 			pr_err("Spurious interrupts\n");
@@ -90,18 +90,18 @@ static irqreturn_t threaded_isr(int irq, void *dev_id)
 		}
 		if (data->spdm_client == desc.ret[0]) {
 			devfreq_monitor_suspend(data->devfreq);
-			mutex_lock(&data->devfreq->lock);
+			rt_mutex_lock(&data->devfreq->lock);
 			data->action = SPDM_UP;
 			data->new_bw =
 				(desc.ret[1] * 1000) >> 6;
 			update_devfreq(data->devfreq);
 			data->action = SPDM_DOWN;
-			mutex_unlock(&data->devfreq->lock);
+			rt_mutex_unlock(&data->devfreq->lock);
 			devfreq_monitor_resume(data->devfreq);
 			break;
 		}
 	}
-	mutex_unlock(&devfreqs_lock);
+	rt_mutex_unlock(&devfreqs_lock);
 	return IRQ_HANDLED;
 }
 
@@ -157,9 +157,9 @@ static int gov_spdm_hyp_eh(struct devfreq *devfreq, unsigned int event,
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
-		mutex_lock(&devfreqs_lock);
+		rt_mutex_lock(&devfreqs_lock);
 		list_add(&spdm_data->list, &devfreqs);
-		mutex_unlock(&devfreqs_lock);
+		rt_mutex_unlock(&devfreqs_lock);
 		/* call hyp with config data */
 		desc.arg[0] = SPDM_CMD_CFG_PORTS;
 		desc.arg[1] = spdm_data->spdm_client;
@@ -293,14 +293,14 @@ static int gov_spdm_hyp_eh(struct devfreq *devfreq, unsigned int event,
 		if (ext_status) {
 			pr_err("External command %u failed with error %u",
 				(int)desc.arg[0], ext_status);
-			mutex_lock(&devfreqs_lock);
+			rt_mutex_lock(&devfreqs_lock);
 			/*
 			 * the spdm device probe will fail so remove it from
 			 * the list  to prevent accessing a deleted pointer in
 			 * the future
 			 * */
 			list_del(&spdm_data->list);
-			mutex_unlock(&devfreqs_lock);
+			rt_mutex_unlock(&devfreqs_lock);
 			return -EINVAL;
 		}
 		spdm_data->enabled = true;
@@ -310,9 +310,9 @@ static int gov_spdm_hyp_eh(struct devfreq *devfreq, unsigned int event,
 	case DEVFREQ_GOV_STOP:
 		devfreq_monitor_stop(devfreq);
 		/* find devfreq in list and remove it */
-		mutex_lock(&devfreqs_lock);
+		rt_mutex_lock(&devfreqs_lock);
 		list_del(&spdm_data->list);
-		mutex_unlock(&devfreqs_lock);
+		rt_mutex_unlock(&devfreqs_lock);
 
 		/* call hypvervisor to disable */
 		desc.arg[0] = SPDM_CMD_DISABLE;

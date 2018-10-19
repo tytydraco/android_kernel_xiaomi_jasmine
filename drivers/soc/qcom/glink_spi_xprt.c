@@ -164,7 +164,7 @@ struct edge_info {
 	struct task_struct *task;
 	struct srcu_struct use_ref;
 	bool in_ssr;
-	struct mutex write_lock;
+	struct rt_mutex write_lock;
 	wait_queue_head_t tx_blocked_queue;
 	bool tx_resume_needed;
 	bool tx_blocked_signal_sent;
@@ -606,25 +606,25 @@ static int glink_spi_xprt_tx_cmd(struct edge_info *einfo, void *src,
 	int ret;
 	DEFINE_WAIT(wait);
 
-	mutex_lock(&einfo->write_lock);
+	rt_mutex_lock(&einfo->write_lock);
 	while (glink_spi_xprt_write_avail(einfo) < size) {
 		send_tx_blocked_signal(einfo);
 		prepare_to_wait(&einfo->tx_blocked_queue, &wait,
 				TASK_UNINTERRUPTIBLE);
 		if (glink_spi_xprt_write_avail(einfo) < size &&
 		    !einfo->in_ssr) {
-			mutex_unlock(&einfo->write_lock);
+			rt_mutex_unlock(&einfo->write_lock);
 			schedule();
-			mutex_lock(&einfo->write_lock);
+			rt_mutex_lock(&einfo->write_lock);
 		}
 		finish_wait(&einfo->tx_blocked_queue, &wait);
 		if (einfo->in_ssr) {
-			mutex_unlock(&einfo->write_lock);
+			rt_mutex_unlock(&einfo->write_lock);
 			return -EFAULT;
 		}
 	}
 	ret = glink_spi_xprt_tx_cmd_safe(einfo, src, size);
-	mutex_unlock(&einfo->write_lock);
+	rt_mutex_unlock(&einfo->write_lock);
 	return ret;
 }
 
@@ -898,12 +898,12 @@ static void __rx_worker(struct edge_info *einfo)
 			einfo->xprt_if.glink_core_if_ptr->tx_resume(
 							&einfo->xprt_if);
 		}
-		mutex_lock(&einfo->write_lock);
+		rt_mutex_lock(&einfo->write_lock);
 		if (einfo->tx_blocked_signal_sent) {
 			wake_up_all(&einfo->tx_blocked_queue);
 			einfo->tx_blocked_signal_sent = false;
 		}
-		mutex_unlock(&einfo->write_lock);
+		rt_mutex_unlock(&einfo->write_lock);
 
 		rx_avail = glink_spi_xprt_read_avail(einfo);
 		if (!rx_avail) {
@@ -1581,12 +1581,12 @@ static int tx_data(struct glink_transport_if *if_ptr, uint16_t cmd_id,
 	if (likely(pctx->cookie))
 		dst = pctx->cookie + (pctx->size - pctx->size_remaining);
 
-	mutex_lock(&einfo->write_lock);
+	rt_mutex_lock(&einfo->write_lock);
 	size = glink_spi_xprt_write_avail(einfo);
 	/* Need enough space to write the command */
 	if (size <= sizeof(cmd)) {
 		einfo->tx_resume_needed = true;
-		mutex_unlock(&einfo->write_lock);
+		rt_mutex_unlock(&einfo->write_lock);
 		srcu_read_unlock(&einfo->use_ref, rcu_id);
 		return -EAGAIN;
 	}
@@ -1604,7 +1604,7 @@ static int tx_data(struct glink_transport_if *if_ptr, uint16_t cmd_id,
 	GLINK_DBG("%s %s: lcid[%u] riid[%u] cmd[%d], size[%d], size_left[%d]\n",
 		  "<SPI>", __func__, cmd.lcid, cmd.riid, cmd.id, cmd.size,
 		  cmd.size_left);
-	mutex_unlock(&einfo->write_lock);
+	rt_mutex_unlock(&einfo->write_lock);
 	srcu_read_unlock(&einfo->use_ref, rcu_id);
 	return cmd.size;
 }
@@ -1665,12 +1665,12 @@ static int tx_short_data(struct glink_transport_if *if_ptr,
 		return -EINVAL;
 	}
 
-	mutex_lock(&einfo->write_lock);
+	rt_mutex_lock(&einfo->write_lock);
 	size = glink_spi_xprt_write_avail(einfo);
 	/* Need enough space to write the command */
 	if (size <= sizeof(cmd)) {
 		einfo->tx_resume_needed = true;
-		mutex_unlock(&einfo->write_lock);
+		rt_mutex_unlock(&einfo->write_lock);
 		srcu_read_unlock(&einfo->use_ref, rcu_id);
 		return -EAGAIN;
 	}
@@ -1684,7 +1684,7 @@ static int tx_short_data(struct glink_transport_if *if_ptr,
 	GLINK_DBG("%s %s: lcid[%u] riid[%u] cmd[%d], size[%d], size_left[%d]\n",
 		  "<SPI>", __func__, cmd.lcid, cmd.riid, cmd.id, cmd.size,
 		  cmd.size_left);
-	mutex_unlock(&einfo->write_lock);
+	rt_mutex_unlock(&einfo->write_lock);
 	srcu_read_unlock(&einfo->use_ref, rcu_id);
 	return cmd.size;
 }
@@ -2051,7 +2051,7 @@ static int glink_spi_probe(struct platform_device *pdev)
 	init_kthread_work(&einfo->kwork, rx_worker);
 	init_kthread_worker(&einfo->kworker);
 	init_srcu_struct(&einfo->use_ref);
-	mutex_init(&einfo->write_lock);
+	rt_mutex_init(&einfo->write_lock);
 	init_waitqueue_head(&einfo->tx_blocked_queue);
 	spin_lock_init(&einfo->activity_lock);
 

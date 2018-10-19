@@ -170,11 +170,11 @@ static void devfreq_unboost_all(struct df_boost_drv *d)
 		cancel_work_sync(&b->input_boost);
 		cancel_delayed_work_sync(&b->input_unboost);
 
-		mutex_lock(&df->lock);
+		rt_mutex_lock(&df->lock);
 		df->max_boost = false;
 		df->min_freq = devfreq_abs_min_freq(b);
 		update_devfreq(df);
-		mutex_unlock(&df->lock);
+		rt_mutex_unlock(&df->lock);
 	}
 }
 
@@ -190,13 +190,13 @@ static void devfreq_input_boost(struct work_struct *work)
 		boost_freq = b->boost_freq;
 		spin_unlock_irqrestore(&b->lock, flags);
 
-		mutex_lock(&df->lock);
+		rt_mutex_lock(&df->lock);
 		if (df->max_freq)
 			df->min_freq = min(boost_freq, df->max_freq);
 		else
 			df->min_freq = boost_freq;
 		update_devfreq(df);
-		mutex_unlock(&df->lock);
+		rt_mutex_unlock(&df->lock);
 	}
 
 	queue_delayed_work(b->wq, &b->input_unboost,
@@ -209,10 +209,10 @@ static void devfreq_input_unboost(struct work_struct *work)
 		container_of(to_delayed_work(work), typeof(*b), input_unboost);
 	struct devfreq *df = b->df;
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	df->min_freq = devfreq_abs_min_freq(b);
 	update_devfreq(df);
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 }
 
 static void devfreq_max_boost(struct work_struct *work)
@@ -223,10 +223,10 @@ static void devfreq_max_boost(struct work_struct *work)
 	if (!cancel_delayed_work_sync(&b->max_unboost)) {
 		struct devfreq *df = b->df;
 
-		mutex_lock(&df->lock);
+		rt_mutex_lock(&df->lock);
 		df->max_boost = true;
 		update_devfreq(df);
-		mutex_unlock(&df->lock);
+		rt_mutex_unlock(&df->lock);
 	}
 
 	spin_lock_irqsave(&b->lock, flags);
@@ -242,10 +242,10 @@ static void devfreq_max_unboost(struct work_struct *work)
 		container_of(to_delayed_work(work), typeof(*b), max_unboost);
 	struct devfreq *df = b->df;
 
-	mutex_lock(&df->lock);
+	rt_mutex_lock(&df->lock);
 	df->max_boost = false;
 	update_devfreq(df);
-	mutex_unlock(&df->lock);
+	rt_mutex_unlock(&df->lock);
 }
 
 static int fb_notifier_cb(struct notifier_block *nb,

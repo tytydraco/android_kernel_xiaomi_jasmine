@@ -76,7 +76,7 @@ static struct work_struct irqwork;
 static int bw_irq;
 static DEFINE_PER_CPU(struct bwmon_data, gov_data);
 static int use_cnt;
-static DEFINE_MUTEX(use_lock);
+static DEFINE_RT_MUTEX(use_lock);
 static struct workqueue_struct *bw_wq;
 static u32 bytes_per_beat;
 
@@ -315,7 +315,7 @@ static int register_notifier(void)
 {
 	int ret = 0;
 
-	mutex_lock(&use_lock);
+	rt_mutex_lock(&use_lock);
 	if (use_cnt == 0) {
 		ret = cpu_pm_register_notifier(&bwmon_cpu_pm_nb);
 		if (ret)
@@ -328,13 +328,13 @@ static int register_notifier(void)
 	}
 	use_cnt++;
 out:
-	mutex_unlock(&use_lock);
+	rt_mutex_unlock(&use_lock);
 	return ret;
 }
 
 static void unregister_notifier(void)
 {
-	mutex_lock(&use_lock);
+	rt_mutex_lock(&use_lock);
 	if (use_cnt == 1) {
 		unregister_cpu_notifier(&cpu_hotplug_nb);
 		cpu_pm_unregister_notifier(&bwmon_cpu_pm_nb);
@@ -344,7 +344,7 @@ static void unregister_notifier(void)
 	}
 	use_cnt--;
 out:
-	mutex_unlock(&use_lock);
+	rt_mutex_unlock(&use_lock);
 }
 
 static void stop_bw_hwmon(struct bw_hwmon *hw)

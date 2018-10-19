@@ -110,7 +110,7 @@ struct glink_pkt_dev {
 	struct glink_open_config open_cfg;
 	const char *dev_name;
 	void *handle;
-	struct mutex ch_lock;
+	struct rt_mutex ch_lock;
 	unsigned ch_state;
 
 	struct cdev cdev;
@@ -179,9 +179,9 @@ struct notify_state_work {
 	struct work_struct work;
 };
 
-static DEFINE_MUTEX(glink_pkt_dev_lock_lha1);
+static DEFINE_RT_MUTEX(glink_pkt_dev_lock_lha1);
 static LIST_HEAD(glink_pkt_dev_list);
-static DEFINE_MUTEX(glink_pkt_driver_lock_lha1);
+static DEFINE_RT_MUTEX(glink_pkt_driver_lock_lha1);
 static LIST_HEAD(glink_pkt_driver_list);
 
 struct class *glink_pkt_classp;
@@ -241,22 +241,22 @@ static ssize_t open_timeout_store(struct device *d,
 	struct glink_pkt_dev *devp;
 	long tmp;
 
-	mutex_lock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_lock(&glink_pkt_dev_lock_lha1);
 	list_for_each_entry(devp, &glink_pkt_dev_list, dev_list) {
 		if (devp->devicep == d) {
 			if (!kstrtol(buf, 0, &tmp)) {
 				devp->open_time_wait = tmp;
-				mutex_unlock(&glink_pkt_dev_lock_lha1);
+				rt_mutex_unlock(&glink_pkt_dev_lock_lha1);
 				return n;
 			} else {
-				mutex_unlock(&glink_pkt_dev_lock_lha1);
+				rt_mutex_unlock(&glink_pkt_dev_lock_lha1);
 				pr_err("%s: unable to convert: %s to an int\n",
 						__func__, buf);
 				return -EINVAL;
 			}
 		}
 	}
-	mutex_unlock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_unlock(&glink_pkt_dev_lock_lha1);
 	GLINK_PKT_ERR("%s: unable to match device to valid port\n", __func__);
 	return -EINVAL;
 }
@@ -267,15 +267,15 @@ static ssize_t open_timeout_show(struct device *d,
 {
 	struct glink_pkt_dev *devp;
 
-	mutex_lock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_lock(&glink_pkt_dev_lock_lha1);
 	list_for_each_entry(devp, &glink_pkt_dev_list, dev_list) {
 		if (devp->devicep == d) {
-			mutex_unlock(&glink_pkt_dev_lock_lha1);
+			rt_mutex_unlock(&glink_pkt_dev_lock_lha1);
 			return snprintf(buf, PAGE_SIZE, "%d\n",
 					devp->open_time_wait);
 		}
 	}
-	mutex_unlock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_unlock(&glink_pkt_dev_lock_lha1);
 	GLINK_PKT_ERR("%s: unable to match device to valid port\n", __func__);
 	return -EINVAL;
 
@@ -297,7 +297,7 @@ static void packet_arrival_worker(struct work_struct *work)
 
 	devp = container_of(work, struct glink_pkt_dev,
 				    packet_arrival_work);
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	spin_lock_irqsave(&devp->pa_spinlock, flags);
 	if (devp->ws_locked) {
 		GLINK_PKT_INFO("%s locking glink_pkt_dev id:%d wakeup source\n",
@@ -309,7 +309,7 @@ static void packet_arrival_worker(struct work_struct *work)
 		__pm_wakeup_event(&devp->pa_ws, WAKEUPSOURCE_TIMEOUT);
 	}
 	spin_unlock_irqrestore(&devp->pa_spinlock, flags);
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 }
 
 /**
@@ -500,9 +500,9 @@ void glink_pkt_notify_rx_sigs(void *handle, const void *priv,
 	struct glink_pkt_dev *devp = (struct glink_pkt_dev *)priv;
 	GLINK_PKT_INFO("%s(): sigs old[%x] new[%x]\n",
 				__func__, old_sigs, new_sigs);
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	devp->sigs_updated = true;
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 	wake_up(&devp->ch_read_wait_queue);
 }
 
@@ -527,16 +527,16 @@ static void glink_pkt_queue_rx_intent_worker(struct work_struct *work)
 		kfree(work_item);
 		return;
 	}
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	if (!devp->handle) {
 		GLINK_PKT_ERR("%s: Invalid device Handle\n", __func__);
-		mutex_unlock(&devp->ch_lock);
+		rt_mutex_unlock(&devp->ch_lock);
 		kfree(work_item);
 		return;
 	}
 
 	ret = glink_queue_rx_intent(devp->handle, devp, work_item->intent_size);
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 	GLINK_PKT_INFO("%s: Triggered with size[%zu] ret[%d]\n",
 				__func__, work_item->intent_size, ret);
 	if (ret)
@@ -569,7 +569,7 @@ static void glink_pkt_notify_state_worker(struct work_struct *work)
 
 	GLINK_PKT_INFO("%s(): event[%d] on [%s]\n", __func__,
 				event, devp->open_cfg.name);
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	devp->ch_state = event;
 	if (event == GLINK_CONNECTED) {
 		if (!devp->handle)
@@ -585,7 +585,7 @@ static void glink_pkt_notify_state_worker(struct work_struct *work)
 			devp->handle = NULL;
 		wake_up_interruptible(&devp->ch_closed_wait_queue);
 	}
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 	kfree(work_item);
 }
 
@@ -645,18 +645,18 @@ ssize_t glink_pkt_read(struct file *file,
 		return -ENETRESET;
 	}
 
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	if (!glink_pkt_read_avail(devp) &&
 				!glink_rx_intent_exists(devp->handle, count)) {
 		ret  = glink_queue_rx_intent(devp->handle, devp, count);
 		if (ret) {
 			GLINK_PKT_ERR("%s: failed to queue intent ret[%d]\n",
 					__func__, ret);
-			mutex_unlock(&devp->ch_lock);
+			rt_mutex_unlock(&devp->ch_lock);
 			return ret;
 		}
 	}
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 
 	GLINK_PKT_INFO("Begin %s on glink_pkt_dev id:%d buffer_size %zu\n",
 		__func__, devp->i, count);
@@ -711,7 +711,7 @@ ssize_t glink_pkt_read(struct file *file,
 	glink_rx_done(devp->handle, pkt->data, false);
 	kfree(pkt);
 
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	spin_lock_irqsave(&devp->pa_spinlock, flags);
 	if (devp->poll_mode && !glink_pkt_read_avail(devp)) {
 		__pm_relax(&devp->pa_ws);
@@ -721,7 +721,7 @@ ssize_t glink_pkt_read(struct file *file,
 			__func__, devp->i);
 	}
 	spin_unlock_irqrestore(&devp->pa_spinlock, flags);
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 
 	GLINK_PKT_INFO("End %s on glink_pkt_dev id:%d ret[%d]\n",
 				__func__, devp->i, ret);
@@ -824,13 +824,13 @@ static unsigned int glink_pkt_poll(struct file *file, poll_table *wait)
 
 	devp->poll_mode = 1;
 	poll_wait(file, &devp->ch_read_wait_queue, wait);
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	if (!devp->handle) {
-		mutex_unlock(&devp->ch_lock);
+		rt_mutex_unlock(&devp->ch_lock);
 		return POLLERR;
 	}
 	if (devp->in_reset) {
-		mutex_unlock(&devp->ch_lock);
+		rt_mutex_unlock(&devp->ch_lock);
 		return POLLHUP;
 	}
 
@@ -845,7 +845,7 @@ static unsigned int glink_pkt_poll(struct file *file, poll_table *wait)
 		GLINK_PKT_INFO("%s sets POLLPRI for glink_pkt_dev id: %d\n",
 			__func__, devp->i);
 	}
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 
 	return mask;
 }
@@ -916,7 +916,7 @@ static long glink_pkt_ioctl(struct file *file, unsigned int cmd,
 		return -EINVAL;
 	}
 
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	switch (cmd) {
 	case TIOCMGET:
 		devp->sigs_updated = false;
@@ -949,7 +949,7 @@ static long glink_pkt_ioctl(struct file *file, unsigned int cmd,
 		ret = -ENOIOCTLCMD;
 		break;
 	}
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 
 	return ret;
 }
@@ -979,10 +979,10 @@ int glink_pkt_open(struct inode *inode, struct file *file)
 	file->private_data = devp;
 	wait_time_msecs = devp->open_time_wait * 1000;
 
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	/* waiting for previous close to complete */
 	if (devp->handle && devp->ref_cnt == 0) {
-		mutex_unlock(&devp->ch_lock);
+		rt_mutex_unlock(&devp->ch_lock);
 		if (wait_time_msecs < 0) {
 			ret = wait_event_interruptible(
 				devp->ch_opened_wait_queue,
@@ -1003,11 +1003,11 @@ int glink_pkt_open(struct inode *inode, struct file *file)
 			__func__, devp->i, ret);
 			return ret;
 		}
-		mutex_lock(&devp->ch_lock);
+		rt_mutex_lock(&devp->ch_lock);
 	}
 
 	if (!devp->handle) {
-		mutex_unlock(&devp->ch_lock);
+		rt_mutex_unlock(&devp->ch_lock);
 		/*
 		 * Wait for the link to be complete up so we know
 		 * the remote is ready enough.
@@ -1026,7 +1026,7 @@ int glink_pkt_open(struct inode *inode, struct file *file)
 			if (ret == 0)
 				ret = -ETIMEDOUT;
 		}
-		mutex_lock(&devp->ch_lock);
+		rt_mutex_lock(&devp->ch_lock);
 		if (ret < 0) {
 			GLINK_PKT_ERR(
 				"%s: Link not up edge[%s] name[%s] rc:%d\n",
@@ -1047,7 +1047,7 @@ int glink_pkt_open(struct inode *inode, struct file *file)
 			goto error;
 		}
 
-		mutex_unlock(&devp->ch_lock);
+		rt_mutex_unlock(&devp->ch_lock);
 		/*
 		 * Wait for the channel to be complete open state so we know
 		 * the remote client is ready enough.
@@ -1064,7 +1064,7 @@ int glink_pkt_open(struct inode *inode, struct file *file)
 			if (ret == 0)
 				ret = -ETIMEDOUT;
 		}
-		mutex_lock(&devp->ch_lock);
+		rt_mutex_lock(&devp->ch_lock);
 		if (ret < 0) {
 			GLINK_PKT_ERR("%s: open failed on dev id:%d rc:%d\n",
 					__func__, devp->i, ret);
@@ -1077,7 +1077,7 @@ int glink_pkt_open(struct inode *inode, struct file *file)
 	devp->ref_cnt++;
 
 error:
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 	GLINK_PKT_INFO("END %s() on dev id:%d ref_cnt[%d] ret[%d]\n",
 			__func__, devp->i, devp->ref_cnt, ret);
 	return ret;
@@ -1122,7 +1122,7 @@ int glink_pkt_release(struct inode *inode, struct file *file)
 	GLINK_PKT_INFO("%s() on dev id:%d by [%s] ref_cnt[%d]\n",
 			__func__, devp->i, current->comm, devp->ref_cnt);
 
-	mutex_lock(&devp->ch_lock);
+	rt_mutex_lock(&devp->ch_lock);
 	if (devp->ref_cnt > 0)
 		devp->ref_cnt--;
 
@@ -1139,7 +1139,7 @@ int glink_pkt_release(struct inode *inode, struct file *file)
 			GLINK_PKT_ERR("%s: close failed ret[%d]\n",
 						__func__, ret);
 		} else {
-			mutex_unlock(&devp->ch_lock);
+			rt_mutex_unlock(&devp->ch_lock);
 			ret = wait_event_interruptible_timeout(
 				devp->ch_closed_wait_queue,
 				devp->ch_state == GLINK_LOCAL_DISCONNECTED,
@@ -1148,7 +1148,7 @@ int glink_pkt_release(struct inode *inode, struct file *file)
 				GLINK_PKT_ERR(
 				"%s(): close TIMEOUT on dev_id[%d]\n",
 				__func__, devp->i);
-			mutex_lock(&devp->ch_lock);
+			rt_mutex_lock(&devp->ch_lock);
 		}
 		devp->poll_mode = 0;
 		spin_lock_irqsave(&devp->pa_spinlock, flags);
@@ -1160,7 +1160,7 @@ int glink_pkt_release(struct inode *inode, struct file *file)
 		devp->sigs_updated = false;
 		devp->in_reset = 0;
 	}
-	mutex_unlock(&devp->ch_lock);
+	rt_mutex_unlock(&devp->ch_lock);
 
 	if (flush_work(&devp->packet_arrival_work))
 		GLINK_PKT_INFO("%s: Flushed work for glink_pkt_dev id:%d\n",
@@ -1210,7 +1210,7 @@ static int glink_pkt_init_add_device(struct glink_pkt_dev *devp, int i)
 	devp->ch_state = GLINK_LOCAL_DISCONNECTED;
 	/* Default timeout for open wait is 120sec */
 	devp->open_time_wait = 120;
-	mutex_init(&devp->ch_lock);
+	rt_mutex_init(&devp->ch_lock);
 	init_waitqueue_head(&devp->ch_read_wait_queue);
 	init_waitqueue_head(&devp->ch_opened_wait_queue);
 	init_waitqueue_head(&devp->ch_closed_wait_queue);
@@ -1259,9 +1259,9 @@ static int glink_pkt_init_add_device(struct glink_pkt_dev *devp, int i)
 		GLINK_PKT_ERR("%s: device_create_file() failed for id:%d\n",
 			__func__, i);
 
-	mutex_lock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_lock(&glink_pkt_dev_lock_lha1);
 	list_add(&devp->dev_list, &glink_pkt_dev_list);
-	mutex_unlock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_unlock(&glink_pkt_dev_lock_lha1);
 
 	return ret;
 }
@@ -1277,7 +1277,7 @@ static void glink_pkt_core_deinit(void)
 	struct glink_pkt_dev *glink_pkt_devp;
 	struct glink_pkt_dev *index;
 
-	mutex_lock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_lock(&glink_pkt_dev_lock_lha1);
 	list_for_each_entry_safe(glink_pkt_devp, index, &glink_pkt_dev_list,
 							dev_list) {
 		if (glink_pkt_devp->link_state_handle)
@@ -1290,7 +1290,7 @@ static void glink_pkt_core_deinit(void)
 			       glink_pkt_devp->i));
 		kfree(glink_pkt_devp);
 	}
-	mutex_unlock(&glink_pkt_dev_lock_lha1);
+	rt_mutex_unlock(&glink_pkt_dev_lock_lha1);
 
 	if (!IS_ERR_OR_NULL(glink_pkt_classp))
 		class_destroy(glink_pkt_classp);
