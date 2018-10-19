@@ -131,7 +131,7 @@ static void lock_srbm(struct kgd_dev *kgd, uint32_t mec, uint32_t pipe,
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t value = PIPEID(pipe) | MEID(mec) | VMID(vmid) | QUEUEID(queue);
 
-	mutex_lock(&adev->srbm_mutex);
+	rt_mutex_lock(&adev->srbm_mutex);
 	WREG32(mmSRBM_GFX_CNTL, value);
 }
 
@@ -140,7 +140,7 @@ static void unlock_srbm(struct kgd_dev *kgd)
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
 	WREG32(mmSRBM_GFX_CNTL, 0);
-	mutex_unlock(&adev->srbm_mutex);
+	rt_mutex_unlock(&adev->srbm_mutex);
 }
 
 static void acquire_queue(struct kgd_dev *kgd, uint32_t pipe_id,
@@ -458,7 +458,7 @@ static int kgd_wave_control_execute(struct kgd_dev *kgd,
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t data = 0;
 
-	mutex_lock(&adev->grbm_idx_mutex);
+	rt_mutex_lock(&adev->grbm_idx_mutex);
 
 	WREG32(mmGRBM_GFX_INDEX, gfx_index_val);
 	WREG32(mmSQ_CMD, sq_cmd);
@@ -471,7 +471,7 @@ static int kgd_wave_control_execute(struct kgd_dev *kgd,
 		SE_BROADCAST_WRITES, 1);
 
 	WREG32(mmGRBM_GFX_INDEX, data);
-	mutex_unlock(&adev->grbm_idx_mutex);
+	rt_mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
 }

@@ -34,9 +34,9 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 
-static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
+static bool rt_mutex_is_locked_by(struct rt_mutex *mutex, struct task_struct *task)
 {
-	if (!mutex_is_locked(mutex))
+	if (!rt_mutex_is_locked(mutex))
 		return false;
 
 #if defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_MUTEX_SPIN_ON_OWNER)
@@ -174,8 +174,8 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 
 static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
-	if (!mutex_trylock(&dev->struct_mutex)) {
-		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+	if (!rt_mutex_trylock(&dev->struct_mutex)) {
+		if (!rt_mutex_is_locked_by(&dev->struct_mutex, current))
 			return false;
 
 		if (to_i915(dev)->mm.shrinker_no_lock_stealing)
@@ -227,7 +227,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 	}
 
 	if (unlock)
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 	return count;
 }
@@ -255,7 +255,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 					 I915_SHRINK_BOUND |
 					 I915_SHRINK_UNBOUND);
 	if (unlock)
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 	return freed;
 }
@@ -314,7 +314,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	}
 
 	if (unlock)
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 	if (freed_pages || unbound || bound)
 		pr_info("Purging GPU memory, %lu bytes freed, %lu bytes still pinned.\n",

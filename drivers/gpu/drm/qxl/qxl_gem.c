@@ -65,9 +65,9 @@ int qxl_gem_object_create(struct qxl_device *qdev, int size,
 	}
 	*obj = &qbo->gem_base;
 
-	mutex_lock(&qdev->gem.mutex);
+	rt_mutex_lock(&qdev->gem.mutex);
 	list_add_tail(&qbo->list, &qdev->gem.objects);
-	mutex_unlock(&qdev->gem.mutex);
+	rt_mutex_unlock(&qdev->gem.mutex);
 
 	return 0;
 }

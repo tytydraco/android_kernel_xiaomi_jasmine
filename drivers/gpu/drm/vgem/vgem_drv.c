@@ -103,12 +103,12 @@ static int vgem_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (page_offset > num_pages)
 		return VM_FAULT_SIGBUS;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
 			     obj->pages[page_offset]);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	switch (ret) {
 	case 0:
 		return VM_FAULT_NOPAGE;
@@ -201,7 +201,7 @@ int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 	int ret = 0;
 	struct drm_gem_object *obj;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	obj = drm_gem_object_lookup(dev, file, handle);
 	if (!obj) {
 		ret = -ENOENT;
@@ -231,7 +231,7 @@ fail_get_pages:
 unref:
 	drm_gem_object_unreference(obj);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 

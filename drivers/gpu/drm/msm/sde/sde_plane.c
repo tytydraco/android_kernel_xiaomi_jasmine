@@ -130,7 +130,7 @@ struct sde_plane {
 	struct drm_plane base;
 
 	struct msm_gem_address_space *aspace;
-	struct mutex lock;
+	struct rt_mutex lock;
 	bool is_error;
 	char pipe_name[SDE_NAME_SIZE];
 
@@ -2296,7 +2296,7 @@ static void sde_plane_destroy(struct drm_plane *plane)
 		if (psde->blob_info)
 			drm_property_unreference_blob(psde->blob_info);
 		msm_property_destroy(&psde->property_info);
-		mutex_destroy(&psde->lock);
+		rt_mutex_destroy(&psde->lock);
 
 		drm_plane_helper_disable(plane);
 
@@ -2842,7 +2842,7 @@ struct drm_plane *sde_plane_init(struct drm_device *dev,
 	/* save user friendly pipe name for later */
 	snprintf(psde->pipe_name, SDE_NAME_SIZE, "plane%u", plane->base.id);
 
-	mutex_init(&psde->lock);
+	rt_mutex_init(&psde->lock);
 
 	_sde_plane_init_debugfs(psde, kms);
 

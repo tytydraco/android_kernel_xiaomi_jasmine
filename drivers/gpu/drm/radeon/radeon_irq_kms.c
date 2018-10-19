@@ -84,12 +84,12 @@ static void radeon_hotplug_work_func(struct work_struct *work)
 	if (!rdev->mode_info.mode_config_initialized)
 		return;
 
-	mutex_lock(&mode_config->mutex);
+	rt_mutex_lock(&mode_config->mutex);
 	if (mode_config->num_connector) {
 		list_for_each_entry(connector, &mode_config->connector_list, head)
 			radeon_connector_hotplug(connector);
 	}
-	mutex_unlock(&mode_config->mutex);
+	rt_mutex_unlock(&mode_config->mutex);
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_helper_hpd_irq_event(dev);
 }

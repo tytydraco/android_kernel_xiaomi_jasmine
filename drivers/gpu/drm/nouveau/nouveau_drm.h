@@ -86,7 +86,7 @@ struct nouveau_cli {
 	struct nvif_client base;
 	struct nvkm_vm *vm; /*XXX*/
 	struct list_head head;
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	void *abi16;
 	struct list_head objects;
 	struct list_head notifys;

@@ -314,9 +314,9 @@ static inline void _iommu_sync_mmu_pc(bool lock)
 		return;
 
 	if (lock)
-		mutex_lock(&kgsl_mmu_sync);
+		rt_mutex_lock(&kgsl_mmu_sync);
 	else
-		mutex_unlock(&kgsl_mmu_sync);
+		rt_mutex_unlock(&kgsl_mmu_sync);
 }
 
 static void _detach_pt(struct kgsl_iommu_pt *iommu_pt,
@@ -359,9 +359,9 @@ static int _lock_if_secure_mmu(struct kgsl_memdesc *memdesc,
 	if (!kgsl_mmu_is_secured(mmu))
 		return -EINVAL;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (kgsl_active_count_get(device)) {
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 		return -EINVAL;
 	}
 
@@ -377,7 +377,7 @@ static void _unlock_if_secure_mmu(struct kgsl_memdesc *memdesc,
 		return;
 
 	kgsl_active_count_put(device);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 static int _iommu_map_sync_pc(struct kgsl_pagetable *pt,
@@ -845,9 +845,9 @@ static int kgsl_iommu_fault_handler(struct iommu_domain *domain,
 		 * Turn off GPU IRQ so we don't get faults from it too.
 		 * The device mutex must be held to change power state
 		 */
-		mutex_lock(&device->mutex);
+		rt_mutex_lock(&device->mutex);
 		kgsl_pwrctrl_change_state(device, KGSL_STATE_AWARE);
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 	}
 
 	ptbase = KGSL_IOMMU_GET_CTX_REG_Q(ctx, TTBR0);

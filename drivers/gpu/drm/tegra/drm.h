@@ -43,7 +43,7 @@ struct tegra_drm {
 	struct iommu_domain *domain;
 	struct drm_mm mm;
 
-	struct mutex clients_lock;
+	struct rt_mutex clients_lock;
 	struct list_head clients;
 
 #ifdef CONFIG_DRM_TEGRA_FBDEV
@@ -55,7 +55,7 @@ struct tegra_drm {
 	struct {
 		struct drm_atomic_state *state;
 		struct work_struct work;
-		struct mutex lock;
+		struct rt_mutex lock;
 	} commit;
 };
 

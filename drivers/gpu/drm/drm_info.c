@@ -84,7 +84,7 @@ int drm_vm_info(struct seq_file *m, void *data)
 	const char *type;
 	int i;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	seq_printf(m, "slot	 offset	      size type flags	 address mtrr\n\n");
 	i = 0;
 	list_for_each_entry(r_list, &dev->maplist, head) {
@@ -107,7 +107,7 @@ int drm_vm_info(struct seq_file *m, void *data)
 			seq_printf(m, "%4d\n", map->mtrr);
 		i++;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -121,10 +121,10 @@ int drm_bufs_info(struct seq_file *m, void *data)
 	struct drm_device_dma *dma;
 	int i, seg_pages;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	dma = dev->dma;
 	if (!dma) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
 
@@ -149,7 +149,7 @@ int drm_bufs_info(struct seq_file *m, void *data)
 		seq_printf(m, " %d", dma->buflist[i]->list);
 	}
 	seq_printf(m, "\n");
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -174,7 +174,7 @@ int drm_clients_info(struct seq_file *m, void *data)
 	/* dev->filelist is sorted youngest first, but we want to present
 	 * oldest first (i.e. kernel, servers, clients), so walk backwardss.
 	 */
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_for_each_entry_reverse(priv, &dev->filelist, lhead) {
 		struct task_struct *task;
 
@@ -190,7 +190,7 @@ int drm_clients_info(struct seq_file *m, void *data)
 			   priv->magic);
 		rcu_read_unlock();
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -214,9 +214,9 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "  name     size handles refcount\n");
 
-	mutex_lock(&dev->object_name_lock);
+	rt_mutex_lock(&dev->object_name_lock);
 	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, m);
-	mutex_unlock(&dev->object_name_lock);
+	rt_mutex_unlock(&dev->object_name_lock);
 
 	return 0;
 }

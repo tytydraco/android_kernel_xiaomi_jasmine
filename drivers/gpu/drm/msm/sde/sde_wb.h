@@ -43,7 +43,7 @@ struct sde_wb_device {
 	const char *name;
 
 	struct list_head wb_list;
-	struct mutex wb_lock;
+	struct rt_mutex wb_lock;
 
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;

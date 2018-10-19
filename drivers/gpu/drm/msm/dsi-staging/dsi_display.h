@@ -130,7 +130,7 @@ struct dsi_display {
 	const char *display_type;
 	struct list_head list;
 	bool is_active;
-	struct mutex display_lock;
+	struct rt_mutex display_lock;
 
 	u32 ctrl_count;
 	struct dsi_display_ctrl ctrl[MAX_DSI_CTRLS_PER_DISPLAY];

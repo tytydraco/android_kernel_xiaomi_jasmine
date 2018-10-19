@@ -161,9 +161,9 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 
 	power_domains = &dev_priv->power_domains;
 
-	mutex_lock(&power_domains->lock);
+	rt_mutex_lock(&power_domains->lock);
 	ret = __intel_display_power_is_enabled(dev_priv, domain);
-	mutex_unlock(&power_domains->lock);
+	rt_mutex_unlock(&power_domains->lock);
 
 	return ret;
 }
@@ -783,7 +783,7 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 	state = enable ? PUNIT_PWRGT_PWR_ON(power_well_id) :
 			 PUNIT_PWRGT_PWR_GATE(power_well_id);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 #define COND \
 	((vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_STATUS) & mask) == state)
@@ -804,7 +804,7 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 #undef COND
 
 out:
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void vlv_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -837,7 +837,7 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 	mask = PUNIT_PWRGT_MASK(power_well_id);
 	ctrl = PUNIT_PWRGT_PWR_ON(power_well_id);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	state = vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_STATUS) & mask;
 	/*
@@ -856,7 +856,7 @@ static bool vlv_power_well_enabled(struct drm_i915_private *dev_priv,
 	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_CTRL) & mask;
 	WARN_ON(ctrl != state);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return enabled;
 }
@@ -1118,7 +1118,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	if (wait_for(I915_READ(DISPLAY_PHY_STATUS) & PHY_POWERGOOD(phy), 1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* Enable dynamic power down */
 	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW28);
@@ -1141,7 +1141,7 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 		vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, tmp);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	dev_priv->chv_phy_control |= PHY_COM_LANE_RESET_DEASSERT(phy);
 	I915_WRITE(DISPLAY_PHY_CONTROL, dev_priv->chv_phy_control);
@@ -1204,9 +1204,9 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 	else
 		reg = _CHV_CMN_DW6_CH1;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	val = vlv_dpio_read(dev_priv, pipe, reg);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	/*
 	 * This assumes !override is only used when the port is disabled.
@@ -1251,7 +1251,7 @@ bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	bool was_override;
 
-	mutex_lock(&power_domains->lock);
+	rt_mutex_lock(&power_domains->lock);
 
 	was_override = dev_priv->chv_phy_control & PHY_CH_POWER_DOWN_OVRD_EN(phy, ch);
 
@@ -1271,7 +1271,7 @@ bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 	assert_chv_phy_status(dev_priv);
 
 out:
-	mutex_unlock(&power_domains->lock);
+	rt_mutex_unlock(&power_domains->lock);
 
 	return was_override;
 }
@@ -1284,7 +1284,7 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 	enum dpio_phy phy = vlv_dport_to_phy(enc_to_dig_port(&encoder->base));
 	enum dpio_channel ch = vlv_dport_to_channel(enc_to_dig_port(&encoder->base));
 
-	mutex_lock(&power_domains->lock);
+	rt_mutex_lock(&power_domains->lock);
 
 	dev_priv->chv_phy_control &= ~PHY_CH_POWER_DOWN_OVRD(0xf, phy, ch);
 	dev_priv->chv_phy_control |= PHY_CH_POWER_DOWN_OVRD(mask, phy, ch);
@@ -1303,7 +1303,7 @@ void chv_phy_powergate_lanes(struct intel_encoder *encoder,
 
 	assert_chv_phy_powergate(dev_priv, phy, ch, override, mask);
 
-	mutex_unlock(&power_domains->lock);
+	rt_mutex_unlock(&power_domains->lock);
 }
 
 static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
@@ -1313,7 +1313,7 @@ static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
 	bool enabled;
 	u32 state, ctrl;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	state = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe);
 	/*
@@ -1330,7 +1330,7 @@ static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
 	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSC_MASK(pipe);
 	WARN_ON(ctrl << 16 != state);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return enabled;
 }
@@ -1345,7 +1345,7 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 
 	state = enable ? DP_SSS_PWR_ON(pipe) : DP_SSS_PWR_GATE(pipe);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 #define COND \
 	((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe)) == state)
@@ -1366,7 +1366,7 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 #undef COND
 
 out:
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -1420,7 +1420,7 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 
 	power_domains = &dev_priv->power_domains;
 
-	mutex_lock(&power_domains->lock);
+	rt_mutex_lock(&power_domains->lock);
 
 	for_each_power_well(i, power_well, BIT(domain), power_domains) {
 		if (!power_well->count++)
@@ -1429,7 +1429,7 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 
 	power_domains->domain_use_count[domain]++;
 
-	mutex_unlock(&power_domains->lock);
+	rt_mutex_unlock(&power_domains->lock);
 }
 
 /**
@@ -1450,7 +1450,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 
 	power_domains = &dev_priv->power_domains;
 
-	mutex_lock(&power_domains->lock);
+	rt_mutex_lock(&power_domains->lock);
 
 	WARN_ON(!power_domains->domain_use_count[domain]);
 	power_domains->domain_use_count[domain]--;
@@ -1462,7 +1462,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 			intel_power_well_disable(dev_priv, power_well);
 	}
 
-	mutex_unlock(&power_domains->lock);
+	rt_mutex_unlock(&power_domains->lock);
 
 	intel_runtime_pm_put(dev_priv);
 }
@@ -1849,7 +1849,7 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 
 	BUILD_BUG_ON(POWER_DOMAIN_NUM > 31);
 
-	mutex_init(&power_domains->lock);
+	rt_mutex_init(&power_domains->lock);
 
 	/*
 	 * The enabling order will be from lower to higher indexed wells,
@@ -1913,13 +1913,13 @@ static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 	struct i915_power_well *power_well;
 	int i;
 
-	mutex_lock(&power_domains->lock);
+	rt_mutex_lock(&power_domains->lock);
 	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
 		power_well->ops->sync_hw(dev_priv, power_well);
 		power_well->hw_enabled = power_well->ops->is_enabled(dev_priv,
 								     power_well);
 	}
-	mutex_unlock(&power_domains->lock);
+	rt_mutex_unlock(&power_domains->lock);
 }
 
 static void chv_phy_control_init(struct drm_i915_private *dev_priv)
@@ -2052,13 +2052,13 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 	power_domains->initializing = true;
 
 	if (IS_CHERRYVIEW(dev)) {
-		mutex_lock(&power_domains->lock);
+		rt_mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
-		mutex_unlock(&power_domains->lock);
+		rt_mutex_unlock(&power_domains->lock);
 	} else if (IS_VALLEYVIEW(dev)) {
-		mutex_lock(&power_domains->lock);
+		rt_mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
-		mutex_unlock(&power_domains->lock);
+		rt_mutex_unlock(&power_domains->lock);
 	}
 
 	/* For now, we need the power well to be always enabled. */

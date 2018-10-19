@@ -145,9 +145,9 @@ static void vmw_resource_release(struct kref *kref)
 	}
 
 	if (likely(res->hw_destroy != NULL)) {
-		mutex_lock(&dev_priv->binding_mutex);
+		rt_mutex_lock(&dev_priv->binding_mutex);
 		vmw_binding_res_list_kill(&res->binding_head);
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		res->hw_destroy(res);
 	}
 
@@ -1583,11 +1583,11 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 
 	dev_priv = container_of(bdev, struct vmw_private, bdev);
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 
 	dx_query_mob = container_of(bo, struct vmw_dma_buffer, base);
 	if (mem == NULL || !dx_query_mob || !dx_query_mob->dx_query_ctx) {
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		return;
 	}
 
@@ -1596,7 +1596,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 		struct vmw_fence_obj *fence;
 
 		(void) vmw_query_readback_all(dx_query_mob);
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 
 		/* Create a fence and attach the BO to it */
 		(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
@@ -1607,7 +1607,7 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 
 		(void) ttm_bo_wait(bo, false, false, false);
 	} else
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 
 }
 
@@ -1682,12 +1682,12 @@ void vmw_resource_evict_all(struct vmw_private *dev_priv)
 {
 	enum vmw_res_type type;
 
-	mutex_lock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_lock(&dev_priv->cmdbuf_mutex);
 
 	for (type = 0; type < vmw_res_max; ++type)
 		vmw_resource_evict_type(dev_priv, type);
 
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 }
 
 /**
@@ -1706,7 +1706,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 	int ret;
 
 	ttm_write_lock(&dev_priv->reservation_sem, interruptible);
-	mutex_lock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_lock(&dev_priv->cmdbuf_mutex);
 	ret = vmw_resource_reserve(res, interruptible, false);
 	if (ret)
 		goto out_no_reserve;
@@ -1744,7 +1744,7 @@ int vmw_resource_pin(struct vmw_resource *res, bool interruptible)
 out_no_validate:
 	vmw_resource_unreserve(res, false, NULL, 0UL);
 out_no_reserve:
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 	ttm_write_unlock(&dev_priv->reservation_sem);
 
 	return ret;
@@ -1764,7 +1764,7 @@ void vmw_resource_unpin(struct vmw_resource *res)
 	int ret;
 
 	ttm_read_lock(&dev_priv->reservation_sem, false);
-	mutex_lock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_lock(&dev_priv->cmdbuf_mutex);
 
 	ret = vmw_resource_reserve(res, false, true);
 	WARN_ON(ret);
@@ -1780,7 +1780,7 @@ void vmw_resource_unpin(struct vmw_resource *res)
 
 	vmw_resource_unreserve(res, false, NULL, 0UL);
 
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 }
 

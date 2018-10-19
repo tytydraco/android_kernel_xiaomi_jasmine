@@ -210,10 +210,10 @@ int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_framebuffer *fb;
 
-	mutex_lock(&dev->mode_config.fb_lock);
+	rt_mutex_lock(&dev->mode_config.fb_lock);
 	drm_for_each_fb(fb, dev)
 		drm_fb_cma_describe(fb, m);
-	mutex_unlock(&dev->mode_config.fb_lock);
+	rt_mutex_unlock(&dev->mode_config.fb_lock);
 
 	return 0;
 }

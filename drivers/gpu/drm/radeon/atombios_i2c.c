@@ -47,8 +47,8 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 
 	memset(&args, 0, sizeof(args));
 
-	mutex_lock(&chan->mutex);
-	mutex_lock(&rdev->mode_info.atom_context->scratch_mutex);
+	rt_mutex_lock(&chan->mutex);
+	rt_mutex_lock(&rdev->mode_info.atom_context->scratch_mutex);
 
 	base = (unsigned char *)rdev->mode_info.atom_context->scratch;
 
@@ -96,8 +96,8 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 		radeon_atom_copy_swap(buf, base, num, false);
 
 done:
-	mutex_unlock(&rdev->mode_info.atom_context->scratch_mutex);
-	mutex_unlock(&chan->mutex);
+	rt_mutex_unlock(&rdev->mode_info.atom_context->scratch_mutex);
+	rt_mutex_unlock(&chan->mutex);
 
 	return r;
 }

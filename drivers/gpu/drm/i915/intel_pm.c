@@ -241,7 +241,7 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 {
 	u32 val;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
 	if (enable)
@@ -256,14 +256,14 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 		      FORCE_DDR_FREQ_REQ_ACK) == 0, 3))
 		DRM_ERROR("timed out waiting for Punit DDR DVFS request\n");
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 {
 	u32 val;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 	if (enable)
@@ -272,7 +272,7 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 		val &= ~DSP_MAXFIFO_PM5_ENABLE;
 	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 #define FW_WM(value, plane) \
@@ -2057,11 +2057,11 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 		ret = sandybridge_pcode_read(dev_priv,
 					     GEN9_PCODE_READ_MEM_LATENCY,
 					     &val);
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 		if (ret) {
 			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
@@ -2078,11 +2078,11 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 
 		/* read the second set of memory latencies[4:7] */
 		val = 1; /* data0 to be programmed to 1 for second set */
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 		ret = sandybridge_pcode_read(dev_priv,
 					     GEN9_PCODE_READ_MEM_LATENCY,
 					     &val);
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 		if (ret) {
 			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
 			return;
@@ -4028,7 +4028,7 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 	wm->level = VLV_WM_LEVEL_PM2;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 		if (val & DSP_MAXFIFO_PM5_ENABLE)
@@ -4058,7 +4058,7 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 				wm->level = VLV_WM_LEVEL_DDR_DVFS;
 		}
 
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 	}
 
 	for_each_pipe(dev_priv, pipe)
@@ -4433,7 +4433,7 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	if (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0))
 		return;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_freq);
 	WARN_ON(val < dev_priv->rps.min_freq);
 
@@ -4472,7 +4472,7 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_freq);
 	WARN_ON(val < dev_priv->rps.min_freq);
 
@@ -4515,21 +4515,21 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 
 void gen6_rps_busy(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
 		if (dev_priv->pm_rps_events & GEN6_PM_RP_UP_EI_EXPIRED)
 			gen6_rps_reset_ei(dev_priv);
 		I915_WRITE(GEN6_PMINTRMSK,
 			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
 		if (IS_VALLEYVIEW(dev))
 			vlv_set_rps_idle(dev_priv);
@@ -4539,7 +4539,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		I915_WRITE(GEN6_PMINTRMSK,
 			   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	spin_lock(&dev_priv->rps.client_lock);
 	while (!list_empty(&dev_priv->rps.clients))
@@ -4942,7 +4942,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	int rc6_mode;
 	int i, ret;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	/* Here begins a magic sequence of register writes to enable
 	 * auto-downclocking.
@@ -5051,7 +5051,7 @@ static void __gen6_update_ring_freq(struct drm_device *dev)
 	int scaling_factor = 180;
 	struct cpufreq_policy *policy;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	policy = cpufreq_cpu_get(0);
 	if (policy) {
@@ -5133,9 +5133,9 @@ void gen6_update_ring_freq(struct drm_device *dev)
 	if (!HAS_CORE_RING_FREQ(dev))
 		return;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	__gen6_update_ring_freq(dev);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
@@ -5254,7 +5254,7 @@ static void cherryview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 32*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	pcbr = I915_READ(VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
@@ -5277,7 +5277,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 24*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	pcbr = I915_READ(VLV_PCBR);
 	if (pcbr) {
@@ -5334,7 +5334,7 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 
 	valleyview_setup_pctx(dev);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 	switch ((val >> 6) & 3) {
@@ -5381,7 +5381,7 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 	if (dev_priv->rps.min_freq_softlimit == 0)
 		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void cherryview_init_gt_powersave(struct drm_device *dev)
@@ -5391,11 +5391,11 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 
 	cherryview_setup_pctx(dev);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	val = vlv_cck_read(dev_priv, CCK_FUSE_REG);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	switch ((val >> 2) & 0x7) {
 	case 3:
@@ -5444,7 +5444,7 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 	if (dev_priv->rps.min_freq_softlimit == 0)
 		dev_priv->rps.min_freq_softlimit = dev_priv->rps.min_freq;
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 static void valleyview_cleanup_gt_powersave(struct drm_device *dev)
@@ -5459,7 +5459,7 @@ static void cherryview_enable_rps(struct drm_device *dev)
 	u32 gtfifodbg, val, rc6_mode = 0, pcbr;
 	int i;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	gtfifodbg = I915_READ(GTFIFODBG);
 	if (gtfifodbg) {
@@ -5557,7 +5557,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	u32 gtfifodbg, val, rc6_mode = 0;
 	int i;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	valleyview_check_pctx(dev_priv);
 
@@ -6185,7 +6185,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 	} else if (INTEL_INFO(dev)->gen >= 6) {
 		intel_suspend_gt_powersave(dev);
 
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 		if (INTEL_INFO(dev)->gen >= 9)
 			gen9_disable_rps(dev);
 		else if (IS_CHERRYVIEW(dev))
@@ -6196,7 +6196,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 			gen6_disable_rps(dev);
 
 		dev_priv->rps.enabled = false;
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 	}
 }
 
@@ -6207,7 +6207,7 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 			     rps.delayed_resume_work.work);
 	struct drm_device *dev = dev_priv->dev;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	gen6_reset_rps_interrupts(dev);
 
@@ -6238,7 +6238,7 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 
 	gen6_enable_rps_interrupts(dev);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 }
@@ -6252,10 +6252,10 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		return;
 
 	if (IS_IRONLAKE_M(dev)) {
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		ironlake_enable_drps(dev);
 		intel_init_emon(dev);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
 		/*
 		 * PCU communication is slow and this doesn't need to be
@@ -7177,7 +7177,7 @@ void intel_init_pm(struct drm_device *dev)
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	if (I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
 		DRM_DEBUG_DRIVER("warning: pcode (read) mailbox access failed\n");
@@ -7202,7 +7202,7 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val
 
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u32 mbox, u32 val)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	if (I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
 		DRM_DEBUG_DRIVER("warning: pcode (write) mailbox access failed\n");
@@ -7355,7 +7355,7 @@ void intel_pm_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	mutex_init(&dev_priv->rps.hw_lock);
+	rt_mutex_init(&dev_priv->rps.hw_lock);
 	spin_lock_init(&dev_priv->rps.client_lock);
 
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,

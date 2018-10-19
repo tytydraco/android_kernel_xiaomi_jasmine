@@ -107,7 +107,7 @@ struct host1x {
 	struct device *dev;
 	struct clk *clk;
 
-	struct mutex intr_mutex;
+	struct rt_mutex intr_mutex;
 	struct workqueue_struct *intr_wq;
 	int intr_syncpt_irq;
 
@@ -120,14 +120,14 @@ struct host1x {
 
 	struct host1x_syncpt *nop_sp;
 
-	struct mutex chlist_mutex;
+	struct rt_mutex chlist_mutex;
 	struct host1x_channel chlist;
 	unsigned long allocated_channels;
 	unsigned int num_allocated_channels;
 
 	struct dentry *debugfs;
 
-	struct mutex devices_lock;
+	struct rt_mutex devices_lock;
 	struct list_head devices;
 
 	struct list_head list;

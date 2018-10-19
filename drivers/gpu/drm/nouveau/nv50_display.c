@@ -195,7 +195,7 @@ struct nv50_dmac {
 	/* Protects against concurrent pushbuf access to this channel, lock is
 	 * grabbed by evo_wait (if the pushbuf reservation is successful) and
 	 * dropped again by evo_kick. */
-	struct mutex lock;
+	struct rt_mutex lock;
 };
 
 static void
@@ -223,7 +223,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 	struct nvif_object pushbuf;
 	int ret;
 
-	mutex_init(&dmac->lock);
+	rt_mutex_init(&dmac->lock);
 
 	dmac->ptr = dma_alloc_coherent(nvxx_device(device)->dev, PAGE_SIZE,
 				       &dmac->handle, GFP_KERNEL);
@@ -425,7 +425,7 @@ evo_wait(void *evoc, int nr)
 	struct nvif_device *device = dmac->base.device;
 	u32 put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
 
-	mutex_lock(&dmac->lock);
+	rt_mutex_lock(&dmac->lock);
 	if (put + nr >= (PAGE_SIZE / 4) - 8) {
 		dmac->ptr[put] = 0x20000000;
 
@@ -434,7 +434,7 @@ evo_wait(void *evoc, int nr)
 			if (!nvif_rd32(&dmac->base.user, 0x0004))
 				break;
 		) < 0) {
-			mutex_unlock(&dmac->lock);
+			rt_mutex_unlock(&dmac->lock);
 			printk(KERN_ERR "nouveau: evo channel stalled\n");
 			return NULL;
 		}
@@ -450,7 +450,7 @@ evo_kick(u32 *push, void *evoc)
 {
 	struct nv50_dmac *dmac = evoc;
 	nvif_wr32(&dmac->base.user, 0x0000, (push - dmac->ptr) << 2);
-	mutex_unlock(&dmac->lock);
+	rt_mutex_unlock(&dmac->lock);
 }
 
 #if 1

@@ -57,9 +57,9 @@ void drm_legacy_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
 	    drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	idr_remove(&dev->ctx_idr, ctx_handle);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 /**
@@ -75,10 +75,10 @@ static int drm_legacy_ctxbitmap_next(struct drm_device * dev)
 {
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	ret = idr_alloc(&dev->ctx_idr, NULL, DRM_RESERVED_CONTEXTS, 0,
 			GFP_KERNEL);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -112,9 +112,9 @@ void drm_legacy_ctxbitmap_cleanup(struct drm_device * dev)
 	    drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	idr_destroy(&dev->ctx_idr);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 /**
@@ -134,7 +134,7 @@ void drm_legacy_ctxbitmap_flush(struct drm_device *dev, struct drm_file *file)
 	    drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	mutex_lock(&dev->ctxlist_mutex);
+	rt_mutex_lock(&dev->ctxlist_mutex);
 
 	list_for_each_entry_safe(pos, tmp, &dev->ctxlist, head) {
 		if (pos->tag == file &&
@@ -148,7 +148,7 @@ void drm_legacy_ctxbitmap_flush(struct drm_device *dev, struct drm_file *file)
 		}
 	}
 
-	mutex_unlock(&dev->ctxlist_mutex);
+	rt_mutex_unlock(&dev->ctxlist_mutex);
 }
 
 /*@}*/
@@ -180,11 +180,11 @@ int drm_legacy_getsareactx(struct drm_device *dev, void *data,
 	    drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	map = idr_find(&dev->ctx_idr, request->ctx_id);
 	if (!map) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -197,7 +197,7 @@ int drm_legacy_getsareactx(struct drm_device *dev, void *data,
 		}
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	if (request->handle == NULL)
 		return -EINVAL;
@@ -228,14 +228,14 @@ int drm_legacy_setsareactx(struct drm_device *dev, void *data,
 	    drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(r_list, &dev->maplist, head) {
 		if (r_list->map
 		    && r_list->user_token == (unsigned long) request->handle)
 			goto found;
 	}
       bad:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return -EINVAL;
 
       found:
@@ -246,7 +246,7 @@ int drm_legacy_setsareactx(struct drm_device *dev, void *data,
 	if (IS_ERR(idr_replace(&dev->ctx_idr, map, request->ctx_id)))
 		goto bad;
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -388,9 +388,9 @@ int drm_legacy_addctx(struct drm_device *dev, void *data,
 	ctx_entry->handle = ctx->handle;
 	ctx_entry->tag = file_priv;
 
-	mutex_lock(&dev->ctxlist_mutex);
+	rt_mutex_lock(&dev->ctxlist_mutex);
 	list_add(&ctx_entry->head, &dev->ctxlist);
-	mutex_unlock(&dev->ctxlist_mutex);
+	rt_mutex_unlock(&dev->ctxlist_mutex);
 
 	return 0;
 }
@@ -496,7 +496,7 @@ int drm_legacy_rmctx(struct drm_device *dev, void *data,
 		drm_legacy_ctxbitmap_free(dev, ctx->handle);
 	}
 
-	mutex_lock(&dev->ctxlist_mutex);
+	rt_mutex_lock(&dev->ctxlist_mutex);
 	if (!list_empty(&dev->ctxlist)) {
 		struct drm_ctx_list *pos, *n;
 
@@ -507,7 +507,7 @@ int drm_legacy_rmctx(struct drm_device *dev, void *data,
 			}
 		}
 	}
-	mutex_unlock(&dev->ctxlist_mutex);
+	rt_mutex_unlock(&dev->ctxlist_mutex);
 
 	return 0;
 }

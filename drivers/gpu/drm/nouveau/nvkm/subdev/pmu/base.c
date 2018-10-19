@@ -54,7 +54,7 @@ nvkm_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 	 * receive handler what we're waiting for
 	 */
 	if (reply) {
-		mutex_lock(&subdev->mutex);
+		rt_mutex_lock(&subdev->mutex);
 		pmu->recv.message = message;
 		pmu->recv.process = process;
 	}
@@ -81,7 +81,7 @@ nvkm_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
 		wait_event(pmu->recv.wait, (pmu->recv.process == 0));
 		reply[0] = pmu->recv.data[0];
 		reply[1] = pmu->recv.data[1];
-		mutex_unlock(&subdev->mutex);
+		rt_mutex_unlock(&subdev->mutex);
 	}
 
 	return 0;

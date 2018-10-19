@@ -32,7 +32,7 @@
 #include "sde_hdmi_regs.h"
 #include "hdmi.h"
 
-static DEFINE_MUTEX(sde_hdmi_list_lock);
+static DEFINE_RT_MUTEX(sde_hdmi_list_lock);
 static LIST_HEAD(sde_hdmi_list);
 
 /* HDMI SCDC register offsets */
@@ -713,17 +713,17 @@ static int _sde_hdmi_update_pll_delta(struct sde_hdmi *display, s32 ppm)
 	u64 clip_pclk;
 	int rc = 0;
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	if (!hdmi->power_on || !display->connected) {
 		SDE_ERROR("HDMI display is not ready\n");
-		mutex_unlock(&display->display_lock);
+		rt_mutex_unlock(&display->display_lock);
 		return -EINVAL;
 	}
 
 	if (!display->pll_update_enable) {
 		SDE_ERROR("PLL update function is not enabled\n");
-		mutex_unlock(&display->display_lock);
+		rt_mutex_unlock(&display->display_lock);
 		return -EINVAL;
 	}
 
@@ -743,14 +743,14 @@ static int _sde_hdmi_update_pll_delta(struct sde_hdmi *display, s32 ppm)
 		rc = clk_set_rate(hdmi->pwr_clks[0], clip_pclk);
 		if (rc < 0) {
 			SDE_ERROR("HDMI PLL update failed\n");
-			mutex_unlock(&display->display_lock);
+			rt_mutex_unlock(&display->display_lock);
 			return rc;
 		}
 
 		hdmi->actual_pixclock = clip_pclk;
 	}
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 
 	return rc;
 }
@@ -799,11 +799,11 @@ static int _sde_hdmi_enable_pll_update(struct sde_hdmi *display, s32 enable)
 	struct hdmi *hdmi = display->ctrl.ctrl;
 	int rc = 0;
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	if (!hdmi->power_on || !display->connected) {
 		SDE_ERROR("HDMI display is not ready\n");
-		mutex_unlock(&display->display_lock);
+		rt_mutex_unlock(&display->display_lock);
 		return -EINVAL;
 	}
 
@@ -812,7 +812,7 @@ static int _sde_hdmi_enable_pll_update(struct sde_hdmi *display, s32 enable)
 		rc = clk_set_rate(hdmi->pwr_clks[0], hdmi->pixclock);
 		if (rc < 0) {
 			SDE_ERROR("reset clock rate failed\n");
-			mutex_unlock(&display->display_lock);
+			rt_mutex_unlock(&display->display_lock);
 			return rc;
 		}
 	}
@@ -820,7 +820,7 @@ static int _sde_hdmi_enable_pll_update(struct sde_hdmi *display, s32 enable)
 
 	display->pll_update_enable = !!enable;
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 
 	SDE_DEBUG("HDMI PLL update: %s\n",
 			display->pll_update_enable ? "enable" : "disable");
@@ -1623,14 +1623,14 @@ static void _sde_hdmi_audio_codec_ready(struct platform_device *pdev)
 		return;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 	if (!display->codec_ready) {
 		display->codec_ready = true;
 
 		if (display->client_notify_pending)
 			sde_hdmi_notify_clients(display, display->connected);
 	}
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 }
 
 static int _sde_hdmi_ext_disp_init(struct sde_hdmi *display)
@@ -1902,7 +1902,7 @@ int sde_hdmi_get_info(struct msm_display_info *info,
 		return -EINVAL;
 	}
 
-	mutex_lock(&hdmi_display->display_lock);
+	rt_mutex_lock(&hdmi_display->display_lock);
 
 	info->intf_type = DRM_MODE_CONNECTOR_HDMIA;
 	info->num_of_h_tiles = 1;
@@ -1920,7 +1920,7 @@ int sde_hdmi_get_info(struct msm_display_info *info,
 	info->max_height = HDMI_DISPLAY_MAX_HEIGHT;
 	info->compression = MSM_DISPLAY_COMPRESS_NONE;
 
-	mutex_unlock(&hdmi_display->display_lock);
+	rt_mutex_unlock(&hdmi_display->display_lock);
 	return rc;
 }
 
@@ -2201,12 +2201,12 @@ int sde_hdmi_get_property(struct drm_connector *connector,
 		return -EINVAL;
 	}
 
-	mutex_lock(&hdmi_display->display_lock);
+	rt_mutex_lock(&hdmi_display->display_lock);
 	if (property_index == CONNECTOR_PROP_PLL_ENABLE)
 		*value = hdmi_display->pll_update_enable ? 1 : 0;
 	if (property_index == CONNECTOR_PROP_HDCP_VERSION)
 		*value = hdmi_display->sink_hdcp_ver;
-	mutex_unlock(&hdmi_display->display_lock);
+	rt_mutex_unlock(&hdmi_display->display_lock);
 
 	return rc;
 }
@@ -2216,12 +2216,12 @@ u32 sde_hdmi_get_num_of_displays(void)
 	u32 count = 0;
 	struct sde_hdmi *display;
 
-	mutex_lock(&sde_hdmi_list_lock);
+	rt_mutex_lock(&sde_hdmi_list_lock);
 
 	list_for_each_entry(display, &sde_hdmi_list, list)
 		count++;
 
-	mutex_unlock(&sde_hdmi_list_lock);
+	rt_mutex_unlock(&sde_hdmi_list_lock);
 	return count;
 }
 
@@ -2238,13 +2238,13 @@ int sde_hdmi_get_displays(void **display_array, u32 max_display_count)
 		return 0;
 	}
 
-	mutex_lock(&sde_hdmi_list_lock);
+	rt_mutex_lock(&sde_hdmi_list_lock);
 	list_for_each_entry(display, &sde_hdmi_list, list) {
 		if (i >= max_display_count)
 			break;
 		display_array[i++] = display;
 	}
-	mutex_unlock(&sde_hdmi_list_lock);
+	rt_mutex_unlock(&sde_hdmi_list_lock);
 
 	return i;
 }
@@ -2750,7 +2750,7 @@ static int sde_hdmi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	priv = drm->dev_private;
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	rc = _sde_hdmi_debugfs_init(display);
 	if (rc) {
@@ -2792,8 +2792,8 @@ static int sde_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	INIT_DELAYED_WORK(&display->hdcp_cb_work,
 					  sde_hdmi_tx_hdcp_cb_work);
-	mutex_init(&display->hdcp_mutex);
-	mutex_unlock(&display->display_lock);
+	rt_mutex_init(&display->hdcp_mutex);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 
 cec_error:
@@ -2801,7 +2801,7 @@ cec_error:
 ext_error:
 	(void)_sde_hdmi_debugfs_deinit(display);
 debug_error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2821,12 +2821,12 @@ static void sde_hdmi_unbind(struct device *dev, struct device *master,
 		SDE_ERROR("Invalid display device\n");
 		return;
 	}
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 	(void)_sde_hdmi_debugfs_deinit(display);
 	(void)sde_edid_deinit((void **)&display->edid_ctrl);
 	(void)_sde_hdmi_cec_deinit(display);
 	display->drm_dev = NULL;
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 }
 
 static const struct component_ops sde_hdmi_comp_ops = {
@@ -3036,12 +3036,12 @@ static int _sde_hdmi_dev_probe(struct platform_device *pdev)
 	if (rc)
 		SDE_ERROR("parse dt failed, rc=%d\n", rc);
 
-	mutex_init(&display->display_lock);
+	rt_mutex_init(&display->display_lock);
 	display->pdev = pdev;
 	platform_set_drvdata(pdev, display);
-	mutex_lock(&sde_hdmi_list_lock);
+	rt_mutex_lock(&sde_hdmi_list_lock);
 	list_add(&display->list, &sde_hdmi_list);
-	mutex_unlock(&sde_hdmi_list_lock);
+	rt_mutex_unlock(&sde_hdmi_list_lock);
 	if (!sde_hdmi_dev_init(display)) {
 		ret = component_add(&pdev->dev, &sde_hdmi_comp_ops);
 		if (ret) {
@@ -3070,14 +3070,14 @@ static int _sde_hdmi_dev_remove(struct platform_device *pdev)
 
 	display = platform_get_drvdata(pdev);
 
-	mutex_lock(&sde_hdmi_list_lock);
+	rt_mutex_lock(&sde_hdmi_list_lock);
 	list_for_each_entry_safe(pos, tmp, &sde_hdmi_list, list) {
 		if (pos == display) {
 			list_del(&display->list);
 			break;
 		}
 	}
-	mutex_unlock(&sde_hdmi_list_lock);
+	rt_mutex_unlock(&sde_hdmi_list_lock);
 
 	list_for_each_entry_safe(mode, n, &display->mode_list, head) {
 		list_del(&mode->head);
@@ -3136,14 +3136,14 @@ int sde_hdmi_drm_init(struct sde_hdmi *display, struct drm_encoder *enc)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 	priv = display->drm_dev->dev_private;
 	hdmi = display->ctrl.ctrl;
 
 	if (!priv || !hdmi) {
 		SDE_ERROR("priv=%p or hdmi=%p is NULL\n",
 			priv, hdmi);
-		mutex_unlock(&display->display_lock);
+		rt_mutex_unlock(&display->display_lock);
 		return -EINVAL;
 	}
 
@@ -3199,7 +3199,7 @@ int sde_hdmi_drm_init(struct sde_hdmi *display, struct drm_encoder *enc)
 		hdmi->power_on = true;
 	}
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return 0;
 
 error:
@@ -3208,7 +3208,7 @@ error:
 		hdmi_bridge_destroy(hdmi->bridge);
 		hdmi->bridge = NULL;
 	}
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 

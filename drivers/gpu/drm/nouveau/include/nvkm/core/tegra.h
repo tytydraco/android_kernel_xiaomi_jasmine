@@ -19,7 +19,7 @@ struct nvkm_device_tegra {
 		/*
 		 * Protects accesses to mm from subsystems
 		 */
-		struct mutex mutex;
+		struct rt_mutex mutex;
 
 		struct nvkm_mm mm;
 		struct iommu_domain *domain;

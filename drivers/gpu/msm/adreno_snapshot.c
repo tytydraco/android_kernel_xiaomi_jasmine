@@ -732,7 +732,7 @@ static void setup_fault_process(struct kgsl_device *device,
 	if (kgsl_mmu_is_perprocess(&device->mmu)) {
 		struct kgsl_process_private *tmp;
 
-		mutex_lock(&kgsl_driver.process_mutex);
+		rt_mutex_lock(&kgsl_driver.process_mutex);
 		list_for_each_entry(tmp, &kgsl_driver.process_list, list) {
 			u64 pt_ttbr0;
 
@@ -743,7 +743,7 @@ static void setup_fault_process(struct kgsl_device *device,
 				break;
 			}
 		}
-		mutex_unlock(&kgsl_driver.process_mutex);
+		rt_mutex_unlock(&kgsl_driver.process_mutex);
 	}
 done:
 	snapshot->process = process;

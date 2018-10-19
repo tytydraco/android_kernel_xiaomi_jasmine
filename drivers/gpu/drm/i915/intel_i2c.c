@@ -486,7 +486,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	int ret = 0;
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
-	mutex_lock(&dev_priv->gmbus_mutex);
+	rt_mutex_lock(&dev_priv->gmbus_mutex);
 
 	if (bus->force_bit) {
 		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
@@ -596,7 +596,7 @@ timeout:
 	ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 
 out:
-	mutex_unlock(&dev_priv->gmbus_mutex);
+	rt_mutex_unlock(&dev_priv->gmbus_mutex);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 
@@ -637,7 +637,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	else
 		dev_priv->gpio_mmio_base = 0;
 
-	mutex_init(&dev_priv->gmbus_mutex);
+	rt_mutex_init(&dev_priv->gmbus_mutex);
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {

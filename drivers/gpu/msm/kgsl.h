@@ -136,8 +136,8 @@ struct kgsl_driver {
 	struct list_head process_list;
 	struct list_head pagetable_list;
 	spinlock_t ptlock;
-	struct mutex process_mutex;
-	struct mutex devlock;
+	struct rt_mutex process_mutex;
+	struct rt_mutex devlock;
 	struct {
 		atomic_long_t vmalloc;
 		atomic_long_t vmalloc_max;
@@ -158,7 +158,7 @@ struct kgsl_driver {
 };
 
 extern struct kgsl_driver kgsl_driver;
-extern struct mutex kgsl_mmu_sync;
+extern struct rt_mutex kgsl_mmu_sync;
 
 struct kgsl_pagetable;
 struct kgsl_memdesc;

@@ -231,7 +231,7 @@ static bool intel_hpd_irq_event(struct drm_device *dev,
 {
 	enum drm_connector_status old_status;
 
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->mode_config.mutex));
 	old_status = connector->status;
 
 	connector->status = connector->funcs->detect(connector, false);
@@ -310,7 +310,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	bool changed = false;
 	u32 hpd_event_bits;
 
-	mutex_lock(&mode_config->mutex);
+	rt_mutex_lock(&mode_config->mutex);
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -337,7 +337,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 				changed = true;
 		}
 	}
-	mutex_unlock(&mode_config->mutex);
+	rt_mutex_unlock(&mode_config->mutex);
 
 	if (changed)
 		drm_kms_helper_hotplug_event(dev);

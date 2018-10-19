@@ -351,7 +351,7 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 		return idr_ret;
 	}
 
-	mutex_lock(&qdev->release_mutex);
+	rt_mutex_lock(&qdev->release_mutex);
 	if (qdev->current_release_bo_offset[cur_idx] + 1 >= releases_per_bo[cur_idx]) {
 		qxl_bo_unref(&qdev->current_release_bo[cur_idx]);
 		qdev->current_release_bo_offset[cur_idx] = 0;
@@ -360,7 +360,7 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 	if (!qdev->current_release_bo[cur_idx]) {
 		ret = qxl_release_bo_alloc(qdev, &qdev->current_release_bo[cur_idx]);
 		if (ret) {
-			mutex_unlock(&qdev->release_mutex);
+			rt_mutex_unlock(&qdev->release_mutex);
 			qxl_release_free(qdev, *release);
 			return ret;
 		}
@@ -374,7 +374,7 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 	if (rbo)
 		*rbo = bo;
 
-	mutex_unlock(&qdev->release_mutex);
+	rt_mutex_unlock(&qdev->release_mutex);
 
 	ret = qxl_release_list_add(*release, bo);
 	qxl_bo_unref(&bo);

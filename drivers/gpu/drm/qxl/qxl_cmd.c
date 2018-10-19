@@ -284,7 +284,7 @@ static int wait_for_io_cmd_user(struct qxl_device *qdev, uint8_t val, long port,
 	long addr = qdev->io_base + port;
 	int ret;
 
-	mutex_lock(&qdev->async_io_mutex);
+	rt_mutex_lock(&qdev->async_io_mutex);
 	irq_num = atomic_read(&qdev->irq_received_io_cmd);
 	if (qdev->last_sent_io_cmd > irq_num) {
 		if (intr)
@@ -309,7 +309,7 @@ static int wait_for_io_cmd_user(struct qxl_device *qdev, uint8_t val, long port,
 out:
 	if (ret > 0)
 		ret = 0;
-	mutex_unlock(&qdev->async_io_mutex);
+	rt_mutex_unlock(&qdev->async_io_mutex);
 	return ret;
 }
 
@@ -347,11 +347,11 @@ int qxl_io_update_area(struct qxl_device *qdev, struct qxl_bo *surf,
 			   area->top, area->right, area->bottom, surface_width, surface_height);
 		return -EINVAL;
 	}
-	mutex_lock(&qdev->update_area_mutex);
+	rt_mutex_lock(&qdev->update_area_mutex);
 	qdev->ram_header->update_area = *area;
 	qdev->ram_header->update_surface = surface_id;
 	ret = wait_for_io_cmd_user(qdev, 0, QXL_IO_UPDATE_AREA_ASYNC, true);
-	mutex_unlock(&qdev->update_area_mutex);
+	rt_mutex_unlock(&qdev->update_area_mutex);
 	return ret;
 }
 
@@ -608,9 +608,9 @@ static void qxl_surface_evict_locked(struct qxl_device *qdev, struct qxl_bo *sur
 
 void qxl_surface_evict(struct qxl_device *qdev, struct qxl_bo *surf, bool do_update_area)
 {
-	mutex_lock(&qdev->surf_evict_mutex);
+	rt_mutex_lock(&qdev->surf_evict_mutex);
 	qxl_surface_evict_locked(qdev, surf, do_update_area);
-	mutex_unlock(&qdev->surf_evict_mutex);
+	rt_mutex_unlock(&qdev->surf_evict_mutex);
 }
 
 static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stall)
@@ -622,12 +622,12 @@ static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stal
 		return ret;
 
 	if (stall)
-		mutex_unlock(&qdev->surf_evict_mutex);
+		rt_mutex_unlock(&qdev->surf_evict_mutex);
 
 	ret = ttm_bo_wait(&surf->tbo, true, true, !stall);
 
 	if (stall)
-		mutex_lock(&qdev->surf_evict_mutex);
+		rt_mutex_lock(&qdev->surf_evict_mutex);
 	if (ret) {
 		qxl_bo_unreserve(surf);
 		return ret;
@@ -645,7 +645,7 @@ static int qxl_reap_surface_id(struct qxl_device *qdev, int max_to_reap)
 	bool stall = false;
 	int start = 0;
 
-	mutex_lock(&qdev->surf_evict_mutex);
+	rt_mutex_lock(&qdev->surf_evict_mutex);
 again:
 
 	spin_lock(&qdev->surf_id_idr_lock);
@@ -677,7 +677,7 @@ again:
 		goto again;
 	}
 
-	mutex_unlock(&qdev->surf_evict_mutex);
+	rt_mutex_unlock(&qdev->surf_evict_mutex);
 	if (num_reaped) {
 		usleep_range(500, 1000);
 		qxl_queue_garbage_collect(qdev, true);

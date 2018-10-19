@@ -280,7 +280,7 @@ static void pps_lock(struct intel_dp *intel_dp)
 	power_domain = intel_display_port_aux_power_domain(encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	mutex_lock(&dev_priv->pps_mutex);
+	rt_mutex_lock(&dev_priv->pps_mutex);
 }
 
 static void pps_unlock(struct intel_dp *intel_dp)
@@ -291,7 +291,7 @@ static void pps_unlock(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum intel_display_power_domain power_domain;
 
-	mutex_unlock(&dev_priv->pps_mutex);
+	rt_mutex_unlock(&dev_priv->pps_mutex);
 
 	power_domain = intel_display_port_aux_power_domain(encoder);
 	intel_display_power_put(dev_priv, power_domain);
@@ -2449,12 +2449,12 @@ static void chv_post_disable_dp(struct intel_encoder *encoder)
 
 	intel_dp_link_down(intel_dp);
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* Assert data lane reset */
 	chv_data_lane_soft_reset(encoder, true);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void
@@ -2755,7 +2755,7 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	int pipe = intel_crtc->pipe;
 	u32 val;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW8(port));
 	val = 0;
@@ -2768,7 +2768,7 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW14(port), 0x00760018);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	intel_enable_dp(encoder);
 }
@@ -2786,7 +2786,7 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	intel_dp_prepare(encoder);
 
 	/* Program Tx lane resets to default */
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW0(port),
 			 DPIO_PCS_TX_LANE2_RESET |
 			 DPIO_PCS_TX_LANE1_RESET);
@@ -2800,7 +2800,7 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW12(port), 0x00750f00);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW11(port), 0x00001500);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW14(port), 0x40400000);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void chv_pre_enable_dp(struct intel_encoder *encoder)
@@ -2816,7 +2816,7 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	int data, i, stagger;
 	u32 val;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* allow hardware to manage TX FIFO reset source */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
@@ -2881,7 +2881,7 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	/* Deassert data lane reset */
 	chv_data_lane_soft_reset(encoder, false);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	intel_enable_dp(encoder);
 
@@ -2917,7 +2917,7 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 
 	chv_phy_powergate_lanes(encoder, true, lane_mask);
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* Assert data lane reset */
 	chv_data_lane_soft_reset(encoder, true);
@@ -2972,7 +2972,7 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 		val |= CHV_CMN_USEDCLKCHANNEL;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW19(ch), val);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
@@ -2981,7 +2981,7 @@ static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
 	enum pipe pipe = to_intel_crtc(encoder->base.crtc)->pipe;
 	u32 val;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* disable left/right clock distribution */
 	if (pipe != PIPE_B) {
@@ -2994,7 +2994,7 @@ static void chv_dp_post_pll_disable(struct intel_encoder *encoder)
 		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW1_CH1, val);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	/*
 	 * Leave the power down bit cleared for at least one
@@ -3230,7 +3230,7 @@ static uint32_t vlv_signal_levels(struct intel_dp *intel_dp)
 		return 0;
 	}
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0x00000000);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW4(port), demph_reg_value);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW2(port),
@@ -3239,7 +3239,7 @@ static uint32_t vlv_signal_levels(struct intel_dp *intel_dp)
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW11(port), 0x00030000);
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW9(port), preemph_reg_value);
 	vlv_dpio_write(dev_priv, pipe, VLV_TX_DW5(port), 0x80000000);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	return 0;
 }
@@ -3332,7 +3332,7 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 		return 0;
 	}
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* Clear calc init */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
@@ -3413,7 +3413,7 @@ static uint32_t chv_signal_levels(struct intel_dp *intel_dp)
 		vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	return 0;
 }
@@ -5598,7 +5598,7 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp)
 		return;
 	}
 
-	mutex_lock(&dev_priv->drrs.mutex);
+	rt_mutex_lock(&dev_priv->drrs.mutex);
 	if (WARN_ON(dev_priv->drrs.dp)) {
 		DRM_ERROR("DRRS already enabled\n");
 		goto unlock;
@@ -5609,7 +5609,7 @@ void intel_edp_drrs_enable(struct intel_dp *intel_dp)
 	dev_priv->drrs.dp = intel_dp;
 
 unlock:
-	mutex_unlock(&dev_priv->drrs.mutex);
+	rt_mutex_unlock(&dev_priv->drrs.mutex);
 }
 
 /**
@@ -5628,9 +5628,9 @@ void intel_edp_drrs_disable(struct intel_dp *intel_dp)
 	if (!intel_crtc->config->has_drrs)
 		return;
 
-	mutex_lock(&dev_priv->drrs.mutex);
+	rt_mutex_lock(&dev_priv->drrs.mutex);
 	if (!dev_priv->drrs.dp) {
-		mutex_unlock(&dev_priv->drrs.mutex);
+		rt_mutex_unlock(&dev_priv->drrs.mutex);
 		return;
 	}
 
@@ -5640,7 +5640,7 @@ void intel_edp_drrs_disable(struct intel_dp *intel_dp)
 			fixed_mode->vrefresh);
 
 	dev_priv->drrs.dp = NULL;
-	mutex_unlock(&dev_priv->drrs.mutex);
+	rt_mutex_unlock(&dev_priv->drrs.mutex);
 
 	cancel_delayed_work_sync(&dev_priv->drrs.work);
 }
@@ -5651,7 +5651,7 @@ static void intel_edp_drrs_downclock_work(struct work_struct *work)
 		container_of(work, typeof(*dev_priv), drrs.work.work);
 	struct intel_dp *intel_dp;
 
-	mutex_lock(&dev_priv->drrs.mutex);
+	rt_mutex_lock(&dev_priv->drrs.mutex);
 
 	intel_dp = dev_priv->drrs.dp;
 
@@ -5672,7 +5672,7 @@ static void intel_edp_drrs_downclock_work(struct work_struct *work)
 			downclock_mode->vrefresh);
 
 unlock:
-	mutex_unlock(&dev_priv->drrs.mutex);
+	rt_mutex_unlock(&dev_priv->drrs.mutex);
 }
 
 /**
@@ -5697,9 +5697,9 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 
 	cancel_delayed_work(&dev_priv->drrs.work);
 
-	mutex_lock(&dev_priv->drrs.mutex);
+	rt_mutex_lock(&dev_priv->drrs.mutex);
 	if (!dev_priv->drrs.dp) {
-		mutex_unlock(&dev_priv->drrs.mutex);
+		rt_mutex_unlock(&dev_priv->drrs.mutex);
 		return;
 	}
 
@@ -5715,7 +5715,7 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 				dev_priv->drrs.dp->attached_connector->panel.
 				fixed_mode->vrefresh);
 
-	mutex_unlock(&dev_priv->drrs.mutex);
+	rt_mutex_unlock(&dev_priv->drrs.mutex);
 }
 
 /**
@@ -5742,9 +5742,9 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 
 	cancel_delayed_work(&dev_priv->drrs.work);
 
-	mutex_lock(&dev_priv->drrs.mutex);
+	rt_mutex_lock(&dev_priv->drrs.mutex);
 	if (!dev_priv->drrs.dp) {
-		mutex_unlock(&dev_priv->drrs.mutex);
+		rt_mutex_unlock(&dev_priv->drrs.mutex);
 		return;
 	}
 
@@ -5767,7 +5767,7 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 	if (!dev_priv->drrs.busy_frontbuffer_bits)
 		schedule_delayed_work(&dev_priv->drrs.work,
 				msecs_to_jiffies(1000));
-	mutex_unlock(&dev_priv->drrs.mutex);
+	rt_mutex_unlock(&dev_priv->drrs.mutex);
 }
 
 /**
@@ -5830,7 +5830,7 @@ intel_dp_drrs_init(struct intel_connector *intel_connector,
 	struct drm_display_mode *downclock_mode = NULL;
 
 	INIT_DELAYED_WORK(&dev_priv->drrs.work, intel_edp_drrs_downclock_work);
-	mutex_init(&dev_priv->drrs.mutex);
+	rt_mutex_init(&dev_priv->drrs.mutex);
 
 	if (INTEL_INFO(dev)->gen <= 6) {
 		DRM_DEBUG_KMS("DRRS supported for Gen7 and above\n");
@@ -5898,7 +5898,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
 	pps_unlock(intel_dp);
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	edid = drm_get_edid(connector, &intel_dp->aux.ddc);
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
@@ -5931,7 +5931,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		if (fixed_mode)
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	if (IS_VALLEYVIEW(dev)) {
 		intel_dp->edp_notifier.notifier_call = edp_notify_handler;

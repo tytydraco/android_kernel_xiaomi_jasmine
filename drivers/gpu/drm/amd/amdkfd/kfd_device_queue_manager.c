@@ -141,19 +141,19 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("kfd: In func %s\n", __func__);
 	print_queue(q);
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 
 	if (dqm->total_queue_count >= max_num_of_queues_per_device) {
 		pr_warn("amdkfd: Can't create new usermode queue because %d queues were already created\n",
 				dqm->total_queue_count);
-		mutex_unlock(&dqm->lock);
+		rt_mutex_unlock(&dqm->lock);
 		return -EPERM;
 	}
 
 	if (list_empty(&qpd->queues_list)) {
 		retval = allocate_vmid(dqm, qpd, q);
 		if (retval != 0) {
-			mutex_unlock(&dqm->lock);
+			rt_mutex_unlock(&dqm->lock);
 			return retval;
 		}
 	}
@@ -170,7 +170,7 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 			deallocate_vmid(dqm, qpd, q);
 			*allocated_vmid = 0;
 		}
-		mutex_unlock(&dqm->lock);
+		rt_mutex_unlock(&dqm->lock);
 		return retval;
 	}
 
@@ -189,7 +189,7 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return 0;
 }
 
@@ -285,7 +285,7 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 
 	pr_debug("kfd: In Func %s\n", __func__);
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
 		mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
@@ -334,7 +334,7 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 			dqm->total_queue_count);
 
 out:
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return retval;
 }
 
@@ -346,11 +346,11 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 
 	BUG_ON(!dqm || !q || !q->mqd);
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 	mqd = dqm->ops.get_mqd_manager(dqm,
 			get_mqd_type_from_queue_type(q->properties.type));
 	if (mqd == NULL) {
-		mutex_unlock(&dqm->lock);
+		rt_mutex_unlock(&dqm->lock);
 		return -ENOMEM;
 	}
 
@@ -371,7 +371,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)
 		retval = execute_queues_cpsch(dqm, false);
 
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return retval;
 }
 
@@ -411,14 +411,14 @@ static int register_process_nocpsch(struct device_queue_manager *dqm,
 
 	n->qpd = qpd;
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 	list_add(&n->list, &dqm->queues);
 
 	retval = dqm->ops_asic_specific.register_process(dqm, qpd);
 
 	dqm->processes_count++;
 
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 
 	return retval;
 }
@@ -437,7 +437,7 @@ static int unregister_process_nocpsch(struct device_queue_manager *dqm,
 			list_empty(&qpd->queues_list) ? "empty" : "not empty");
 
 	retval = 0;
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 
 	list_for_each_entry_safe(cur, next, &dqm->queues, list) {
 		if (qpd == cur->qpd) {
@@ -450,7 +450,7 @@ static int unregister_process_nocpsch(struct device_queue_manager *dqm,
 	/* qpd not found in dqm list */
 	retval = 1;
 out:
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return retval;
 }
 
@@ -556,14 +556,14 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 	pr_debug("kfd: In func %s num of pipes: %d\n",
 			__func__, get_pipes_num(dqm));
 
-	mutex_init(&dqm->lock);
+	rt_mutex_init(&dqm->lock);
 	INIT_LIST_HEAD(&dqm->queues);
 	dqm->queue_count = dqm->next_pipe_to_allocate = 0;
 	dqm->sdma_queue_count = 0;
 	dqm->allocated_queues = kcalloc(get_pipes_num(dqm),
 					sizeof(unsigned int), GFP_KERNEL);
 	if (!dqm->allocated_queues) {
-		mutex_destroy(&dqm->lock);
+		rt_mutex_destroy(&dqm->lock);
 		return -ENOMEM;
 	}
 
@@ -588,7 +588,7 @@ static void uninitialize_nocpsch(struct device_queue_manager *dqm)
 	kfree(dqm->allocated_queues);
 	for (i = 0 ; i < KFD_MQD_TYPE_MAX ; i++)
 		kfree(dqm->mqds[i]);
-	mutex_destroy(&dqm->lock);
+	rt_mutex_destroy(&dqm->lock);
 	kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
 }
 
@@ -707,7 +707,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	pr_debug("kfd: In func %s num of pipes: %d\n",
 			__func__, get_pipes_num_cpsch());
 
-	mutex_init(&dqm->lock);
+	rt_mutex_init(&dqm->lock);
 	INIT_LIST_HEAD(&dqm->queues);
 	dqm->queue_count = dqm->processes_count = 0;
 	dqm->sdma_queue_count = 0;
@@ -719,7 +719,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	return 0;
 
 fail_init_pipelines:
-	mutex_destroy(&dqm->lock);
+	rt_mutex_destroy(&dqm->lock);
 	return retval;
 }
 
@@ -796,11 +796,11 @@ static int create_kernel_queue_cpsch(struct device_queue_manager *dqm,
 
 	pr_debug("kfd: In func %s\n", __func__);
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 	if (dqm->total_queue_count >= max_num_of_queues_per_device) {
 		pr_warn("amdkfd: Can't create new kernel queue because %d queues were already created\n",
 				dqm->total_queue_count);
-		mutex_unlock(&dqm->lock);
+		rt_mutex_unlock(&dqm->lock);
 		return -EPERM;
 	}
 
@@ -816,7 +816,7 @@ static int create_kernel_queue_cpsch(struct device_queue_manager *dqm,
 	dqm->queue_count++;
 	qpd->is_debug = true;
 	execute_queues_cpsch(dqm, false);
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 
 	return 0;
 }
@@ -829,7 +829,7 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 
 	pr_debug("kfd: In %s\n", __func__);
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 	/* here we actually preempt the DIQ */
 	destroy_queues_cpsch(dqm, true, false);
 	list_del(&kq->list);
@@ -843,7 +843,7 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 	dqm->total_queue_count--;
 	pr_debug("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 }
 
 static void select_sdma_engine_id(struct queue *q)
@@ -867,7 +867,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	if (allocate_vmid)
 		*allocate_vmid = 0;
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 
 	if (dqm->total_queue_count >= max_num_of_queues_per_device) {
 		pr_warn("amdkfd: Can't create new usermode queue because %d queues were already created\n",
@@ -883,7 +883,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 			get_mqd_type_from_queue_type(q->properties.type));
 
 	if (mqd == NULL) {
-		mutex_unlock(&dqm->lock);
+		rt_mutex_unlock(&dqm->lock);
 		return -ENOMEM;
 	}
 
@@ -911,7 +911,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 			dqm->total_queue_count);
 
 out:
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return retval;
 }
 
@@ -953,7 +953,7 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm,
 	retval = 0;
 
 	if (lock)
-		mutex_lock(&dqm->lock);
+		rt_mutex_lock(&dqm->lock);
 	if (dqm->active_runlist == false)
 		goto out;
 
@@ -991,7 +991,7 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm,
 
 out:
 	if (lock)
-		mutex_unlock(&dqm->lock);
+		rt_mutex_unlock(&dqm->lock);
 	return retval;
 }
 
@@ -1002,7 +1002,7 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 	BUG_ON(!dqm);
 
 	if (lock)
-		mutex_lock(&dqm->lock);
+		rt_mutex_lock(&dqm->lock);
 
 	retval = destroy_queues_cpsch(dqm, false, false);
 	if (retval != 0) {
@@ -1029,7 +1029,7 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 
 out:
 	if (lock)
-		mutex_unlock(&dqm->lock);
+		rt_mutex_unlock(&dqm->lock);
 	return retval;
 }
 
@@ -1048,7 +1048,7 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	retval = 0;
 
 	/* remove queue from list to prevent rescheduling after preemption */
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 
 	if (qpd->is_debug) {
 		/*
@@ -1086,14 +1086,14 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	pr_debug("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 
 	return 0;
 
 failed:
 failed_try_destroy_debugged_queue:
 
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return retval;
 }
 
@@ -1116,7 +1116,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 
 	pr_debug("kfd: In func %s\n", __func__);
 
-	mutex_lock(&dqm->lock);
+	rt_mutex_lock(&dqm->lock);
 
 	if (alternate_aperture_size == 0) {
 		/* base > limit disables APE1 */
@@ -1164,11 +1164,11 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 		qpd->sh_mem_config, qpd->sh_mem_ape1_base,
 		qpd->sh_mem_ape1_limit);
 
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return retval;
 
 out:
-	mutex_unlock(&dqm->lock);
+	rt_mutex_unlock(&dqm->lock);
 	return false;
 }
 

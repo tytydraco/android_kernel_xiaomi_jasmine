@@ -32,7 +32,7 @@
 struct tda998x_priv {
 	struct i2c_client *cec;
 	struct i2c_client *hdmi;
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	u16 rev;
 	u8 current_page;
 	int dpms;
@@ -416,7 +416,7 @@ reg_read_range(struct tda998x_priv *priv, u16 reg, char *buf, int cnt)
 	u8 addr = REG2ADDR(reg);
 	int ret;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
 		goto out;
@@ -434,7 +434,7 @@ reg_read_range(struct tda998x_priv *priv, u16 reg, char *buf, int cnt)
 fail:
 	dev_err(&client->dev, "Error %d reading from 0x%x\n", ret, reg);
 out:
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -448,7 +448,7 @@ reg_write_range(struct tda998x_priv *priv, u16 reg, u8 *p, int cnt)
 	buf[0] = REG2ADDR(reg);
 	memcpy(&buf[1], p, cnt);
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
 		goto out;
@@ -457,7 +457,7 @@ reg_write_range(struct tda998x_priv *priv, u16 reg, u8 *p, int cnt)
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
 out:
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 
 static int
@@ -479,7 +479,7 @@ reg_write(struct tda998x_priv *priv, u16 reg, u8 val)
 	u8 buf[] = {REG2ADDR(reg), val};
 	int ret;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
 		goto out;
@@ -488,7 +488,7 @@ reg_write(struct tda998x_priv *priv, u16 reg, u8 val)
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
 out:
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 
 static void
@@ -498,7 +498,7 @@ reg_write16(struct tda998x_priv *priv, u16 reg, u16 val)
 	u8 buf[] = {REG2ADDR(reg), val >> 8, val};
 	int ret;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
 		goto out;
@@ -507,7 +507,7 @@ reg_write16(struct tda998x_priv *priv, u16 reg, u16 val)
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
 out:
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 
 static void
@@ -1228,7 +1228,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	priv->dpms = DRM_MODE_DPMS_OFF;
 
-	mutex_init(&priv->mutex);	/* protect the page access */
+	rt_mutex_init(&priv->mutex);	/* protect the page access */
 	init_waitqueue_head(&priv->edid_delay_waitq);
 	setup_timer(&priv->edid_delay_timer, tda998x_edid_delay_done,
 		    (unsigned long)priv);

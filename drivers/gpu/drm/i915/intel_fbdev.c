@@ -55,9 +55,9 @@ static int intel_fbdev_set_par(struct fb_info *info)
 	ret = drm_fb_helper_set_par(info);
 
 	if (ret == 0) {
-		mutex_lock(&fb_helper->dev->struct_mutex);
+		rt_mutex_lock(&fb_helper->dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
-		mutex_unlock(&fb_helper->dev->struct_mutex);
+		rt_mutex_unlock(&fb_helper->dev->struct_mutex);
 	}
 
 	return ret;
@@ -73,9 +73,9 @@ static int intel_fbdev_blank(int blank, struct fb_info *info)
 	ret = drm_fb_helper_blank(blank, info);
 
 	if (ret == 0) {
-		mutex_lock(&fb_helper->dev->struct_mutex);
+		rt_mutex_lock(&fb_helper->dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
-		mutex_unlock(&fb_helper->dev->struct_mutex);
+		rt_mutex_unlock(&fb_helper->dev->struct_mutex);
 	}
 
 	return ret;
@@ -92,9 +92,9 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 	ret = drm_fb_helper_pan_display(var, info);
 
 	if (ret == 0) {
-		mutex_lock(&fb_helper->dev->struct_mutex);
+		rt_mutex_lock(&fb_helper->dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
-		mutex_unlock(&fb_helper->dev->struct_mutex);
+		rt_mutex_unlock(&fb_helper->dev->struct_mutex);
 	}
 
 	return ret;
@@ -193,7 +193,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	int size, ret;
 	bool prealloc = false;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	if (intel_fb &&
 	    (sizes->fb_width > intel_fb->base.width ||
@@ -273,7 +273,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		      fb->width, fb->height,
 		      i915_gem_obj_ggtt_offset(obj), obj);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
@@ -283,7 +283,7 @@ out_unpin:
 	i915_gem_object_ggtt_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 out_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -797,8 +797,8 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 	if (ret) {
 		DRM_DEBUG("failed to restore crtc mode\n");
 	} else {
-		mutex_lock(&fb_helper->dev->struct_mutex);
+		rt_mutex_lock(&fb_helper->dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
-		mutex_unlock(&fb_helper->dev->struct_mutex);
+		rt_mutex_unlock(&fb_helper->dev->struct_mutex);
 	}
 }

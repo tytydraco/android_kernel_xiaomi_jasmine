@@ -193,7 +193,7 @@ struct vmw_fifo_state {
 	unsigned long static_buffer_size;
 	bool using_bounce_buffer;
 	uint32_t capabilities;
-	struct mutex fifo_mutex;
+	struct rt_mutex fifo_mutex;
 	struct rw_semaphore rwsem;
 	struct vmw_marker_queue marker_queue;
 	bool dx;
@@ -422,7 +422,7 @@ struct vmw_private {
 	 * Block lastclose from racing with firstopen.
 	 */
 
-	struct mutex init_mutex;
+	struct rt_mutex init_mutex;
 
 	/*
 	 * A resource manager for kernel-only surfaces and
@@ -464,8 +464,8 @@ struct vmw_private {
 	 */
 
 	struct vmw_sw_context ctx;
-	struct mutex cmdbuf_mutex;
-	struct mutex binding_mutex;
+	struct rt_mutex cmdbuf_mutex;
+	struct rt_mutex binding_mutex;
 
 	/**
 	 * Operating mode.
@@ -485,7 +485,7 @@ struct vmw_private {
 	bool suspended;
 	bool refuse_hibernation;
 
-	struct mutex release_mutex;
+	struct rt_mutex release_mutex;
 	atomic_t num_fifo_resources;
 
 	/*

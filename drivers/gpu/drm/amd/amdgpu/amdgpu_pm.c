@@ -35,14 +35,14 @@ static int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
 void amdgpu_pm_acpi_event_handler(struct amdgpu_device *adev)
 {
 	if (adev->pm.dpm_enabled) {
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 		if (power_supply_is_system_supplied() > 0)
 			adev->pm.dpm.ac_power = true;
 		else
 			adev->pm.dpm.ac_power = false;
 		if (adev->pm.funcs->enable_bapm)
 			amdgpu_dpm_enable_bapm(adev, adev->pm.dpm.ac_power);
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 	}
 }
 
@@ -67,7 +67,7 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	if (strncmp("battery", buf, strlen("battery")) == 0)
 		adev->pm.dpm.user_state = POWER_STATE_TYPE_BATTERY;
 	else if (strncmp("balanced", buf, strlen("balanced")) == 0)
@@ -75,11 +75,11 @@ static ssize_t amdgpu_set_dpm_state(struct device *dev,
 	else if (strncmp("performance", buf, strlen("performance")) == 0)
 		adev->pm.dpm.user_state = POWER_STATE_TYPE_PERFORMANCE;
 	else {
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 		count = -EINVAL;
 		goto fail;
 	}
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	/* Can't set dpm state when the card is off */
 	if (!(adev->flags & AMD_IS_PX) ||
@@ -112,7 +112,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	enum amdgpu_dpm_forced_level level;
 	int ret = 0;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	if (strncmp("low", buf, strlen("low")) == 0) {
 		level = AMDGPU_DPM_FORCED_LEVEL_LOW;
 	} else if (strncmp("high", buf, strlen("high")) == 0) {
@@ -133,7 +133,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 			count = -EINVAL;
 	}
 fail:
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	return count;
 }
@@ -367,13 +367,13 @@ void amdgpu_dpm_thermal_work_handler(struct work_struct *work)
 			/* switch back the user state */
 			dpm_state = adev->pm.dpm.user_state;
 	}
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	if (dpm_state == POWER_STATE_TYPE_INTERNAL_THERMAL)
 		adev->pm.dpm.thermal_active = true;
 	else
 		adev->pm.dpm.thermal_active = false;
 	adev->pm.dpm.state = dpm_state;
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	amdgpu_pm_compute_clocks(adev);
 }
@@ -584,7 +584,7 @@ force:
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.requested_ps);
 	}
 
-	mutex_lock(&adev->ring_lock);
+	rt_mutex_lock(&adev->ring_lock);
 
 	/* update whether vce is active */
 	ps->vce_active = adev->pm.dpm.vce_active;
@@ -631,26 +631,26 @@ force:
 	}
 
 done:
-	mutex_unlock(&adev->ring_lock);
+	rt_mutex_unlock(&adev->ring_lock);
 }
 
 void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 {
 	if (adev->pm.funcs->powergate_uvd) {
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 		/* enable/disable UVD */
 		amdgpu_dpm_powergate_uvd(adev, !enable);
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {
-			mutex_lock(&adev->pm.mutex);
+			rt_mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.uvd_active = true;
 			adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_UVD;
-			mutex_unlock(&adev->pm.mutex);
+			rt_mutex_unlock(&adev->pm.mutex);
 		} else {
-			mutex_lock(&adev->pm.mutex);
+			rt_mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.uvd_active = false;
-			mutex_unlock(&adev->pm.mutex);
+			rt_mutex_unlock(&adev->pm.mutex);
 		}
 
 		amdgpu_pm_compute_clocks(adev);
@@ -660,22 +660,22 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 {
 	if (adev->pm.funcs->powergate_vce) {
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 		/* enable/disable VCE */
 		amdgpu_dpm_powergate_vce(adev, !enable);
 
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 	} else {
 		if (enable) {
-			mutex_lock(&adev->pm.mutex);
+			rt_mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.vce_active = true;
 			/* XXX select vce level based on ring/task */
 			adev->pm.dpm.vce_level = AMDGPU_VCE_LEVEL_AC_ALL;
-			mutex_unlock(&adev->pm.mutex);
+			rt_mutex_unlock(&adev->pm.mutex);
 		} else {
-			mutex_lock(&adev->pm.mutex);
+			rt_mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.vce_active = false;
-			mutex_unlock(&adev->pm.mutex);
+			rt_mutex_unlock(&adev->pm.mutex);
 		}
 
 		amdgpu_pm_compute_clocks(adev);
@@ -749,7 +749,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 	if (!adev->pm.dpm_enabled)
 		return;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 
 	/* update active crtc counts */
 	adev->pm.dpm.new_active_crtcs = 0;
@@ -773,7 +773,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 
 	amdgpu_dpm_change_power_state_locked(adev);
 
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 }
 
@@ -789,12 +789,12 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	struct amdgpu_device *adev = dev->dev_private;
 
 	if (adev->pm.dpm_enabled) {
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 		if (adev->pm.funcs->debugfs_print_current_performance_level)
 			amdgpu_dpm_debugfs_print_current_performance_level(adev, m);
 		else
 			seq_printf(m, "Debugfs support not implemented for this asic\n");
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 	}
 
 	return 0;

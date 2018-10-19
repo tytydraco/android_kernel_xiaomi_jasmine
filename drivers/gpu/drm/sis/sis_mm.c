@@ -65,7 +65,7 @@ static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_fb_t *fb = data;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	/* Unconditionally init the drm_mm, even though we don't use it when the
 	 * fb sis driver is available - make cleanup easier. */
 	drm_mm_init(&dev_priv->vram_mm, 0, fb->size >> SIS_MM_ALIGN_SHIFT);
@@ -73,7 +73,7 @@ static int sis_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 	dev_priv->vram_initialized = 1;
 	dev_priv->vram_offset = fb->offset;
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	DRM_DEBUG("offset = %lu, size = %lu\n", fb->offset, fb->size);
 
 	return 0;
@@ -89,13 +89,13 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	struct sis_file_private *file_priv = file->driver_priv;
 	unsigned long offset;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	if (0 == ((pool == 0) ? dev_priv->vram_initialized :
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -136,7 +136,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	user_key = retval;
 
 	list_add(&item->owner_list, &file_priv->obj_list);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	mem->offset = ((pool == 0) ?
 		      dev_priv->vram_offset : dev_priv->agp_offset) +
@@ -150,7 +150,7 @@ fail_idr:
 	drm_mm_remove_node(&item->mm_node);
 fail_alloc:
 	kfree(item);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	mem->offset = 0;
 	mem->size = 0;
@@ -168,10 +168,10 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 	drm_sis_mem_t *mem = data;
 	struct sis_memblock *obj;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	obj = idr_find(&dev_priv->object_idr, mem->free);
 	if (obj == NULL) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -184,7 +184,7 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 		sis_free(obj->req.offset);
 #endif
 	kfree(obj);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	DRM_DEBUG("free = 0x%lx\n", mem->free);
 
 	return 0;
@@ -203,12 +203,12 @@ static int sis_ioctl_agp_init(struct drm_device *dev, void *data,
 	drm_sis_agp_t *agp = data;
 	dev_priv = dev->dev_private;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	drm_mm_init(&dev_priv->agp_mm, 0, agp->size >> SIS_MM_ALIGN_SHIFT);
 
 	dev_priv->agp_initialized = 1;
 	dev_priv->agp_offset = agp->offset;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("offset = %lu, size = %lu\n", agp->offset, agp->size);
 	return 0;
@@ -297,7 +297,7 @@ void sis_lastclose(struct drm_device *dev)
 	if (!dev_priv)
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (dev_priv->vram_initialized) {
 		drm_mm_takedown(&dev_priv->vram_mm);
 		dev_priv->vram_initialized = 0;
@@ -307,7 +307,7 @@ void sis_lastclose(struct drm_device *dev)
 		dev_priv->agp_initialized = 0;
 	}
 	dev_priv->mmio = NULL;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 void sis_reclaim_buffers_locked(struct drm_device *dev,
@@ -321,9 +321,9 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 
 	drm_legacy_idlelock_take(&file->master->lock);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (list_empty(&file_priv->obj_list)) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		drm_legacy_idlelock_release(&file->master->lock);
 
 		return;
@@ -343,7 +343,7 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 #endif
 		kfree(entry);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	drm_legacy_idlelock_release(&file->master->lock);
 

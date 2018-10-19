@@ -214,7 +214,7 @@ static int adreno_drawctxt_wait_rb(struct adreno_device *adreno_dev,
 	int ret = 0;
 
 	/* Needs to hold the device mutex */
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 
 	/*
 	 * If the context is invalid (OR) not submitted commands to GPU
@@ -493,7 +493,7 @@ void adreno_drawctxt_detach(struct kgsl_context *context)
 	 * internal_timestamp is set in adreno_ringbuffer_addcmds,
 	 * which holds the device mutex.
 	 */
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	/*
 	 * Wait for the last global timestamp to pass before continuing.
@@ -532,7 +532,7 @@ void adreno_drawctxt_detach(struct kgsl_context *context)
 
 	adreno_profile_process_results(adreno_dev);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	/* wake threads waiting to submit commands from this context */
 	wake_up_all(&drawctxt->waiting);

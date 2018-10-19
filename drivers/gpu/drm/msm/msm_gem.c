@@ -48,9 +48,9 @@ static void msm_gem_mn_put(struct msm_mmu_notifier *msm_mn)
 	if (msm_mn) {
 		struct msm_drm_private *msm_dev = msm_mn->msm_dev;
 
-		mutex_lock(&msm_dev->mn_lock);
+		rt_mutex_lock(&msm_dev->mn_lock);
 		kref_put(&msm_mn->refcount, msm_gem_mn_free);
-		mutex_unlock(&msm_dev->mn_lock);
+		rt_mutex_unlock(&msm_dev->mn_lock);
 	}
 }
 
@@ -68,7 +68,7 @@ msm_gem_mn_find(struct msm_drm_private *msm_dev, struct mm_struct *mm,
 	struct msm_mmu_notifier *msm_mn;
 	int ret = 0;
 
-	mutex_lock(&msm_dev->mn_lock);
+	rt_mutex_lock(&msm_dev->mn_lock);
 	hash_for_each_possible(msm_dev->mn_hash, msm_mn, node,
 			(unsigned long) mm) {
 		if (msm_mn->mm == mm) {
@@ -76,7 +76,7 @@ msm_gem_mn_find(struct msm_drm_private *msm_dev, struct mm_struct *mm,
 				ret = -EINVAL;
 				goto fail;
 			}
-			mutex_unlock(&msm_dev->mn_lock);
+			rt_mutex_unlock(&msm_dev->mn_lock);
 			return msm_mn;
 		}
 	}
@@ -102,12 +102,12 @@ msm_gem_mn_find(struct msm_drm_private *msm_dev, struct mm_struct *mm,
 
 	/* Insert the msm_mn into the hash */
 	hash_add(msm_dev->mn_hash, &msm_mn->node, (unsigned long) msm_mn->mm);
-	mutex_unlock(&msm_dev->mn_lock);
+	rt_mutex_unlock(&msm_dev->mn_lock);
 
 	return msm_mn;
 
 fail:
-	mutex_unlock(&msm_dev->mn_lock);
+	rt_mutex_unlock(&msm_dev->mn_lock);
 	return ERR_PTR(ret);
 }
 
@@ -321,9 +321,9 @@ struct page **msm_gem_get_pages(struct drm_gem_object *obj)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct page **p;
 
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 	p = get_pages(obj);
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 	return p;
 }
 
@@ -393,7 +393,7 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * vm_ops.open and close get and put a reference on obj.
 	 * So, we dont need to hold one here.
 	 */
-	ret = mutex_lock_interruptible(&msm_obj->lock);
+	ret = rt_mutex_lock_interruptible(&msm_obj->lock);
 	if (ret)
 		goto out;
 
@@ -416,7 +416,7 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
 
 out_unlock:
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 out:
 	switch (ret) {
 	case -EAGAIN:
@@ -443,7 +443,7 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&msm_obj->lock));
+	WARN_ON(!rt_mutex_is_locked(&msm_obj->lock));
 
 	/* Make it mmapable */
 	ret = drm_gem_create_mmap_offset(obj);
@@ -461,9 +461,9 @@ uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj)
 	uint64_t offset;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 	offset = mmap_offset(obj);
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 	return offset;
 }
 
@@ -484,7 +484,7 @@ put_iova(struct drm_gem_object *obj)
 	struct msm_gem_vma *domain, *tmp;
 	bool invalid = false;
 
-	WARN_ON(!mutex_is_locked(&msm_obj->lock));
+	WARN_ON(!rt_mutex_is_locked(&msm_obj->lock));
 
 	if (msm_obj->flags & MSM_BO_SVM) {
 		msm_svm_obj = to_msm_svm_obj(msm_obj);
@@ -544,18 +544,18 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 	struct msm_gem_vma *domain;
 	int ret = 0;
 
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 
 	if (!iommu_present(&platform_bus_type)) {
 		pages = get_pages(obj);
 
 		if (IS_ERR(pages)) {
-			mutex_unlock(&msm_obj->lock);
+			rt_mutex_unlock(&msm_obj->lock);
 			return PTR_ERR(pages);
 		}
 
 		*iova = (uint64_t) physaddr(obj);
-		mutex_unlock(&msm_obj->lock);
+		rt_mutex_unlock(&msm_obj->lock);
 		return 0;
 	}
 
@@ -564,14 +564,14 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 	if (!domain) {
 		domain = obj_add_domain(obj, aspace);
 		if (IS_ERR(domain)) {
-			mutex_unlock(&msm_obj->lock);
+			rt_mutex_unlock(&msm_obj->lock);
 			return PTR_ERR(domain);
 		}
 
 		pages = get_pages(obj);
 		if (IS_ERR(pages)) {
 			obj_remove_domain(domain);
-			mutex_unlock(&msm_obj->lock);
+			rt_mutex_unlock(&msm_obj->lock);
 			return PTR_ERR(pages);
 		}
 
@@ -584,7 +584,7 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 	else
 		obj_remove_domain(domain);
 
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 	return ret;
 }
 
@@ -598,11 +598,11 @@ uint64_t msm_gem_iova(struct drm_gem_object *obj,
 	struct msm_gem_vma *domain;
 	uint64_t iova;
 
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 	domain  = obj_get_domain(obj, aspace);
 	WARN_ON(!domain);
 	iova = domain ? domain->iova : 0;
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 
 	return iova;
 }
@@ -652,10 +652,10 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 
 	if (msm_obj->vaddr) {
-		mutex_unlock(&msm_obj->lock);
+		rt_mutex_unlock(&msm_obj->lock);
 		return msm_obj->vaddr;
 	}
 
@@ -664,13 +664,13 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 	} else {
 		struct page **pages = get_pages(obj);
 		if (IS_ERR(pages)) {
-			mutex_unlock(&msm_obj->lock);
+			rt_mutex_unlock(&msm_obj->lock);
 			return ERR_CAST(pages);
 		}
 		msm_obj->vaddr = vmap(pages, obj->size >> PAGE_SHIFT,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	}
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 
 	return msm_obj->vaddr;
 }
@@ -706,7 +706,7 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	msm_obj->gpu = NULL;
 	msm_obj->read_fence = 0;
@@ -769,7 +769,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct msm_gem_vma *domain;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %pK\t",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
 			msm_obj->read_fence, msm_obj->write_fence,
@@ -807,7 +807,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct msm_gem_svm_object *msm_svm_obj = NULL;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	/* object should not be on active list: */
 	WARN_ON(is_active(msm_obj));
@@ -824,7 +824,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		msm_svm_obj->msm_mn = NULL;
 	}
 
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 	put_iova(obj);
 
 	if (obj->import_attach) {
@@ -847,7 +847,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		reservation_object_fini(msm_obj->resv);
 
 	drm_gem_object_release(obj);
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 
 	if (msm_obj->flags & MSM_BO_SVM)
 		kfree(msm_svm_obj);
@@ -898,7 +898,7 @@ int msm_gem_svm_new_handle(struct drm_device *dev, struct drm_file *file,
 
 static int msm_gem_obj_init(struct drm_device *dev,
 		uint32_t size, uint32_t flags,
-		struct msm_gem_object *msm_obj, bool struct_mutex_locked)
+		struct msm_gem_object *msm_obj, bool struct_rt_mutex_locked)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	bool use_vram = false;
@@ -922,7 +922,7 @@ static int msm_gem_obj_init(struct drm_device *dev,
 	if (WARN_ON(use_vram && !priv->vram.size))
 		return -EINVAL;
 
-	mutex_init(&msm_obj->lock);
+	rt_mutex_init(&msm_obj->lock);
 
 	if (use_vram) {
 		struct msm_gem_vma *domain = obj_add_domain(&msm_obj->base, 0);
@@ -940,19 +940,19 @@ static int msm_gem_obj_init(struct drm_device *dev,
 	INIT_LIST_HEAD(&msm_obj->submit_entry);
 	INIT_LIST_HEAD(&msm_obj->domains);
 
-	if (struct_mutex_locked) {
+	if (struct_rt_mutex_locked) {
 		list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
 	} else {
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 
 	return 0;
 }
 
 static struct drm_gem_object *msm_gem_new_impl(struct drm_device *dev,
-		uint32_t size, uint32_t flags, bool struct_mutex_locked)
+		uint32_t size, uint32_t flags, bool struct_rt_mutex_locked)
 {
 	struct msm_gem_object *msm_obj;
 	int ret;
@@ -961,7 +961,7 @@ static struct drm_gem_object *msm_gem_new_impl(struct drm_device *dev,
 	if (!msm_obj)
 		return ERR_PTR(-ENOMEM);
 
-	ret = msm_gem_obj_init(dev, size, flags, msm_obj, struct_mutex_locked);
+	ret = msm_gem_obj_init(dev, size, flags, msm_obj, struct_rt_mutex_locked);
 	if (ret) {
 		kfree(msm_obj);
 		return ERR_PTR(ret);
@@ -971,7 +971,7 @@ static struct drm_gem_object *msm_gem_new_impl(struct drm_device *dev,
 }
 
 static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
-		uint32_t size, uint32_t flags, bool struct_mutex_locked)
+		uint32_t size, uint32_t flags, bool struct_rt_mutex_locked)
 {
 	struct drm_gem_object *obj;
 	int ret;
@@ -985,7 +985,7 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	if (!size)
 		return ERR_PTR(-EINVAL);
 
-	obj = msm_gem_new_impl(dev, size, flags, struct_mutex_locked);
+	obj = msm_gem_new_impl(dev, size, flags, struct_rt_mutex_locked);
 	if (IS_ERR(obj))
 		return obj;
 
@@ -1182,11 +1182,11 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	npages = size / PAGE_SIZE;
 
 	msm_obj = to_msm_bo(obj);
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 	msm_obj->sgt = sgt;
 	msm_obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
 	if (!msm_obj->pages) {
-		mutex_unlock(&msm_obj->lock);
+		rt_mutex_unlock(&msm_obj->lock);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1197,11 +1197,11 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	ret = drm_prime_sg_to_page_addr_arrays(sgt, msm_obj->pages,
 			NULL, npages);
 	if (ret) {
-		mutex_unlock(&msm_obj->lock);
+		rt_mutex_unlock(&msm_obj->lock);
 		goto fail;
 	}
 
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 
 	return obj;
 
@@ -1237,7 +1237,7 @@ static void invalidate_svm_object(struct msm_gem_svm_object *msm_svm_obj)
 	}
 
 	/* GPU is done, unmap object from SMMU */
-	mutex_lock(&msm_obj->lock);
+	rt_mutex_lock(&msm_obj->lock);
 	list_for_each_entry_safe(domain, tmp, &msm_obj->domains, list) {
 		struct msm_gem_address_space *aspace = domain->aspace;
 
@@ -1248,7 +1248,7 @@ static void invalidate_svm_object(struct msm_gem_svm_object *msm_svm_obj)
 	}
 	/* Let go of the physical pages */
 	put_pages(&msm_obj->base);
-	mutex_unlock(&msm_obj->lock);
+	rt_mutex_unlock(&msm_obj->lock);
 }
 
 void msm_mn_invalidate_range_start(struct mmu_notifier *mn,

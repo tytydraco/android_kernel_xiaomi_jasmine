@@ -95,7 +95,7 @@ drm_gem_init(struct drm_device *dev)
 {
 	struct drm_vma_offset_manager *vma_offset_manager;
 
-	mutex_init(&dev->object_name_lock);
+	rt_mutex_init(&dev->object_name_lock);
 	idr_init(&dev->object_name_idr);
 
 	vma_offset_manager = kzalloc(sizeof(*vma_offset_manager), GFP_KERNEL);
@@ -179,12 +179,12 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 	 * Note: obj->dma_buf can't disappear as long as we still hold a
 	 * handle reference in obj->handle_count.
 	 */
-	mutex_lock(&filp->prime.lock);
+	rt_mutex_lock(&filp->prime.lock);
 	if (obj->dma_buf) {
 		drm_prime_remove_buf_handle_locked(&filp->prime,
 						   obj->dma_buf);
 	}
-	mutex_unlock(&filp->prime.lock);
+	rt_mutex_unlock(&filp->prime.lock);
 }
 
 /**
@@ -229,12 +229,12 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	* checked for a name
 	*/
 
-	mutex_lock(&obj->dev->object_name_lock);
+	rt_mutex_lock(&obj->dev->object_name_lock);
 	if (--obj->handle_count == 0) {
 		drm_gem_object_handle_free(obj);
 		drm_gem_object_exported_dma_buf_free(obj);
 	}
-	mutex_unlock(&obj->dev->object_name_lock);
+	rt_mutex_unlock(&obj->dev->object_name_lock);
 
 	drm_gem_object_unreference_unlocked(obj);
 }
@@ -323,7 +323,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	struct drm_device *dev = obj->dev;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&dev->object_name_lock));
+	WARN_ON(!rt_mutex_is_locked(&dev->object_name_lock));
 
 	/*
 	 * Get the user-visible handle using idr.  Preload and perform
@@ -337,7 +337,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	obj->handle_count++;
 	spin_unlock(&file_priv->table_lock);
 	idr_preload_end();
-	mutex_unlock(&dev->object_name_lock);
+	rt_mutex_unlock(&dev->object_name_lock);
 	if (ret < 0)
 		goto err_unref;
 
@@ -380,7 +380,7 @@ int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
 			  u32 *handlep)
 {
-	mutex_lock(&obj->dev->object_name_lock);
+	rt_mutex_lock(&obj->dev->object_name_lock);
 
 	return drm_gem_handle_create_tail(file_priv, obj, handlep);
 }
@@ -619,7 +619,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	if (obj == NULL)
 		return -ENOENT;
 
-	mutex_lock(&dev->object_name_lock);
+	rt_mutex_lock(&dev->object_name_lock);
 	idr_preload(GFP_KERNEL);
 	/* prevent races with concurrent gem_close. */
 	if (obj->handle_count == 0) {
@@ -640,7 +640,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 
 err:
 	idr_preload_end();
-	mutex_unlock(&dev->object_name_lock);
+	rt_mutex_unlock(&dev->object_name_lock);
 	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
@@ -668,12 +668,12 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
-	mutex_lock(&dev->object_name_lock);
+	rt_mutex_lock(&dev->object_name_lock);
 	obj = idr_find(&dev->object_name_idr, (int) args->name);
 	if (obj) {
 		drm_gem_object_reference(obj);
 	} else {
-		mutex_unlock(&dev->object_name_lock);
+		rt_mutex_unlock(&dev->object_name_lock);
 		return -ENOENT;
 	}
 
@@ -772,7 +772,7 @@ drm_gem_object_free(struct kref *kref)
 		container_of(kref, struct drm_gem_object, refcount);
 	struct drm_device *dev = obj->dev;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	if (dev->driver->gem_free_object != NULL)
 		dev->driver->gem_free_object(obj);

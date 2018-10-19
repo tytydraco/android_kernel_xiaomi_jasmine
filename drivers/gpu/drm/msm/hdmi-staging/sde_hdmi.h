@@ -145,8 +145,8 @@ struct sde_hdmi {
 	const char *name;
 	const char *display_type;
 	struct list_head list;
-	struct mutex display_lock;
-	struct mutex hdcp_mutex;
+	struct rt_mutex display_lock;
+	struct rt_mutex hdcp_mutex;
 	struct sde_hdmi_ctrl ctrl;
 
 	struct platform_device *ext_pdev;

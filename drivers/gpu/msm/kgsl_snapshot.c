@@ -467,7 +467,7 @@ static size_t kgsl_snapshot_dump_indexed_regs(struct kgsl_device *device,
 	unsigned int *data = (unsigned int *)(buf + sizeof(*header));
 	int i;
 
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 
 	if (remain < (iregs->count * 4) + sizeof(*header)) {
 		SNAPSHOT_ERR_NOMEM(device, "INDEXED REGS");
@@ -718,11 +718,11 @@ static ssize_t snapshot_show(struct file *filep, struct kobject *kobj,
 	if (device == NULL)
 		return 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	snapshot = device->snapshot;
 	if (snapshot != NULL)
 		atomic_inc(&snapshot->sysfs_read);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	/* Return nothing if we haven't taken a snapshot yet */
 	if (snapshot == NULL)
@@ -770,12 +770,12 @@ static ssize_t snapshot_show(struct file *filep, struct kobject *kobj,
 	if (itr.write == 0) {
 		bool snapshot_free = false;
 
-		mutex_lock(&device->mutex);
+		rt_mutex_lock(&device->mutex);
 		if (atomic_dec_and_test(&snapshot->sysfs_read)) {
 			device->snapshot = NULL;
 			snapshot_free = true;
 		}
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 
 		if (snapshot_free) {
 			list_for_each_entry_safe(obj, tmp,

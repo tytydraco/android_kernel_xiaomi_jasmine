@@ -42,7 +42,7 @@ struct vmw_fence_manager {
 	bool fifo_down;
 	struct list_head cleanup_list;
 	uint32_t pending_actions[VMW_ACTION_MAX];
-	struct mutex goal_irq_mutex;
+	struct rt_mutex goal_irq_mutex;
 	bool goal_irq_on; /* Protected by @goal_irq_mutex */
 	bool seqno_valid; /* Protected by @lock, and may not be set to true
 			     without the @goal_irq_mutex held. */
@@ -251,7 +251,7 @@ static void vmw_fence_work_func(struct work_struct *work)
 
 	do {
 		INIT_LIST_HEAD(&list);
-		mutex_lock(&fman->goal_irq_mutex);
+		rt_mutex_lock(&fman->goal_irq_mutex);
 
 		spin_lock_irq(&fman->lock);
 		list_splice_init(&fman->cleanup_list, &list);
@@ -262,7 +262,7 @@ static void vmw_fence_work_func(struct work_struct *work)
 			fman->goal_irq_on = false;
 			vmw_goal_waiter_remove(fman->dev_priv);
 		}
-		mutex_unlock(&fman->goal_irq_mutex);
+		rt_mutex_unlock(&fman->goal_irq_mutex);
 
 		if (list_empty(&list))
 			return;
@@ -298,7 +298,7 @@ struct vmw_fence_manager *vmw_fence_manager_init(struct vmw_private *dev_priv)
 	fman->fence_size = ttm_round_pot(sizeof(struct vmw_fence_obj));
 	fman->event_fence_action_size =
 		ttm_round_pot(sizeof(struct vmw_event_fence_action));
-	mutex_init(&fman->goal_irq_mutex);
+	rt_mutex_init(&fman->goal_irq_mutex);
 	fman->ctx = fence_context_alloc(1);
 
 	return fman;
@@ -954,7 +954,7 @@ static void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
 	unsigned long irq_flags;
 	bool run_update = false;
 
-	mutex_lock(&fman->goal_irq_mutex);
+	rt_mutex_lock(&fman->goal_irq_mutex);
 	spin_lock_irqsave(&fman->lock, irq_flags);
 
 	fman->pending_actions[action->type]++;
@@ -983,7 +983,7 @@ static void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
 		}
 		vmw_fences_update(fman);
 	}
-	mutex_unlock(&fman->goal_irq_mutex);
+	rt_mutex_unlock(&fman->goal_irq_mutex);
 
 }
 

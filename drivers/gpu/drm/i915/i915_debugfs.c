@@ -65,9 +65,9 @@ drm_add_fake_info_node(struct drm_minor *minor,
 	node->dent = ent;
 	node->info_ent = (void *) key;
 
-	mutex_lock(&minor->debugfs_lock);
+	rt_mutex_lock(&minor->debugfs_lock);
 	list_add(&node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
+	rt_mutex_unlock(&minor->debugfs_lock);
 
 	return 0;
 }
@@ -210,7 +210,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	u64 total_obj_size, total_gtt_size;
 	int count, ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -225,7 +225,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		head = &vm->inactive_list;
 		break;
 	default:
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -238,7 +238,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		total_gtt_size += vma->node.size;
 		count++;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
@@ -270,7 +270,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	LIST_HEAD(stolen);
 	int count, ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -303,7 +303,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		seq_putc(m, '\n');
 		list_del_init(&obj->obj_exec_link);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
@@ -440,7 +440,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	struct i915_vma *vma;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -520,7 +520,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		rcu_read_unlock();
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -535,7 +535,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	u64 total_obj_size, total_gtt_size;
 	int count, ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -552,7 +552,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 		count++;
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "Total %d objects, %llu bytes, %llu GTT size\n",
 		   count, total_obj_size, total_gtt_size);
@@ -568,7 +568,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 	struct intel_crtc *crtc;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -628,7 +628,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 		spin_unlock_irq(&dev->event_lock);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -643,7 +643,7 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	int total = 0;
 	int ret, i, j;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -673,7 +673,7 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "total: %d\n", total);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -687,7 +687,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_i915_gem_request *req;
 	int ret, any, i;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -719,7 +719,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 
 		any++;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	if (any == 0)
 		seq_puts(m, "No requests\n");
@@ -744,7 +744,7 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 	struct intel_engine_cs *ring;
 	int ret, i;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -753,7 +753,7 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 		i915_ring_seqno_info(m, ring);
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -767,7 +767,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct intel_engine_cs *ring;
 	int ret, i, pipe;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -940,7 +940,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		i915_ring_seqno_info(m, ring);
 	}
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -952,7 +952,7 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i, ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -969,7 +969,7 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 		seq_putc(m, '\n');
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -1007,12 +1007,12 @@ i915_error_state_write(struct file *filp,
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	i915_destroy_error_state(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return cnt;
 }
@@ -1091,12 +1091,12 @@ i915_next_seqno_get(void *data, u64 *val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	*val = dev_priv->next_seqno;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -1107,12 +1107,12 @@ i915_next_seqno_set(void *data, u64 val)
 	struct drm_device *dev = data;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	ret = i915_gem_set_seqno(dev, val);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -1164,7 +1164,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		}
 
 		/* RPSTAT1 is in the GT power well */
-		ret = mutex_lock_interruptible(&dev->struct_mutex);
+		ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 		if (ret)
 			goto out;
 
@@ -1202,7 +1202,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		cagf = intel_gpu_freq(dev_priv, cagf);
 
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 		if (IS_GEN6(dev) || IS_GEN7(dev)) {
 			pm_ier = I915_READ(GEN6_PMIER);
@@ -1284,7 +1284,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	} else if (IS_VALLEYVIEW(dev)) {
 		u32 freq_sts;
 
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
@@ -1307,7 +1307,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_puts(m, "no P-state info available\n");
 	}
@@ -1377,7 +1377,7 @@ static int ironlake_drpc_info(struct seq_file *m)
 	u16 crstandvid;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -1387,7 +1387,7 @@ static int ironlake_drpc_info(struct seq_file *m)
 	crstandvid = I915_READ16(CRSTANDVID);
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "HD boost: %s\n", yesno(rgvmodectl & MEMMODE_BOOST_EN));
 	seq_printf(m, "Boost freq: %d\n",
@@ -1504,7 +1504,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	unsigned forcewake_count;
 	int count = 0, ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -1528,10 +1528,10 @@ static int gen6_drpc_info(struct seq_file *m)
 
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
-	mutex_unlock(&dev->struct_mutex);
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev->struct_mutex);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -1634,7 +1634,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	}
 
 	intel_runtime_pm_get(dev_priv);
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 
 	if (intel_fbc_enabled(dev_priv))
 		seq_puts(m, "FBC enabled\n");
@@ -1647,7 +1647,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 			   yesno(I915_READ(FBC_STATUS2) &
 				 FBC_COMPRESSION_MASK));
 
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 	intel_runtime_pm_put(dev_priv);
 
 	return 0;
@@ -1675,7 +1675,7 @@ static int i915_fbc_fc_set(void *data, u64 val)
 	if (INTEL_INFO(dev)->gen < 7 || !HAS_FBC(dev))
 		return -ENODEV;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 
 	reg = I915_READ(ILK_DPFC_CONTROL);
 	dev_priv->fbc.false_color = val;
@@ -1684,7 +1684,7 @@ static int i915_fbc_fc_set(void *data, u64 val)
 		   (reg | FBC_CTL_FALSE_COLOR) :
 		   (reg & ~FBC_CTL_FALSE_COLOR));
 
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 	return 0;
 }
 
@@ -1762,14 +1762,14 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 	if (!IS_GEN5(dev))
 		return -ENODEV;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	temp = i915_mch_val(dev_priv);
 	chipset = i915_chipset_val(dev_priv);
 	gfx = i915_gfx_val(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "GMCH temp: %ld\n", temp);
 	seq_printf(m, "Chipset power: %ld\n", chipset);
@@ -1797,7 +1797,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	ret = rt_mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		goto out;
 
@@ -1826,7 +1826,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 			   ((ia_freq >> 8) & 0xff) * 100);
 	}
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 out:
 	intel_runtime_pm_put(dev_priv);
@@ -1845,7 +1845,7 @@ static int i915_opregion(struct seq_file *m, void *unused)
 	if (data == NULL)
 		return -ENOMEM;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		goto out;
 
@@ -1854,7 +1854,7 @@ static int i915_opregion(struct seq_file *m, void *unused)
 		seq_write(m, data, OPREGION_SIZE);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 out:
 	kfree(data);
@@ -1886,7 +1886,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	seq_putc(m, '\n');
 #endif
 
-	mutex_lock(&dev->mode_config.fb_lock);
+	rt_mutex_lock(&dev->mode_config.fb_lock);
 	drm_for_each_fb(drm_fb, dev) {
 		fb = to_intel_framebuffer(drm_fb);
 		if (ifbdev && &fb->base == ifbdev->helper.fb)
@@ -1902,7 +1902,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		describe_obj(m, fb->obj);
 		seq_putc(m, '\n');
 	}
-	mutex_unlock(&dev->mode_config.fb_lock);
+	rt_mutex_unlock(&dev->mode_config.fb_lock);
 
 	return 0;
 }
@@ -1924,7 +1924,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct intel_context *ctx;
 	int ret, i;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -1963,7 +1963,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, '\n');
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -2026,7 +2026,7 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -2038,7 +2038,7 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 		}
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -2063,7 +2063,7 @@ static int i915_execlists(struct seq_file *m, void *data)
 		return 0;
 	}
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -2121,7 +2121,7 @@ static int i915_execlists(struct seq_file *m, void *data)
 	}
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -2157,7 +2157,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -2199,7 +2199,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 		seq_puts(m, "L-shaped memory detected\n");
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -2282,7 +2282,7 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_file *file;
 
-	int ret = mutex_lock_interruptible(&dev->struct_mutex);
+	int ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -2309,7 +2309,7 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 
 out_put:
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -2539,7 +2539,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	intel_runtime_pm_get(dev_priv);
 
-	mutex_lock(&dev_priv->psr.lock);
+	rt_mutex_lock(&dev_priv->psr.lock);
 	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
 	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
@@ -2577,7 +2577,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);
 	}
-	mutex_unlock(&dev_priv->psr.lock);
+	rt_mutex_unlock(&dev_priv->psr.lock);
 
 	intel_runtime_pm_put(dev_priv);
 	return 0;
@@ -2752,7 +2752,7 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	int i;
 
-	mutex_lock(&power_domains->lock);
+	rt_mutex_lock(&power_domains->lock);
 
 	seq_printf(m, "%-25s %s\n", "Power well/domain", "Use count");
 	for (i = 0; i < power_domains->power_well_count; i++) {
@@ -2774,7 +2774,7 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 		}
 	}
 
-	mutex_unlock(&power_domains->lock);
+	rt_mutex_unlock(&power_domains->lock);
 
 	return 0;
 }
@@ -3011,7 +3011,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -3065,7 +3065,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	seq_putc(m, '\n');
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -3104,7 +3104,7 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -3125,7 +3125,7 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	}
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -3213,14 +3213,14 @@ static void drrs_status_per_crtc(struct seq_file *m,
 	if (to_intel_crtc_state(intel_crtc->base.state)->has_drrs) {
 		struct intel_panel *panel;
 
-		mutex_lock(&drrs->mutex);
+		rt_mutex_lock(&drrs->mutex);
 		/* DRRS Supported */
 		seq_puts(m, "\tDRRS Supported: Yes\n");
 
 		/* disable_drrs() will make drrs->dp NULL */
 		if (!drrs->dp) {
 			seq_puts(m, "Idleness DRRS: Disabled");
-			mutex_unlock(&drrs->mutex);
+			rt_mutex_unlock(&drrs->mutex);
 			return;
 		}
 
@@ -3238,13 +3238,13 @@ static void drrs_status_per_crtc(struct seq_file *m,
 		} else {
 			seq_printf(m, "DRRS_State: Unknown(%d)\n",
 						drrs->refresh_rate_type);
-			mutex_unlock(&drrs->mutex);
+			rt_mutex_unlock(&drrs->mutex);
 			return;
 		}
 		seq_printf(m, "\t\tVrefresh: %d", vrefresh);
 
 		seq_puts(m, "\n\t\t");
-		mutex_unlock(&drrs->mutex);
+		rt_mutex_unlock(&drrs->mutex);
 	} else {
 		/* DRRS not supported. Print the VBT parameter*/
 		seq_puts(m, "\tDRRS Supported : No");
@@ -4621,12 +4621,12 @@ i915_ring_stop_set(void *data, u64 val)
 
 	DRM_DEBUG_DRIVER("Stopping rings 0x%08llx\n", val);
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	dev_priv->gpu_error.stop_rings = val;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -4653,11 +4653,11 @@ i915_ring_missed_irq_set(void *data, u64 val)
 	int ret;
 
 	/* Lock against concurrent debugfs callers */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	dev_priv->gpu_error.missed_irq_rings = val;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -4687,12 +4687,12 @@ i915_ring_test_irq_set(void *data, u64 val)
 	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
 
 	/* Lock against concurrent debugfs callers */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	dev_priv->gpu_error.test_irq_rings = val;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -4728,7 +4728,7 @@ i915_drop_caches_set(void *data, u64 val)
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -4748,7 +4748,7 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_gem_shrink(dev_priv, LONG_MAX, I915_SHRINK_UNBOUND);
 
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -4769,12 +4769,12 @@ i915_max_freq_get(void *data, u64 *val)
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	ret = rt_mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
 	*val = intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
 }
@@ -4794,7 +4794,7 @@ i915_max_freq_set(void *data, u64 val)
 
 	DRM_DEBUG_DRIVER("Manually setting max freq to %llu\n", val);
 
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	ret = rt_mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
@@ -4807,7 +4807,7 @@ i915_max_freq_set(void *data, u64 val)
 	hw_min = dev_priv->rps.min_freq;
 
 	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_freq_softlimit) {
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
@@ -4815,7 +4815,7 @@ i915_max_freq_set(void *data, u64 val)
 
 	intel_set_rps(dev, val);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
 }
@@ -4836,12 +4836,12 @@ i915_min_freq_get(void *data, u64 *val)
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	ret = rt_mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
 	*val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
 }
@@ -4861,7 +4861,7 @@ i915_min_freq_set(void *data, u64 val)
 
 	DRM_DEBUG_DRIVER("Manually setting min freq to %llu\n", val);
 
-	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	ret = rt_mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
@@ -4874,7 +4874,7 @@ i915_min_freq_set(void *data, u64 val)
 	hw_min = dev_priv->rps.min_freq;
 
 	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_freq_softlimit) {
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
@@ -4882,7 +4882,7 @@ i915_min_freq_set(void *data, u64 val)
 
 	intel_set_rps(dev, val);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
 }
@@ -4902,7 +4902,7 @@ i915_cache_sharing_get(void *data, u64 *val)
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
@@ -4910,7 +4910,7 @@ i915_cache_sharing_get(void *data, u64 *val)
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	rt_mutex_unlock(&dev_priv->dev->struct_mutex);
 
 	*val = (snpcr & GEN6_MBC_SNPCR_MASK) >> GEN6_MBC_SNPCR_SHIFT;
 

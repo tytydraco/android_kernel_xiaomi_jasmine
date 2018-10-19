@@ -259,7 +259,7 @@ struct kgsl_device {
 	spinlock_t submit_lock;
 	bool slumber;
 
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	uint32_t state;
 	uint32_t requested_state;
 
@@ -319,7 +319,7 @@ struct kgsl_device {
 	.context_idr = IDR_INIT((_dev).context_idr),\
 	.wait_queue = __WAIT_QUEUE_HEAD_INITIALIZER((_dev).wait_queue),\
 	.active_cnt_wq = __WAIT_QUEUE_HEAD_INITIALIZER((_dev).active_cnt_wq),\
-	.mutex = __MUTEX_INITIALIZER((_dev).mutex),\
+	.mutex = __RT_MUTEX_INITIALIZER((_dev).mutex),\
 	.state = KGSL_STATE_NONE,\
 	.ver_major = DRIVER_VERSION_MAJOR,\
 	.ver_minor = DRIVER_VERSION_MINOR

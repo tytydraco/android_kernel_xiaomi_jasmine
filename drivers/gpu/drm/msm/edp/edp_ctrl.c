@@ -83,7 +83,7 @@ struct edp_ctrl {
 
 	/* completion and mutex */
 	struct completion idle_comp;
-	struct mutex dev_mutex; /* To protect device power status */
+	struct rt_mutex dev_mutex; /* To protect device power status */
 
 	/* work queue */
 	struct work_struct on_work;
@@ -967,7 +967,7 @@ static void edp_ctrl_on_worker(struct work_struct *work)
 				work, struct edp_ctrl, on_work);
 	int ret;
 
-	mutex_lock(&ctrl->dev_mutex);
+	rt_mutex_lock(&ctrl->dev_mutex);
 
 	if (ctrl->power_on) {
 		DBG("already on");
@@ -998,7 +998,7 @@ fail:
 	edp_ctrl_phy_aux_enable(ctrl, 0);
 	ctrl->power_on = false;
 unlock_ret:
-	mutex_unlock(&ctrl->dev_mutex);
+	rt_mutex_unlock(&ctrl->dev_mutex);
 }
 
 static void edp_ctrl_off_worker(struct work_struct *work)
@@ -1007,7 +1007,7 @@ static void edp_ctrl_off_worker(struct work_struct *work)
 				work, struct edp_ctrl, off_work);
 	unsigned long time_left;
 
-	mutex_lock(&ctrl->dev_mutex);
+	rt_mutex_lock(&ctrl->dev_mutex);
 
 	if (!ctrl->power_on) {
 		DBG("already off");
@@ -1035,7 +1035,7 @@ static void edp_ctrl_off_worker(struct work_struct *work)
 	ctrl->power_on = false;
 
 unlock_ret:
-	mutex_unlock(&ctrl->dev_mutex);
+	rt_mutex_unlock(&ctrl->dev_mutex);
 }
 
 irqreturn_t msm_edp_ctrl_irq(struct edp_ctrl *ctrl)
@@ -1146,7 +1146,7 @@ int msm_edp_ctrl_init(struct msm_edp *edp)
 	}
 
 	spin_lock_init(&ctrl->irq_lock);
-	mutex_init(&ctrl->dev_mutex);
+	rt_mutex_init(&ctrl->dev_mutex);
 	init_completion(&ctrl->idle_comp);
 
 	/* setup workqueue */
@@ -1181,15 +1181,15 @@ void msm_edp_ctrl_destroy(struct edp_ctrl *ctrl)
 	kfree(ctrl->edid);
 	ctrl->edid = NULL;
 
-	mutex_destroy(&ctrl->dev_mutex);
+	rt_mutex_destroy(&ctrl->dev_mutex);
 }
 
 bool msm_edp_ctrl_panel_connected(struct edp_ctrl *ctrl)
 {
-	mutex_lock(&ctrl->dev_mutex);
+	rt_mutex_lock(&ctrl->dev_mutex);
 	DBG("connect status = %d", ctrl->edp_connected);
 	if (ctrl->edp_connected) {
-		mutex_unlock(&ctrl->dev_mutex);
+		rt_mutex_unlock(&ctrl->dev_mutex);
 		return true;
 	}
 
@@ -1213,7 +1213,7 @@ bool msm_edp_ctrl_panel_connected(struct edp_ctrl *ctrl)
 
 	DBG("exit: connect status=%d", ctrl->edp_connected);
 
-	mutex_unlock(&ctrl->dev_mutex);
+	rt_mutex_unlock(&ctrl->dev_mutex);
 
 	return ctrl->edp_connected;
 }
@@ -1223,7 +1223,7 @@ int msm_edp_ctrl_get_panel_info(struct edp_ctrl *ctrl,
 {
 	int ret = 0;
 
-	mutex_lock(&ctrl->dev_mutex);
+	rt_mutex_lock(&ctrl->dev_mutex);
 
 	if (ctrl->edid) {
 		if (edid) {
@@ -1262,7 +1262,7 @@ disable_ret:
 		edp_ctrl_phy_aux_enable(ctrl, 0);
 	}
 unlock_ret:
-	mutex_unlock(&ctrl->dev_mutex);
+	rt_mutex_unlock(&ctrl->dev_mutex);
 	return ret;
 }
 
@@ -1274,7 +1274,7 @@ int msm_edp_ctrl_timing_cfg(struct edp_ctrl *ctrl,
 	u32 data;
 	int ret = 0;
 
-	mutex_lock(&ctrl->dev_mutex);
+	rt_mutex_lock(&ctrl->dev_mutex);
 	/*
 	 * Need to keep color depth, pixel rate and
 	 * interlaced information in ctrl context
@@ -1321,7 +1321,7 @@ int msm_edp_ctrl_timing_cfg(struct edp_ctrl *ctrl,
 	edp_clk_disable(ctrl, EDP_CLK_MASK_AHB);
 
 unlock_ret:
-	mutex_unlock(&ctrl->dev_mutex);
+	rt_mutex_unlock(&ctrl->dev_mutex);
 	return ret;
 }
 

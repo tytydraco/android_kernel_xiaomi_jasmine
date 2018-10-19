@@ -197,7 +197,7 @@ static void submit_unlock_unpin_bo(struct msm_gpu *gpu,
 		msm_gem_put_iova(&msm_obj->base, aspace);
 
 	if (submit->bos[i].flags & BO_LOCKED)
-		ww_mutex_unlock(&msm_obj->resv->lock);
+		ww_rt_mutex_unlock(&msm_obj->resv->lock);
 
 	if (!(submit->bos[i].flags & BO_VALID))
 		submit->bos[i].iova = 0;
@@ -221,7 +221,7 @@ retry:
 		contended = i;
 
 		if (!(submit->bos[i].flags & BO_LOCKED)) {
-			ret = ww_mutex_lock_interruptible(&msm_obj->resv->lock,
+			ret = ww_rt_mutex_lock_interruptible(&msm_obj->resv->lock,
 					&submit->ticket);
 			if (ret)
 				goto fail;
@@ -256,7 +256,7 @@ fail:
 	if (ret == -EDEADLK) {
 		struct msm_gem_object *msm_obj = submit->bos[contended].obj;
 		/* we lost out in a seqno race, lock and retry.. */
-		ret = ww_mutex_lock_slow_interruptible(&msm_obj->resv->lock,
+		ret = ww_rt_mutex_lock_slow_interruptible(&msm_obj->resv->lock,
 				&submit->ticket);
 		if (!ret) {
 			submit->bos[contended].flags |= BO_LOCKED;
@@ -453,7 +453,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (!queue)
 		return -ENOENT;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	submit = submit_create(dev, ctx->aspace, args->nr_bos, args->nr_cmds,
 		queue);
@@ -550,6 +550,6 @@ out:
 	submit_cleanup(gpu, submit, !!ret);
 	if (ret)
 		msm_gem_submit_free(submit);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }

@@ -59,11 +59,11 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 	if (INTEL_INFO(dev_priv)->gen == 8 && start < 4096)
 		start = 4096;
 
-	mutex_lock(&dev_priv->mm.stolen_lock);
+	rt_mutex_lock(&dev_priv->mm.stolen_lock);
 	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node, size,
 					  alignment, start, end,
 					  DRM_MM_SEARCH_DEFAULT);
-	mutex_unlock(&dev_priv->mm.stolen_lock);
+	rt_mutex_unlock(&dev_priv->mm.stolen_lock);
 
 	return ret;
 }
@@ -80,9 +80,9 @@ int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 				 struct drm_mm_node *node)
 {
-	mutex_lock(&dev_priv->mm.stolen_lock);
+	rt_mutex_lock(&dev_priv->mm.stolen_lock);
 	drm_mm_remove_node(node);
-	mutex_unlock(&dev_priv->mm.stolen_lock);
+	rt_mutex_unlock(&dev_priv->mm.stolen_lock);
 }
 
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
@@ -403,7 +403,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	unsigned long reserved_total, reserved_base = 0, reserved_size;
 	unsigned long stolen_top;
 
-	mutex_init(&dev_priv->mm.stolen_lock);
+	rt_mutex_init(&dev_priv->mm.stolen_lock);
 
 #ifdef CONFIG_INTEL_IOMMU
 	if (intel_iommu_gfx_mapped && INTEL_INFO(dev)->gen < 8) {
@@ -656,9 +656,9 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	stolen->start = stolen_offset;
 	stolen->size = size;
-	mutex_lock(&dev_priv->mm.stolen_lock);
+	rt_mutex_lock(&dev_priv->mm.stolen_lock);
 	ret = drm_mm_reserve_node(&dev_priv->mm.stolen, stolen);
-	mutex_unlock(&dev_priv->mm.stolen_lock);
+	rt_mutex_unlock(&dev_priv->mm.stolen_lock);
 	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen space\n");
 		kfree(stolen);

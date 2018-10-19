@@ -116,7 +116,7 @@ struct ipu_dmfc_priv {
 	struct ipu_soc *ipu;
 	struct device *dev;
 	struct dmfc_channel channels[DMFC_NUM_CHANNELS];
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	unsigned long bandwidth_per_slot;
 	void __iomem *base;
 	int use_count;
@@ -125,14 +125,14 @@ struct ipu_dmfc_priv {
 int ipu_dmfc_enable_channel(struct dmfc_channel *dmfc)
 {
 	struct ipu_dmfc_priv *priv = dmfc->priv;
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	if (!priv->use_count)
 		ipu_module_enable(priv->ipu, IPU_CONF_DMFC_EN);
 
 	priv->use_count++;
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 
 	return 0;
 }
@@ -156,7 +156,7 @@ void ipu_dmfc_disable_channel(struct dmfc_channel *dmfc)
 {
 	struct ipu_dmfc_priv *priv = dmfc->priv;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	priv->use_count--;
 
@@ -168,7 +168,7 @@ void ipu_dmfc_disable_channel(struct dmfc_channel *dmfc)
 	if (priv->use_count < 0)
 		priv->use_count = 0;
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dmfc_disable_channel);
 
@@ -271,7 +271,7 @@ void ipu_dmfc_free_bandwidth(struct dmfc_channel *dmfc)
 	dev_dbg(priv->dev, "dmfc: freeing %d slots starting from segment %d\n",
 			dmfc->slots, dmfc->segment);
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	if (!dmfc->slots)
 		goto out;
@@ -301,7 +301,7 @@ void ipu_dmfc_free_bandwidth(struct dmfc_channel *dmfc)
 					priv->channels[i].burstsize);
 	}
 out:
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dmfc_free_bandwidth);
 
@@ -318,7 +318,7 @@ int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
 
 	ipu_dmfc_free_bandwidth(dmfc);
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	if (slots > 8) {
 		ret = -EBUSY;
@@ -344,7 +344,7 @@ int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
 	ipu_dmfc_setup_channel(dmfc, slots, segment, burstsize);
 
 out:
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 
 	return ret;
 }
@@ -402,7 +402,7 @@ int ipu_dmfc_init(struct ipu_soc *ipu, struct device *dev, unsigned long base,
 
 	priv->dev = dev;
 	priv->ipu = ipu;
-	mutex_init(&priv->mutex);
+	rt_mutex_init(&priv->mutex);
 
 	ipu->dmfc_priv = priv;
 

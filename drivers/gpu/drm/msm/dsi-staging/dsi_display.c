@@ -29,7 +29,7 @@
 #define to_dsi_display(x) container_of(x, struct dsi_display, host)
 #define DSI_DBA_CLIENT_NAME "dsi"
 
-static DEFINE_MUTEX(dsi_display_list_lock);
+static DEFINE_RT_MUTEX(dsi_display_list_lock);
 static LIST_HEAD(dsi_display_list);
 
 static const struct of_device_id dsi_display_dt_match[] = {
@@ -1702,7 +1702,7 @@ static int _dsi_display_dev_init(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	rc = dsi_display_parse_dt(display);
 	if (rc) {
@@ -1717,7 +1717,7 @@ static int _dsi_display_dev_init(struct dsi_display *display)
 		goto error;
 	}
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -1736,14 +1736,14 @@ static int _dsi_display_dev_deinit(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	rc = dsi_display_res_deinit(display);
 	if (rc)
 		pr_err("[%s] failed to deinitialize resource, rc=%d\n",
 		       display->name, rc);
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 
 	return rc;
 }
@@ -1779,7 +1779,7 @@ static int dsi_display_bind(struct device *dev,
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	rc = dsi_display_debugfs_init(display);
 	if (rc) {
@@ -1847,7 +1847,7 @@ error_ctrl_deinit:
 	}
 	(void)dsi_display_debugfs_deinit(display);
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -1876,7 +1876,7 @@ static void dsi_display_unbind(struct device *dev,
 		return;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	for (i = 0; i < display->panel_count; i++) {
 		rc = dsi_panel_drv_deinit(display->panel[i]);
@@ -1906,7 +1906,7 @@ static void dsi_display_unbind(struct device *dev,
 	}
 	(void)dsi_display_debugfs_deinit(display);
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 }
 
 static const struct component_ops dsi_display_comp_ops = {
@@ -1947,13 +1947,13 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	if (!display->display_type)
 		display->display_type = "unknown";
 
-	mutex_init(&display->display_lock);
+	rt_mutex_init(&display->display_lock);
 
 	display->pdev = pdev;
 	platform_set_drvdata(pdev, display);
-	mutex_lock(&dsi_display_list_lock);
+	rt_mutex_lock(&dsi_display_list_lock);
 	list_add_tail(&display->list, &dsi_display_list);
-	mutex_unlock(&dsi_display_list_lock);
+	rt_mutex_unlock(&dsi_display_list_lock);
 
 	if (display->is_active) {
 		main_display = display;
@@ -1985,14 +1985,14 @@ int dsi_display_dev_remove(struct platform_device *pdev)
 
 	(void)_dsi_display_dev_deinit(display);
 
-	mutex_lock(&dsi_display_list_lock);
+	rt_mutex_lock(&dsi_display_list_lock);
 	list_for_each_entry_safe(pos, tmp, &dsi_display_list, list) {
 		if (pos == display) {
 			list_del(&display->list);
 			break;
 		}
 	}
-	mutex_unlock(&dsi_display_list_lock);
+	rt_mutex_unlock(&dsi_display_list_lock);
 
 	platform_set_drvdata(pdev, NULL);
 	if (display->panel_of)
@@ -2011,13 +2011,13 @@ int dsi_display_get_num_of_displays(void)
 	int count = 0;
 	struct dsi_display *display;
 
-	mutex_lock(&dsi_display_list_lock);
+	rt_mutex_lock(&dsi_display_list_lock);
 
 	list_for_each_entry(display, &dsi_display_list, list) {
 		count++;
 	}
 
-	mutex_unlock(&dsi_display_list_lock);
+	rt_mutex_unlock(&dsi_display_list_lock);
 	return count;
 }
 
@@ -2032,7 +2032,7 @@ int dsi_display_get_active_displays(void **display_array, u32 max_display_count)
 		return 0;
 	}
 
-	mutex_lock(&dsi_display_list_lock);
+	rt_mutex_lock(&dsi_display_list_lock);
 
 	list_for_each_entry(pos, &dsi_display_list, list) {
 		if (i >= max_display_count) {
@@ -2043,7 +2043,7 @@ int dsi_display_get_active_displays(void **display_array, u32 max_display_count)
 			display_array[i++] = pos;
 	}
 
-	mutex_unlock(&dsi_display_list_lock);
+	rt_mutex_unlock(&dsi_display_list_lock);
 	return i;
 }
 
@@ -2051,23 +2051,23 @@ struct dsi_display *dsi_display_get_display_by_name(const char *name)
 {
 	struct dsi_display *display = NULL, *pos;
 
-	mutex_lock(&dsi_display_list_lock);
+	rt_mutex_lock(&dsi_display_list_lock);
 
 	list_for_each_entry(pos, &dsi_display_list, list) {
 		if (!strcmp(name, pos->name))
 			display = pos;
 	}
 
-	mutex_unlock(&dsi_display_list_lock);
+	rt_mutex_unlock(&dsi_display_list_lock);
 
 	return display;
 }
 
 void dsi_display_set_active_state(struct dsi_display *display, bool is_active)
 {
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 	display->is_active = is_active;
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 }
 
 int dsi_display_drm_bridge_init(struct dsi_display *display,
@@ -2088,7 +2088,7 @@ int dsi_display_drm_bridge_init(struct dsi_display *display,
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 	priv = display->drm_dev->dev_private;
 
 	if (!priv) {
@@ -2167,7 +2167,7 @@ error_bridge:
 	priv->bridges[0] = NULL;
 	priv->num_bridges = 0;
 out:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2187,7 +2187,7 @@ int dsi_display_drm_bridge_deinit(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	for (i = 1; i < MAX_BRIDGES; i++) {
 		dba_bridge_cleanup(priv->bridges[i]);
@@ -2199,7 +2199,7 @@ int dsi_display_drm_bridge_deinit(struct dsi_display *display)
 	priv->bridges[0] = NULL;
 	priv->num_bridges = 0;
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2215,7 +2215,7 @@ int dsi_display_get_info(struct msm_display_info *info, void *disp)
 	}
 	display = disp;
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 	rc = dsi_panel_get_phy_props(display->panel[0], &phy_props);
 	if (rc) {
 		pr_err("[%s] failed to get panel phy props, rc=%d\n",
@@ -2249,7 +2249,7 @@ int dsi_display_get_info(struct msm_display_info *info, void *disp)
 		break;
 	}
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2267,7 +2267,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	rc = dsi_panel_get_dfps_caps(display->panel[0], &dfps_caps);
 	if (rc) {
@@ -2319,7 +2319,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 	}
 
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2337,7 +2337,7 @@ int dsi_display_validate_mode(struct dsi_display *display,
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	adj_mode = *mode;
 	adjust_timing_by_ctrl_count(display, &adj_mode);
@@ -2377,7 +2377,7 @@ int dsi_display_validate_mode(struct dsi_display *display,
 	}
 
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2393,7 +2393,7 @@ int dsi_display_set_mode(struct dsi_display *display,
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	adj_mode = *mode;
 	adjust_timing_by_ctrl_count(display, &adj_mode);
@@ -2410,7 +2410,7 @@ int dsi_display_set_mode(struct dsi_display *display,
 		goto error;
 	}
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2449,7 +2449,7 @@ int dsi_display_prepare(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	for (i = 0; i < display->panel_count; i++) {
 		rc = dsi_panel_pre_prepare(display->panel[i]);
@@ -2546,7 +2546,7 @@ error_panel_post_unprep:
 	for (i--; i >= 0; i--)
 		(void)dsi_panel_post_unprepare(display->panel[i]);
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2559,7 +2559,7 @@ int dsi_display_enable(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	for (i = 0; i < display->panel_count; i++) {
 		rc = dsi_panel_enable(display->panel[i]);
@@ -2596,7 +2596,7 @@ error_disable_panel:
 	for (i--; i >= 0; i--)
 		(void)dsi_panel_disable(display->panel[i]);
 error:
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2609,7 +2609,7 @@ int dsi_display_post_enable(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	for (i = 0; i < display->panel_count; i++) {
 		rc = dsi_panel_post_enable(display->panel[i]);
@@ -2618,7 +2618,7 @@ int dsi_display_post_enable(struct dsi_display *display)
 					display->name, rc);
 	}
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2631,7 +2631,7 @@ int dsi_display_pre_disable(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	for (i = 0; i < display->panel_count; i++) {
 		rc = dsi_panel_pre_disable(display->panel[i]);
@@ -2640,7 +2640,7 @@ int dsi_display_pre_disable(struct dsi_display *display)
 					display->name, rc);
 	}
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2653,7 +2653,7 @@ int dsi_display_disable(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	rc = dsi_display_wake_up(display);
 	if (rc)
@@ -2682,7 +2682,7 @@ int dsi_display_disable(struct dsi_display *display)
 		rc = -EINVAL;
 	}
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 
@@ -2695,7 +2695,7 @@ int dsi_display_unprepare(struct dsi_display *display)
 		return -EINVAL;
 	}
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	rc = dsi_display_wake_up(display);
 	if (rc)
@@ -2751,7 +2751,7 @@ int dsi_display_unprepare(struct dsi_display *display)
 				display->name, rc);
 	}
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 	return rc;
 }
 

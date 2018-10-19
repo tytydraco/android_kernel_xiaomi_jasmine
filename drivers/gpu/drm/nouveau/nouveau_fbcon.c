@@ -68,7 +68,7 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 	ret = -ENODEV;
 	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
-	    mutex_trylock(&drm->client.mutex)) {
+	    rt_mutex_trylock(&drm->client.mutex)) {
 		if (device->info.family < NV_DEVICE_INFO_V0_TESLA)
 			ret = nv04_fbcon_fillrect(info, rect);
 		else
@@ -76,7 +76,7 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 			ret = nv50_fbcon_fillrect(info, rect);
 		else
 			ret = nvc0_fbcon_fillrect(info, rect);
-		mutex_unlock(&drm->client.mutex);
+		rt_mutex_unlock(&drm->client.mutex);
 	}
 
 	if (ret == 0)
@@ -100,7 +100,7 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 
 	ret = -ENODEV;
 	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
-	    mutex_trylock(&drm->client.mutex)) {
+	    rt_mutex_trylock(&drm->client.mutex)) {
 		if (device->info.family < NV_DEVICE_INFO_V0_TESLA)
 			ret = nv04_fbcon_copyarea(info, image);
 		else
@@ -108,7 +108,7 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 			ret = nv50_fbcon_copyarea(info, image);
 		else
 			ret = nvc0_fbcon_copyarea(info, image);
-		mutex_unlock(&drm->client.mutex);
+		rt_mutex_unlock(&drm->client.mutex);
 	}
 
 	if (ret == 0)
@@ -132,7 +132,7 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 
 	ret = -ENODEV;
 	if (!in_interrupt() && !(info->flags & FBINFO_HWACCEL_DISABLED) &&
-	    mutex_trylock(&drm->client.mutex)) {
+	    rt_mutex_trylock(&drm->client.mutex)) {
 		if (device->info.family < NV_DEVICE_INFO_V0_TESLA)
 			ret = nv04_fbcon_imageblit(info, image);
 		else
@@ -140,7 +140,7 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 			ret = nv50_fbcon_imageblit(info, image);
 		else
 			ret = nvc0_fbcon_imageblit(info, image);
-		mutex_unlock(&drm->client.mutex);
+		rt_mutex_unlock(&drm->client.mutex);
 	}
 
 	if (ret == 0)
@@ -164,11 +164,11 @@ nouveau_fbcon_sync(struct fb_info *info)
 	    info->flags & FBINFO_HWACCEL_DISABLED)
 		return 0;
 
-	if (!mutex_trylock(&drm->client.mutex))
+	if (!rt_mutex_trylock(&drm->client.mutex))
 		return 0;
 
 	ret = nouveau_channel_idle(chan);
-	mutex_unlock(&drm->client.mutex);
+	rt_mutex_unlock(&drm->client.mutex);
 	if (ret) {
 		nouveau_fbcon_gpu_lockup(info);
 		return 0;
@@ -386,7 +386,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		}
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
@@ -426,7 +426,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	if (chan)
 		nouveau_fbcon_accel_init(dev);
@@ -441,7 +441,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	if (chan)
 		nouveau_bo_vma_del(nvbo, &fbcon->nouveau_fb.vma);
 	nouveau_bo_unmap(nvbo);

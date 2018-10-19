@@ -42,22 +42,22 @@ static int amdgpu_bo_list_create(struct amdgpu_fpriv *fpriv,
 	if (!*result)
 		return -ENOMEM;
 
-	mutex_lock(&fpriv->bo_list_lock);
+	rt_mutex_lock(&fpriv->bo_list_lock);
 	r = idr_alloc(&fpriv->bo_list_handles, *result,
 		      1, 0, GFP_KERNEL);
 	if (r < 0) {
-		mutex_unlock(&fpriv->bo_list_lock);
+		rt_mutex_unlock(&fpriv->bo_list_lock);
 		kfree(*result);
 		return r;
 	}
 	*id = r;
 
-	mutex_init(&(*result)->lock);
+	rt_mutex_init(&(*result)->lock);
 	(*result)->num_entries = 0;
 	(*result)->array = NULL;
 
-	mutex_lock(&(*result)->lock);
-	mutex_unlock(&fpriv->bo_list_lock);
+	rt_mutex_lock(&(*result)->lock);
+	rt_mutex_unlock(&fpriv->bo_list_lock);
 
 	return 0;
 }
@@ -66,15 +66,15 @@ static void amdgpu_bo_list_destroy(struct amdgpu_fpriv *fpriv, int id)
 {
 	struct amdgpu_bo_list *list;
 
-	mutex_lock(&fpriv->bo_list_lock);
+	rt_mutex_lock(&fpriv->bo_list_lock);
 	list = idr_find(&fpriv->bo_list_handles, id);
 	if (list) {
-		mutex_lock(&list->lock);
+		rt_mutex_lock(&list->lock);
 		idr_remove(&fpriv->bo_list_handles, id);
-		mutex_unlock(&list->lock);
+		rt_mutex_unlock(&list->lock);
 		amdgpu_bo_list_free(list);
 	}
-	mutex_unlock(&fpriv->bo_list_lock);
+	rt_mutex_unlock(&fpriv->bo_list_lock);
 }
 
 static int amdgpu_bo_list_set(struct amdgpu_device *adev,
@@ -153,17 +153,17 @@ amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id)
 {
 	struct amdgpu_bo_list *result;
 
-	mutex_lock(&fpriv->bo_list_lock);
+	rt_mutex_lock(&fpriv->bo_list_lock);
 	result = idr_find(&fpriv->bo_list_handles, id);
 	if (result)
-		mutex_lock(&result->lock);
-	mutex_unlock(&fpriv->bo_list_lock);
+		rt_mutex_lock(&result->lock);
+	rt_mutex_unlock(&fpriv->bo_list_lock);
 	return result;
 }
 
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list)
 {
-	mutex_unlock(&list->lock);
+	rt_mutex_unlock(&list->lock);
 }
 
 void amdgpu_bo_list_free(struct amdgpu_bo_list *list)
@@ -173,7 +173,7 @@ void amdgpu_bo_list_free(struct amdgpu_bo_list *list)
 	for (i = 0; i < list->num_entries; ++i)
 		amdgpu_bo_unref(&list->array[i].robj);
 
-	mutex_destroy(&list->lock);
+	rt_mutex_destroy(&list->lock);
 	drm_free_large(list->array);
 	kfree(list);
 }

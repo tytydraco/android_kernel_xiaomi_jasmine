@@ -56,7 +56,7 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
 	struct nvkm_memory *cur;
 	int nr = 0;
 
-	mutex_lock(&subdev->mutex);
+	rt_mutex_lock(&subdev->mutex);
 	cur = engn->runlist[engn->cur_runlist];
 	engn->cur_runlist = !engn->cur_runlist;
 
@@ -75,7 +75,7 @@ gk104_fifo_runlist_update(struct gk104_fifo *fifo, u32 engine)
 			       (engine * 0x08)) & 0x00100000),
 				msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist %d update timeout\n", engine);
-	mutex_unlock(&subdev->mutex);
+	rt_mutex_unlock(&subdev->mutex);
 }
 
 static inline struct nvkm_engine *

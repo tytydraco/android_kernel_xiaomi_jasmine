@@ -69,7 +69,7 @@ static int amdgpu_atombios_dp_process_aux_ch(struct amdgpu_i2c_chan *chan,
 
 	memset(&args, 0, sizeof(args));
 
-	mutex_lock(&chan->mutex);
+	rt_mutex_lock(&chan->mutex);
 
 	base = (unsigned char *)(adev->mode_info.atom_context->scratch + 1);
 
@@ -116,7 +116,7 @@ static int amdgpu_atombios_dp_process_aux_ch(struct amdgpu_i2c_chan *chan,
 
 	r = recv_bytes;
 done:
-	mutex_unlock(&chan->mutex);
+	rt_mutex_unlock(&chan->mutex);
 
 	return r;
 }

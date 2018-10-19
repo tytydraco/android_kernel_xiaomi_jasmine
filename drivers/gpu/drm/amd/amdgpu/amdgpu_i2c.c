@@ -43,7 +43,7 @@ static int amdgpu_i2c_pre_xfer(struct i2c_adapter *i2c_adap)
 	struct amdgpu_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t temp;
 
-	mutex_lock(&i2c->mutex);
+	rt_mutex_lock(&i2c->mutex);
 
 	/* switch the pads to ddc mode */
 	if (rec->hw_capable) {
@@ -94,7 +94,7 @@ static void amdgpu_i2c_post_xfer(struct i2c_adapter *i2c_adap)
 	WREG32(rec->mask_data_reg, temp);
 	temp = RREG32(rec->mask_data_reg);
 
-	mutex_unlock(&i2c->mutex);
+	rt_mutex_unlock(&i2c->mutex);
 }
 
 static int amdgpu_i2c_get_clock(void *i2c_priv)
@@ -178,7 +178,7 @@ struct amdgpu_i2c_chan *amdgpu_i2c_create(struct drm_device *dev,
 	i2c->adapter.dev.parent = &dev->pdev->dev;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
-	mutex_init(&i2c->mutex);
+	rt_mutex_init(&i2c->mutex);
 	if (rec->hw_capable &&
 	    amdgpu_hw_i2c) {
 		/* hw i2c using atom */

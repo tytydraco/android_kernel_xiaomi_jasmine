@@ -160,7 +160,7 @@ struct device_queue_manager {
 	struct mqd_manager	*mqds[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packets;
 	struct kfd_dev		*dev;
-	struct mutex		lock;
+	struct rt_mutex		lock;
 	struct list_head	queues;
 	unsigned int		processes_count;
 	unsigned int		queue_count;

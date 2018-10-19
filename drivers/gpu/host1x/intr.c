@@ -275,7 +275,7 @@ int host1x_intr_init(struct host1x *host, unsigned int irq_sync)
 	unsigned int id;
 	u32 nb_pts = host1x_syncpt_nb_pts(host);
 
-	mutex_init(&host->intr_mutex);
+	rt_mutex_init(&host->intr_mutex);
 	host->intr_syncpt_irq = irq_sync;
 	host->intr_wq = create_workqueue("host_syncpt");
 	if (!host->intr_wq)
@@ -307,14 +307,14 @@ void host1x_intr_start(struct host1x *host)
 	u32 hz = clk_get_rate(host->clk);
 	int err;
 
-	mutex_lock(&host->intr_mutex);
+	rt_mutex_lock(&host->intr_mutex);
 	err = host1x_hw_intr_init_host_sync(host, DIV_ROUND_UP(hz, 1000000),
 					    syncpt_thresh_work);
 	if (err) {
-		mutex_unlock(&host->intr_mutex);
+		rt_mutex_unlock(&host->intr_mutex);
 		return;
 	}
-	mutex_unlock(&host->intr_mutex);
+	rt_mutex_unlock(&host->intr_mutex);
 }
 
 void host1x_intr_stop(struct host1x *host)
@@ -323,7 +323,7 @@ void host1x_intr_stop(struct host1x *host)
 	struct host1x_syncpt *syncpt = host->syncpt;
 	u32 nb_pts = host1x_syncpt_nb_pts(host);
 
-	mutex_lock(&host->intr_mutex);
+	rt_mutex_lock(&host->intr_mutex);
 
 	host1x_hw_intr_disable_all_syncpt_intrs(host);
 
@@ -341,7 +341,7 @@ void host1x_intr_stop(struct host1x *host)
 
 		if (!list_empty(&syncpt[id].intr.wait_head)) {
 			/* output diagnostics */
-			mutex_unlock(&host->intr_mutex);
+			rt_mutex_unlock(&host->intr_mutex);
 			pr_warn("%s cannot stop syncpt intr id=%d\n",
 				__func__, id);
 			return;
@@ -350,5 +350,5 @@ void host1x_intr_stop(struct host1x *host)
 
 	host1x_hw_intr_free_syncpt_irq(host);
 
-	mutex_unlock(&host->intr_mutex);
+	rt_mutex_unlock(&host->intr_mutex);
 }

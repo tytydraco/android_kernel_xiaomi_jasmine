@@ -34,7 +34,7 @@ struct ipu_di {
 	struct ipu_soc *ipu;
 };
 
-static DEFINE_MUTEX(di_mutex);
+static DEFINE_RT_MUTEX(di_mutex);
 
 struct di_sync_config {
 	int run_count;
@@ -580,7 +580,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 		clk_get_rate(di->clk_di),
 		sig->mode.pixelclock);
 
-	mutex_lock(&di_mutex);
+	rt_mutex_lock(&di_mutex);
 
 	ipu_di_config_clock(di, sig);
 
@@ -640,7 +640,7 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 
 	ipu_di_write(di, reg, DI_POL);
 
-	mutex_unlock(&di_mutex);
+	rt_mutex_unlock(&di_mutex);
 
 	return 0;
 }
@@ -680,7 +680,7 @@ int ipu_di_get_num(struct ipu_di *di)
 }
 EXPORT_SYMBOL_GPL(ipu_di_get_num);
 
-static DEFINE_MUTEX(ipu_di_lock);
+static DEFINE_RT_MUTEX(ipu_di_lock);
 
 struct ipu_di *ipu_di_get(struct ipu_soc *ipu, int disp)
 {
@@ -691,7 +691,7 @@ struct ipu_di *ipu_di_get(struct ipu_soc *ipu, int disp)
 
 	di = ipu->di_priv[disp];
 
-	mutex_lock(&ipu_di_lock);
+	rt_mutex_lock(&ipu_di_lock);
 
 	if (di->inuse) {
 		di = ERR_PTR(-EBUSY);
@@ -700,7 +700,7 @@ struct ipu_di *ipu_di_get(struct ipu_soc *ipu, int disp)
 
 	di->inuse = true;
 out:
-	mutex_unlock(&ipu_di_lock);
+	rt_mutex_unlock(&ipu_di_lock);
 
 	return di;
 }
@@ -708,11 +708,11 @@ EXPORT_SYMBOL_GPL(ipu_di_get);
 
 void ipu_di_put(struct ipu_di *di)
 {
-	mutex_lock(&ipu_di_lock);
+	rt_mutex_lock(&ipu_di_lock);
 
 	di->inuse = false;
 
-	mutex_unlock(&ipu_di_lock);
+	rt_mutex_unlock(&ipu_di_lock);
 }
 EXPORT_SYMBOL_GPL(ipu_di_put);
 

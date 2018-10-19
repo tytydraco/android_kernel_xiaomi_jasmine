@@ -149,7 +149,7 @@ struct dsi_panel {
 	struct device_node *panel_of_node;
 	struct mipi_dsi_device mipi_device;
 
-	struct mutex panel_lock;
+	struct rt_mutex panel_lock;
 	struct drm_panel drm_panel;
 	struct mipi_dsi_host *host;
 	struct device *parent;

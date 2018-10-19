@@ -347,7 +347,7 @@ struct msm_drm_private {
 	/* hash to store mm_struct to msm_mmu_notifier mappings */
 	DECLARE_HASHTABLE(mn_hash, 7);
 	/* protects mn_hash and the msm_mmu_notifier for the process */
-	struct mutex mn_lock;
+	struct rt_mutex mn_lock;
 
 	/* Properties */
 	struct drm_property *plane_property[PLANE_PROP_COUNT];

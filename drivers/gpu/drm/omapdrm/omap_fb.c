@@ -90,7 +90,7 @@ struct omap_framebuffer {
 	const struct format *format;
 	struct plane planes[4];
 	/* lock for pinning (pin_count and planes.paddr) */
-	struct mutex lock;
+	struct rt_mutex lock;
 };
 
 static int omap_framebuffer_create_handle(struct drm_framebuffer *fb,
@@ -252,11 +252,11 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	int ret, i, n = drm_format_num_planes(fb->pixel_format);
 
-	mutex_lock(&omap_fb->lock);
+	rt_mutex_lock(&omap_fb->lock);
 
 	if (omap_fb->pin_count > 0) {
 		omap_fb->pin_count++;
-		mutex_unlock(&omap_fb->lock);
+		rt_mutex_unlock(&omap_fb->lock);
 		return 0;
 	}
 
@@ -270,7 +270,7 @@ int omap_framebuffer_pin(struct drm_framebuffer *fb)
 
 	omap_fb->pin_count++;
 
-	mutex_unlock(&omap_fb->lock);
+	rt_mutex_unlock(&omap_fb->lock);
 
 	return 0;
 
@@ -281,7 +281,7 @@ fail:
 		plane->paddr = 0;
 	}
 
-	mutex_unlock(&omap_fb->lock);
+	rt_mutex_unlock(&omap_fb->lock);
 
 	return ret;
 }
@@ -292,12 +292,12 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	int i, n = drm_format_num_planes(fb->pixel_format);
 
-	mutex_lock(&omap_fb->lock);
+	rt_mutex_lock(&omap_fb->lock);
 
 	omap_fb->pin_count--;
 
 	if (omap_fb->pin_count > 0) {
-		mutex_unlock(&omap_fb->lock);
+		rt_mutex_unlock(&omap_fb->lock);
 		return;
 	}
 
@@ -307,7 +307,7 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 		plane->paddr = 0;
 	}
 
-	mutex_unlock(&omap_fb->lock);
+	rt_mutex_unlock(&omap_fb->lock);
 }
 
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p)
@@ -419,7 +419,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	fb = &omap_fb->base;
 	omap_fb->format = format;
-	mutex_init(&omap_fb->lock);
+	rt_mutex_init(&omap_fb->lock);
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];

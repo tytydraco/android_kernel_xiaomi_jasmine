@@ -51,7 +51,7 @@ struct vmw_overlay {
 	/*
 	 * Each stream is a single overlay. In Xv these are called ports.
 	 */
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	struct vmw_stream stream[VMW_MAX_NUM_STREAMS];
 };
 
@@ -370,7 +370,7 @@ int vmw_overlay_stop_all(struct vmw_private *dev_priv)
 	if (!overlay)
 		return 0;
 
-	mutex_lock(&overlay->mutex);
+	rt_mutex_lock(&overlay->mutex);
 
 	for (i = 0; i < VMW_MAX_NUM_STREAMS; i++) {
 		struct vmw_stream *stream = &overlay->stream[i];
@@ -381,7 +381,7 @@ int vmw_overlay_stop_all(struct vmw_private *dev_priv)
 		WARN_ON(ret != 0);
 	}
 
-	mutex_unlock(&overlay->mutex);
+	rt_mutex_unlock(&overlay->mutex);
 
 	return 0;
 }
@@ -401,7 +401,7 @@ int vmw_overlay_resume_all(struct vmw_private *dev_priv)
 	if (!overlay)
 		return 0;
 
-	mutex_lock(&overlay->mutex);
+	rt_mutex_lock(&overlay->mutex);
 
 	for (i = 0; i < VMW_MAX_NUM_STREAMS; i++) {
 		struct vmw_stream *stream = &overlay->stream[i];
@@ -415,7 +415,7 @@ int vmw_overlay_resume_all(struct vmw_private *dev_priv)
 				 __func__, i);
 	}
 
-	mutex_unlock(&overlay->mutex);
+	rt_mutex_unlock(&overlay->mutex);
 
 	return 0;
 }
@@ -435,7 +435,7 @@ int vmw_overlay_pause_all(struct vmw_private *dev_priv)
 	if (!overlay)
 		return 0;
 
-	mutex_lock(&overlay->mutex);
+	rt_mutex_lock(&overlay->mutex);
 
 	for (i = 0; i < VMW_MAX_NUM_STREAMS; i++) {
 		if (overlay->stream[i].paused)
@@ -445,7 +445,7 @@ int vmw_overlay_pause_all(struct vmw_private *dev_priv)
 		WARN_ON(ret != 0);
 	}
 
-	mutex_unlock(&overlay->mutex);
+	rt_mutex_unlock(&overlay->mutex);
 
 	return 0;
 }
@@ -477,7 +477,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	mutex_lock(&overlay->mutex);
+	rt_mutex_lock(&overlay->mutex);
 
 	if (!arg->enabled) {
 		ret = vmw_overlay_stop(dev_priv, arg->stream_id, false, true);
@@ -493,7 +493,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 	vmw_dmabuf_unreference(&buf);
 
 out_unlock:
-	mutex_unlock(&overlay->mutex);
+	rt_mutex_unlock(&overlay->mutex);
 	vmw_resource_unreference(&res);
 
 	return ret;
@@ -515,13 +515,13 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv)
 	if (!vmw_overlay_available(dev_priv))
 		return 0;
 
-	mutex_lock(&overlay->mutex);
+	rt_mutex_lock(&overlay->mutex);
 
 	for (i = 0, k = 0; i < VMW_MAX_NUM_STREAMS; i++)
 		if (!overlay->stream[i].claimed)
 			k++;
 
-	mutex_unlock(&overlay->mutex);
+	rt_mutex_unlock(&overlay->mutex);
 
 	return k;
 }
@@ -534,7 +534,7 @@ int vmw_overlay_claim(struct vmw_private *dev_priv, uint32_t *out)
 	if (!overlay)
 		return -ENOSYS;
 
-	mutex_lock(&overlay->mutex);
+	rt_mutex_lock(&overlay->mutex);
 
 	for (i = 0; i < VMW_MAX_NUM_STREAMS; i++) {
 
@@ -543,11 +543,11 @@ int vmw_overlay_claim(struct vmw_private *dev_priv, uint32_t *out)
 
 		overlay->stream[i].claimed = true;
 		*out = i;
-		mutex_unlock(&overlay->mutex);
+		rt_mutex_unlock(&overlay->mutex);
 		return 0;
 	}
 
-	mutex_unlock(&overlay->mutex);
+	rt_mutex_unlock(&overlay->mutex);
 	return -ESRCH;
 }
 
@@ -560,13 +560,13 @@ int vmw_overlay_unref(struct vmw_private *dev_priv, uint32_t stream_id)
 	if (!overlay)
 		return -ENOSYS;
 
-	mutex_lock(&overlay->mutex);
+	rt_mutex_lock(&overlay->mutex);
 
 	WARN_ON(!overlay->stream[stream_id].claimed);
 	vmw_overlay_stop(dev_priv, stream_id, false, false);
 	overlay->stream[stream_id].claimed = false;
 
-	mutex_unlock(&overlay->mutex);
+	rt_mutex_unlock(&overlay->mutex);
 	return 0;
 }
 
@@ -582,7 +582,7 @@ int vmw_overlay_init(struct vmw_private *dev_priv)
 	if (!overlay)
 		return -ENOMEM;
 
-	mutex_init(&overlay->mutex);
+	rt_mutex_init(&overlay->mutex);
 	for (i = 0; i < VMW_MAX_NUM_STREAMS; i++) {
 		overlay->stream[i].buf = NULL;
 		overlay->stream[i].paused = false;

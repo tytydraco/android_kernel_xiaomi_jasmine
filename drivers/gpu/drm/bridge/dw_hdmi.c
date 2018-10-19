@@ -127,7 +127,7 @@ struct dw_hdmi {
 	bool sink_is_hdmi;
 	bool sink_has_audio;
 
-	struct mutex mutex;		/* for state below and previous_mode */
+	struct rt_mutex mutex;		/* for state below and previous_mode */
 	enum drm_connector_force force;	/* mutex-protected force state */
 	bool disabled;			/* DRM has disabled our bridge */
 	bool bridge_is_on;		/* indicates the bridge is on */
@@ -135,7 +135,7 @@ struct dw_hdmi {
 	u8 phy_mask;			/* desired phy int mask settings */
 
 	spinlock_t audio_lock;
-	struct mutex audio_mutex;
+	struct rt_mutex audio_mutex;
 	unsigned int sample_rate;
 	unsigned int audio_cts;
 	unsigned int audio_n;
@@ -305,26 +305,26 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 
 static void hdmi_init_clk_regenerator(struct dw_hdmi *hdmi)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	rt_mutex_lock(&hdmi->audio_mutex);
 	hdmi_set_clk_regenerator(hdmi, 74250000, hdmi->sample_rate);
-	mutex_unlock(&hdmi->audio_mutex);
+	rt_mutex_unlock(&hdmi->audio_mutex);
 }
 
 static void hdmi_clk_regenerator_update_pixel_clock(struct dw_hdmi *hdmi)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	rt_mutex_lock(&hdmi->audio_mutex);
 	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock,
 				 hdmi->sample_rate);
-	mutex_unlock(&hdmi->audio_mutex);
+	rt_mutex_unlock(&hdmi->audio_mutex);
 }
 
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	rt_mutex_lock(&hdmi->audio_mutex);
 	hdmi->sample_rate = rate;
 	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mpixelclock,
 				 hdmi->sample_rate);
-	mutex_unlock(&hdmi->audio_mutex);
+	rt_mutex_unlock(&hdmi->audio_mutex);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_set_sample_rate);
 
@@ -1382,12 +1382,12 @@ static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
-	mutex_lock(&hdmi->mutex);
+	rt_mutex_lock(&hdmi->mutex);
 
 	/* Store the display mode for plugin/DKMS poweron events */
 	memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
 
-	mutex_unlock(&hdmi->mutex);
+	rt_mutex_unlock(&hdmi->mutex);
 }
 
 static bool dw_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
@@ -1401,22 +1401,22 @@ static void dw_hdmi_bridge_disable(struct drm_bridge *bridge)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
-	mutex_lock(&hdmi->mutex);
+	rt_mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
-	mutex_unlock(&hdmi->mutex);
+	rt_mutex_unlock(&hdmi->mutex);
 }
 
 static void dw_hdmi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
-	mutex_lock(&hdmi->mutex);
+	rt_mutex_lock(&hdmi->mutex);
 	hdmi->disabled = false;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
-	mutex_unlock(&hdmi->mutex);
+	rt_mutex_unlock(&hdmi->mutex);
 }
 
 static void dw_hdmi_bridge_nop(struct drm_bridge *bridge)
@@ -1430,11 +1430,11 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
 
-	mutex_lock(&hdmi->mutex);
+	rt_mutex_lock(&hdmi->mutex);
 	hdmi->force = DRM_FORCE_UNSPECIFIED;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
-	mutex_unlock(&hdmi->mutex);
+	rt_mutex_unlock(&hdmi->mutex);
 
 	return hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD ?
 		connector_status_connected : connector_status_disconnected;
@@ -1507,11 +1507,11 @@ static void dw_hdmi_connector_force(struct drm_connector *connector)
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
 
-	mutex_lock(&hdmi->mutex);
+	rt_mutex_lock(&hdmi->mutex);
 	hdmi->force = connector->force;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
-	mutex_unlock(&hdmi->mutex);
+	rt_mutex_unlock(&hdmi->mutex);
 }
 
 static struct drm_connector_funcs dw_hdmi_connector_funcs = {
@@ -1582,7 +1582,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 	 */
 	if (intr_stat &
 	    (HDMI_IH_PHY_STAT0_RX_SENSE | HDMI_IH_PHY_STAT0_HPD)) {
-		mutex_lock(&hdmi->mutex);
+		rt_mutex_lock(&hdmi->mutex);
 		if (!hdmi->disabled && !hdmi->force) {
 			/*
 			 * If the RX sense status indicates we're disconnected,
@@ -1603,7 +1603,7 @@ static irqreturn_t dw_hdmi_irq(int irq, void *dev_id)
 			dw_hdmi_update_power(hdmi);
 			dw_hdmi_update_phy_mask(hdmi);
 		}
-		mutex_unlock(&hdmi->mutex);
+		rt_mutex_unlock(&hdmi->mutex);
 	}
 
 	if (intr_stat & HDMI_IH_PHY_STAT0_HPD) {
@@ -1684,8 +1684,8 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->rxsense = true;
 	hdmi->phy_mask = (u8)~(HDMI_PHY_HPD | HDMI_PHY_RX_SENSE);
 
-	mutex_init(&hdmi->mutex);
-	mutex_init(&hdmi->audio_mutex);
+	rt_mutex_init(&hdmi->mutex);
+	rt_mutex_init(&hdmi->audio_mutex);
 	spin_lock_init(&hdmi->audio_lock);
 
 	of_property_read_u32(np, "reg-io-width", &val);

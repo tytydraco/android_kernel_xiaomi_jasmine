@@ -141,10 +141,10 @@ static void
 nvkm_disp_class_del(struct nvkm_oproxy *oproxy)
 {
 	struct nvkm_disp *disp = nvkm_disp(oproxy->base.engine);
-	mutex_lock(&disp->engine.subdev.mutex);
+	rt_mutex_lock(&disp->engine.subdev.mutex);
 	if (disp->client == oproxy)
 		disp->client = NULL;
-	mutex_unlock(&disp->engine.subdev.mutex);
+	rt_mutex_unlock(&disp->engine.subdev.mutex);
 }
 
 static const struct nvkm_oproxy_func
@@ -167,13 +167,13 @@ nvkm_disp_class_new(struct nvkm_device *device,
 		return ret;
 	*pobject = &oproxy->base;
 
-	mutex_lock(&disp->engine.subdev.mutex);
+	rt_mutex_lock(&disp->engine.subdev.mutex);
 	if (disp->client) {
-		mutex_unlock(&disp->engine.subdev.mutex);
+		rt_mutex_unlock(&disp->engine.subdev.mutex);
 		return -EBUSY;
 	}
 	disp->client = oproxy;
-	mutex_unlock(&disp->engine.subdev.mutex);
+	rt_mutex_unlock(&disp->engine.subdev.mutex);
 
 	return sclass->ctor(disp, oclass, data, size, &oproxy->object);
 }

@@ -138,9 +138,9 @@ static int msm_opp_notify(struct notifier_block *nb, unsigned long type,
 	 * The opp table for the GPU device changed, call update_devfreq()
 	 * to adjust the GPU frequency if needed
 	 */
-	mutex_lock(&gpu->devfreq.devfreq->lock);
+	rt_mutex_lock(&gpu->devfreq.devfreq->lock);
 	update_devfreq(gpu->devfreq.devfreq);
-	mutex_unlock(&gpu->devfreq.devfreq->lock);
+	rt_mutex_unlock(&gpu->devfreq.devfreq->lock);
 
 	return 0;
 }
@@ -311,7 +311,7 @@ int msm_gpu_pm_resume(struct msm_gpu *gpu)
 
 	DBG("%s: active_cnt=%d", gpu->name, gpu->active_cnt);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	if (gpu->active_cnt++ > 0)
 		return 0;
@@ -350,7 +350,7 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 
 	DBG("%s: active_cnt=%d", gpu->name, gpu->active_cnt);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	if (--gpu->active_cnt > 0)
 		return 0;
@@ -393,13 +393,13 @@ static void inactive_worker(struct work_struct *work)
 		return;
 
 	DBG("%s: inactive!\n", gpu->name);
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (!(msm_gpu_active(gpu) || gpu->inactive)) {
 		disable_axi(gpu);
 		disable_clk(gpu);
 		gpu->inactive = true;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 static void inactive_handler(unsigned long data)
@@ -455,7 +455,7 @@ static void recover_worker(struct work_struct *work)
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (msm_gpu_active(gpu)) {
 		struct msm_gem_submit *submit;
 		struct msm_ringbuffer *ring;
@@ -480,7 +480,7 @@ static void recover_worker(struct work_struct *work)
 				gpu->funcs->submit(gpu, submit);
 		}
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	msm_gpu_retire(gpu);
 }
@@ -645,7 +645,7 @@ static void retire_submits(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 	struct drm_device *dev = gpu->dev;
 	struct msm_gem_submit *submit, *tmp;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	list_for_each_entry_safe(submit, tmp, &ring->submits, node) {
 		struct msm_memptr_ticks *ticks;
@@ -701,9 +701,9 @@ static void retire_worker(struct work_struct *work)
 
 		msm_update_fence(gpu->dev, ring->memptrs->fence);
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		_retire_ring(gpu, ring, ring->memptrs->fence);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 
 	if (!msm_gpu_active(gpu))
@@ -725,7 +725,7 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	struct msm_ringbuffer *ring = gpu->rb[submit->ring];
 	int i;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	submit->fence = FENCE(submit->ring, ++ring->seqno);
 

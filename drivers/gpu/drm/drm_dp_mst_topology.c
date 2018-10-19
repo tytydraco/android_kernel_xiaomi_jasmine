@@ -691,7 +691,7 @@ static int drm_dp_mst_assign_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 {
 	int ret, vcpi_ret;
 
-	mutex_lock(&mgr->payload_lock);
+	rt_mutex_lock(&mgr->payload_lock);
 	ret = find_first_zero_bit(&mgr->payload_mask, mgr->max_payloads + 1);
 	if (ret > mgr->max_payloads) {
 		ret = -EINVAL;
@@ -711,7 +711,7 @@ static int drm_dp_mst_assign_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 	vcpi->vcpi = vcpi_ret + 1;
 	mgr->proposed_vcpis[ret - 1] = vcpi;
 out_unlock:
-	mutex_unlock(&mgr->payload_lock);
+	rt_mutex_unlock(&mgr->payload_lock);
 	return ret;
 }
 
@@ -722,7 +722,7 @@ static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 	if (vcpi == 0)
 		return;
 
-	mutex_lock(&mgr->payload_lock);
+	rt_mutex_lock(&mgr->payload_lock);
 	DRM_DEBUG_KMS("putting payload %d\n", vcpi);
 	clear_bit(vcpi - 1, &mgr->vcpi_mask);
 
@@ -733,7 +733,7 @@ static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
 				clear_bit(i + 1, &mgr->payload_mask);
 			}
 	}
-	mutex_unlock(&mgr->payload_lock);
+	rt_mutex_unlock(&mgr->payload_lock);
 }
 
 static bool check_txmsg_state(struct drm_dp_mst_topology_mgr *mgr,
@@ -760,7 +760,7 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 	ret = wait_event_timeout(mgr->tx_waitq,
 				 check_txmsg_state(mgr, txmsg),
 				 (4 * HZ));
-	mutex_lock(&mstb->mgr->qlock);
+	rt_mutex_lock(&mstb->mgr->qlock);
 	if (ret > 0) {
 		if (txmsg->state == DRM_DP_SIDEBAND_TX_TIMEOUT) {
 			ret = -EIO;
@@ -784,7 +784,7 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 		}
 	}
 out:
-	mutex_unlock(&mgr->qlock);
+	rt_mutex_unlock(&mgr->qlock);
 
 	return ret;
 }
@@ -843,7 +843,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 	}
 
 	/* drop any tx slots msg */
-	mutex_lock(&mstb->mgr->qlock);
+	rt_mutex_lock(&mstb->mgr->qlock);
 	if (mstb->tx_slots[0]) {
 		mstb->tx_slots[0]->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
 		mstb->tx_slots[0] = NULL;
@@ -854,7 +854,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 		mstb->tx_slots[1] = NULL;
 		wake_tx = true;
 	}
-	mutex_unlock(&mstb->mgr->qlock);
+	rt_mutex_unlock(&mstb->mgr->qlock);
 
 	if (wake_tx)
 		wake_up(&mstb->mgr->tx_waitq);
@@ -906,10 +906,10 @@ static void drm_dp_destroy_port(struct kref *kref)
 			 * we might be holding the mode_config.mutex
 			 * from an EDID retrieval */
 
-			mutex_lock(&mgr->destroy_connector_lock);
+			rt_mutex_lock(&mgr->destroy_connector_lock);
 			kref_get(&port->parent->kref);
 			list_add(&port->next, &mgr->destroy_connector_list);
-			mutex_unlock(&mgr->destroy_connector_lock);
+			rt_mutex_unlock(&mgr->destroy_connector_lock);
 			schedule_work(&mgr->destroy_connector_work);
 			return;
 		}
@@ -947,10 +947,10 @@ static struct drm_dp_mst_branch *drm_dp_mst_get_validated_mstb_ref_locked(struct
 static struct drm_dp_mst_branch *drm_dp_get_validated_mstb_ref(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_branch *mstb)
 {
 	struct drm_dp_mst_branch *rmstb = NULL;
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	if (mgr->mst_primary)
 		rmstb = drm_dp_mst_get_validated_mstb_ref_locked(mgr->mst_primary, mstb);
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return rmstb;
 }
 
@@ -975,10 +975,10 @@ static struct drm_dp_mst_port *drm_dp_mst_get_port_ref_locked(struct drm_dp_mst_
 static struct drm_dp_mst_port *drm_dp_get_validated_port_ref(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
 {
 	struct drm_dp_mst_port *rport = NULL;
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	if (mgr->mst_primary)
 		rport = drm_dp_mst_get_port_ref_locked(mgr->mst_primary, port);
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return rport;
 }
 
@@ -1125,10 +1125,10 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 	/* manage mstb port lists with mgr lock - take a reference
 	   for this list */
 	if (created) {
-		mutex_lock(&mstb->mgr->lock);
+		rt_mutex_lock(&mstb->mgr->lock);
 		kref_get(&port->kref);
 		list_add(&port->next, &mstb->ports);
-		mutex_unlock(&mstb->mgr->lock);
+		rt_mutex_unlock(&mstb->mgr->lock);
 	}
 
 	if (old_ddps != port->ddps) {
@@ -1155,9 +1155,9 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 		port->connector = (*mstb->mgr->cbs->add_connector)(mstb->mgr, port, proppath);
 		if (!port->connector) {
 			/* remove it from the port list */
-			mutex_lock(&mstb->mgr->lock);
+			rt_mutex_lock(&mstb->mgr->lock);
 			list_del(&port->next);
-			mutex_unlock(&mstb->mgr->lock);
+			rt_mutex_unlock(&mstb->mgr->lock);
 			/* drop port list reference */
 			drm_dp_put_port(port);
 			goto out;
@@ -1222,7 +1222,7 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 	int i;
 	/* find the port by iterating down */
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
 
 	for (i = 0; i < lct - 1; i++) {
@@ -1243,7 +1243,7 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 	}
 	kref_get(&mstb->kref);
 out:
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return mstb;
 }
 
@@ -1278,14 +1278,14 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device_by_guid(
 	struct drm_dp_mst_branch *mstb;
 
 	/* find the port by iterating down */
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 
 	mstb = get_mst_branch_device_by_guid_helper(mgr->mst_primary, guid);
 
 	if (mstb)
 		kref_get(&mstb->kref);
 
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return mstb;
 }
 
@@ -1322,12 +1322,12 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, work);
 	struct drm_dp_mst_branch *mstb;
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
 	if (mstb) {
 		kref_get(&mstb->kref);
 	}
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	if (mstb) {
 		drm_dp_check_and_send_link_address(mgr, mstb);
 		drm_dp_put_mst_branch_device(mstb);
@@ -1495,7 +1495,7 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&mgr->qlock));
+	WARN_ON(!rt_mutex_is_locked(&mgr->qlock));
 
 	/* construct a chunk from the first msg in the tx_msg queue */
 	if (list_empty(&mgr->tx_msg_downq)) {
@@ -1541,11 +1541,11 @@ static void process_single_up_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_sideband_msg_tx *txmsg)
 {
-	mutex_lock(&mgr->qlock);
+	rt_mutex_lock(&mgr->qlock);
 	list_add_tail(&txmsg->next, &mgr->tx_msg_downq);
 	if (!mgr->tx_down_in_progress)
 		process_single_down_tx_qlock(mgr);
-	mutex_unlock(&mgr->qlock);
+	rt_mutex_unlock(&mgr->qlock);
 }
 
 static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
@@ -1652,7 +1652,7 @@ static struct drm_dp_mst_branch *drm_dp_get_last_connected_port_and_mstb(struct 
 {
 	struct drm_dp_mst_branch *rmstb = NULL;
 	struct drm_dp_mst_port *found_port;
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
 		found_port = drm_dp_get_last_connected_port_to_mstb(mstb);
 
@@ -1662,7 +1662,7 @@ static struct drm_dp_mst_branch *drm_dp_get_last_connected_port_and_mstb(struct 
 			*port_num = found_port->port_num;
 		}
 	}
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return rmstb;
 }
 
@@ -1789,7 +1789,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 	struct drm_dp_payload req_payload;
 	struct drm_dp_mst_port *port;
 
-	mutex_lock(&mgr->payload_lock);
+	rt_mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
 		/* solve the current payloads - compare to the hw ones
 		   - update the hw view */
@@ -1798,7 +1798,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
 			port = drm_dp_get_validated_port_ref(mgr, port);
 			if (!port) {
-				mutex_unlock(&mgr->payload_lock);
+				rt_mutex_unlock(&mgr->payload_lock);
 				return -EINVAL;
 			}
 			req_payload.num_slots = mgr->proposed_vcpis[i]->num_slots;
@@ -1851,7 +1851,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 
 		}
 	}
-	mutex_unlock(&mgr->payload_lock);
+	rt_mutex_unlock(&mgr->payload_lock);
 
 	return 0;
 }
@@ -1871,7 +1871,7 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 	struct drm_dp_mst_port *port;
 	int i;
 	int ret = 0;
-	mutex_lock(&mgr->payload_lock);
+	rt_mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
 
 		if (!mgr->proposed_vcpis[i])
@@ -1886,11 +1886,11 @@ int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
 			ret = drm_dp_destroy_payload_step2(mgr, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
 		}
 		if (ret) {
-			mutex_unlock(&mgr->payload_lock);
+			rt_mutex_unlock(&mgr->payload_lock);
 			return ret;
 		}
 	}
-	mutex_unlock(&mgr->payload_lock);
+	rt_mutex_unlock(&mgr->payload_lock);
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_update_payload_part2);
@@ -1977,11 +1977,11 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
 	txmsg->seqno = seqno;
 	drm_dp_encode_up_ack_reply(txmsg, req_type);
 
-	mutex_lock(&mgr->qlock);
+	rt_mutex_lock(&mgr->qlock);
 
 	process_single_up_tx_qlock(mgr, txmsg);
 
-	mutex_unlock(&mgr->qlock);
+	rt_mutex_unlock(&mgr->qlock);
 
 	kfree(txmsg);
 	return 0;
@@ -2023,7 +2023,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 	int ret = 0;
 	struct drm_dp_mst_branch *mstb = NULL;
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	if (mst_state == mgr->mst_state)
 		goto out_unlock;
 
@@ -2092,7 +2092,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 	}
 
 out_unlock:
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	if (mstb)
 		drm_dp_put_mst_branch_device(mstb);
 	return ret;
@@ -2109,10 +2109,10 @@ EXPORT_SYMBOL(drm_dp_mst_topology_mgr_set_mst);
  */
 void drm_dp_mst_topology_mgr_suspend(struct drm_dp_mst_topology_mgr *mgr)
 {
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL,
 			   DP_MST_EN | DP_UPSTREAM_IS_SRC);
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	flush_work(&mgr->work);
 	flush_work(&mgr->destroy_connector_work);
 }
@@ -2132,7 +2132,7 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 {
 	int ret = 0;
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 
 	if (mgr->mst_primary) {
 		int sret;
@@ -2167,7 +2167,7 @@ int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr)
 		ret = -1;
 
 out_unlock:
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_resume);
@@ -2247,10 +2247,10 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 
 		/* find the message */
 		slot = mgr->down_rep_recv.initial_hdr.seqno;
-		mutex_lock(&mgr->qlock);
+		rt_mutex_lock(&mgr->qlock);
 		txmsg = mstb->tx_slots[slot];
 		/* remove from slots */
-		mutex_unlock(&mgr->qlock);
+		rt_mutex_unlock(&mgr->qlock);
 
 		if (!txmsg) {
 			DRM_DEBUG_KMS("Got MST reply with no msg %p %d %d %02x %02x\n",
@@ -2272,10 +2272,10 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 		memset(&mgr->down_rep_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 		drm_dp_put_mst_branch_device(mstb);
 
-		mutex_lock(&mgr->qlock);
+		rt_mutex_lock(&mgr->qlock);
 		txmsg->state = DRM_DP_SIDEBAND_TX_RX;
 		mstb->tx_slots[slot] = NULL;
-		mutex_unlock(&mgr->qlock);
+		rt_mutex_unlock(&mgr->qlock);
 
 		wake_up(&mgr->tx_waitq);
 	}
@@ -2785,14 +2785,14 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 {
 	int i;
 	struct drm_dp_mst_port *port;
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	if (mgr->mst_primary)
 		drm_dp_mst_dump_mstb(m, mgr->mst_primary);
 
 	/* dump VCPIs */
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 
-	mutex_lock(&mgr->payload_lock);
+	rt_mutex_lock(&mgr->payload_lock);
 	seq_printf(m, "vcpi: %lx %lx\n", mgr->payload_mask, mgr->vcpi_mask);
 
 	for (i = 0; i < mgr->max_payloads; i++) {
@@ -2811,9 +2811,9 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 
 
 	}
-	mutex_unlock(&mgr->payload_lock);
+	rt_mutex_unlock(&mgr->payload_lock);
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	if (mgr->mst_primary) {
 		u8 buf[64];
 		bool bret;
@@ -2854,7 +2854,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 
 	}
 
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 
 }
 EXPORT_SYMBOL(drm_dp_mst_dump_topology);
@@ -2863,10 +2863,10 @@ static void drm_dp_tx_work(struct work_struct *work)
 {
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, tx_work);
 
-	mutex_lock(&mgr->qlock);
+	rt_mutex_lock(&mgr->qlock);
 	if (mgr->tx_down_in_progress)
 		process_single_down_tx_qlock(mgr);
-	mutex_unlock(&mgr->qlock);
+	rt_mutex_unlock(&mgr->qlock);
 }
 
 static void drm_dp_free_mst_port(struct kref *kref)
@@ -2887,14 +2887,14 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 	 * ordering between this lock and the config mutex.
 	 */
 	for (;;) {
-		mutex_lock(&mgr->destroy_connector_lock);
+		rt_mutex_lock(&mgr->destroy_connector_lock);
 		port = list_first_entry_or_null(&mgr->destroy_connector_list, struct drm_dp_mst_port, next);
 		if (!port) {
-			mutex_unlock(&mgr->destroy_connector_lock);
+			rt_mutex_unlock(&mgr->destroy_connector_lock);
 			break;
 		}
 		list_del(&port->next);
-		mutex_unlock(&mgr->destroy_connector_lock);
+		rt_mutex_unlock(&mgr->destroy_connector_lock);
 
 		kref_init(&port->kref);
 		INIT_LIST_HEAD(&port->next);
@@ -2933,10 +2933,10 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 				 int max_dpcd_transaction_bytes,
 				 int max_payloads, int conn_base_id)
 {
-	mutex_init(&mgr->lock);
-	mutex_init(&mgr->qlock);
-	mutex_init(&mgr->payload_lock);
-	mutex_init(&mgr->destroy_connector_lock);
+	rt_mutex_init(&mgr->lock);
+	rt_mutex_init(&mgr->qlock);
+	rt_mutex_init(&mgr->payload_lock);
+	rt_mutex_init(&mgr->destroy_connector_lock);
 	INIT_LIST_HEAD(&mgr->tx_msg_downq);
 	INIT_LIST_HEAD(&mgr->destroy_connector_list);
 	INIT_WORK(&mgr->work, drm_dp_mst_link_probe_work);
@@ -2968,12 +2968,12 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 {
 	flush_work(&mgr->work);
 	flush_work(&mgr->destroy_connector_work);
-	mutex_lock(&mgr->payload_lock);
+	rt_mutex_lock(&mgr->payload_lock);
 	kfree(mgr->payloads);
 	mgr->payloads = NULL;
 	kfree(mgr->proposed_vcpis);
 	mgr->proposed_vcpis = NULL;
-	mutex_unlock(&mgr->payload_lock);
+	rt_mutex_unlock(&mgr->payload_lock);
 	mgr->dev = NULL;
 	mgr->aux = NULL;
 }

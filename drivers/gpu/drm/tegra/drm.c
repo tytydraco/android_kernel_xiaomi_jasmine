@@ -84,7 +84,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 		return err;
 
 	/* serialize outstanding asynchronous commits */
-	mutex_lock(&tegra->commit.lock);
+	rt_mutex_lock(&tegra->commit.lock);
 	flush_work(&tegra->commit.work);
 
 	/*
@@ -100,7 +100,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	else
 		tegra_atomic_complete(tegra, state);
 
-	mutex_unlock(&tegra->commit.lock);
+	rt_mutex_unlock(&tegra->commit.lock);
 	return 0;
 }
 
@@ -142,10 +142,10 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		drm_mm_init(&tegra->mm, start, end - start + 1);
 	}
 
-	mutex_init(&tegra->clients_lock);
+	rt_mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
 
-	mutex_init(&tegra->commit.lock);
+	rt_mutex_init(&tegra->commit.lock);
 	INIT_WORK(&tegra->commit.work, tegra_atomic_work);
 
 	drm->dev_private = tegra;
@@ -277,9 +277,9 @@ host1x_bo_lookup(struct drm_device *drm, struct drm_file *file, u32 handle)
 	if (!gem)
 		return NULL;
 
-	mutex_lock(&drm->struct_mutex);
+	rt_mutex_lock(&drm->struct_mutex);
 	drm_gem_object_unreference(gem);
-	mutex_unlock(&drm->struct_mutex);
+	rt_mutex_unlock(&drm->struct_mutex);
 
 	bo = to_tegra_bo(gem);
 	return &bo->base;
@@ -878,7 +878,7 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 	struct drm_device *drm = node->minor->dev;
 	struct drm_framebuffer *fb;
 
-	mutex_lock(&drm->mode_config.fb_lock);
+	rt_mutex_lock(&drm->mode_config.fb_lock);
 
 	list_for_each_entry(fb, &drm->mode_config.fb_list, head) {
 		seq_printf(s, "%3d: user size: %d x %d, depth %d, %d bpp, refcount %d\n",
@@ -887,7 +887,7 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 			   atomic_read(&fb->refcount.refcount));
 	}
 
-	mutex_unlock(&drm->mode_config.fb_lock);
+	rt_mutex_unlock(&drm->mode_config.fb_lock);
 
 	return 0;
 }
@@ -964,9 +964,9 @@ static struct drm_driver tegra_drm_driver = {
 int tegra_drm_register_client(struct tegra_drm *tegra,
 			      struct tegra_drm_client *client)
 {
-	mutex_lock(&tegra->clients_lock);
+	rt_mutex_lock(&tegra->clients_lock);
 	list_add_tail(&client->list, &tegra->clients);
-	mutex_unlock(&tegra->clients_lock);
+	rt_mutex_unlock(&tegra->clients_lock);
 
 	return 0;
 }
@@ -974,9 +974,9 @@ int tegra_drm_register_client(struct tegra_drm *tegra,
 int tegra_drm_unregister_client(struct tegra_drm *tegra,
 				struct tegra_drm_client *client)
 {
-	mutex_lock(&tegra->clients_lock);
+	rt_mutex_lock(&tegra->clients_lock);
 	list_del_init(&client->list);
-	mutex_unlock(&tegra->clients_lock);
+	rt_mutex_unlock(&tegra->clients_lock);
 
 	return 0;
 }

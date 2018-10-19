@@ -176,7 +176,7 @@ static int drm_getmap(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	i = 0;
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_for_each(list, &dev->maplist) {
 		if (i == idx) {
 			r_list = list_entry(list, struct drm_map_list, head);
@@ -185,7 +185,7 @@ static int drm_getmap(struct drm_device *dev, void *data,
 		i++;
 	}
 	if (!r_list || !r_list->map) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -196,7 +196,7 @@ static int drm_getmap(struct drm_device *dev, void *data,
 	map->handle = (void *)(unsigned long) r_list->user_token;
 	map->mtrr = arch_phys_wc_index(r_list->map->mtrr);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -765,9 +765,9 @@ long drm_ioctl(struct file *filp,
 	    (ioctl->flags & DRM_UNLOCKED))
 		retcode = func(dev, kdata, file_priv);
 	else {
-		mutex_lock(&drm_global_mutex);
+		rt_mutex_lock(&drm_global_mutex);
 		retcode = func(dev, kdata, file_priv);
-		mutex_unlock(&drm_global_mutex);
+		rt_mutex_unlock(&drm_global_mutex);
 	}
 
 	if (cmd & IOC_OUT) {

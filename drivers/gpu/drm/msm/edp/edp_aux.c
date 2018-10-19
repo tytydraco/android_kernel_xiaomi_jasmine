@@ -32,7 +32,7 @@ struct edp_aux {
 	struct completion msg_comp;
 
 	/* To prevent the message transaction routine from reentry. */
-	struct mutex msg_mutex;
+	struct rt_mutex msg_mutex;
 
 	struct drm_dp_aux drm_aux;
 };
@@ -139,7 +139,7 @@ static ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux,
 		return -EINVAL;
 	}
 
-	mutex_lock(&aux->msg_mutex);
+	rt_mutex_lock(&aux->msg_mutex);
 
 	aux->msg_err = false;
 	reinit_completion(&aux->msg_comp);
@@ -188,7 +188,7 @@ static ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux,
 	ret = msg->size;
 
 unlock_exit:
-	mutex_unlock(&aux->msg_mutex);
+	rt_mutex_unlock(&aux->msg_mutex);
 	return ret;
 }
 
@@ -204,7 +204,7 @@ void *msm_edp_aux_init(struct device *dev, void __iomem *regbase,
 		return NULL;
 
 	aux->base = regbase;
-	mutex_init(&aux->msg_mutex);
+	rt_mutex_init(&aux->msg_mutex);
 	init_completion(&aux->msg_comp);
 
 	aux->drm_aux.name = "msm_edp_aux";
@@ -213,7 +213,7 @@ void *msm_edp_aux_init(struct device *dev, void __iomem *regbase,
 	ret = drm_dp_aux_register(&aux->drm_aux);
 	if (ret) {
 		pr_err("%s: failed to register drm aux: %d\n", __func__, ret);
-		mutex_destroy(&aux->msg_mutex);
+		rt_mutex_destroy(&aux->msg_mutex);
 	}
 
 	if (drm_aux && aux)
@@ -226,7 +226,7 @@ void msm_edp_aux_destroy(struct device *dev, struct edp_aux *aux)
 {
 	if (aux) {
 		drm_dp_aux_unregister(&aux->drm_aux);
-		mutex_destroy(&aux->msg_mutex);
+		rt_mutex_destroy(&aux->msg_mutex);
 	}
 }
 

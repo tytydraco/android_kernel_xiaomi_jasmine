@@ -71,14 +71,14 @@ nv41_vm_flush(struct nvkm_vm *vm)
 	struct nv04_mmu *mmu = nv04_mmu(vm->mmu);
 	struct nvkm_device *device = mmu->base.subdev.device;
 
-	mutex_lock(&mmu->base.subdev.mutex);
+	rt_mutex_lock(&mmu->base.subdev.mutex);
 	nvkm_wr32(device, 0x100810, 0x00000022);
 	nvkm_msec(device, 2000,
 		if (nvkm_rd32(device, 0x100810) & 0x00000020)
 			break;
 	);
 	nvkm_wr32(device, 0x100810, 0x00000000);
-	mutex_unlock(&mmu->base.subdev.mutex);
+	rt_mutex_unlock(&mmu->base.subdev.mutex);
 }
 
 /*******************************************************************************

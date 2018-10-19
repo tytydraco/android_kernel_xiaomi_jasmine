@@ -139,10 +139,10 @@ static int valleyview_get_vco(struct drm_i915_private *dev_priv)
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
 	/* Obtain SKU information */
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
 		CCK_FUSE_HPLL_FREQ_MASK;
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	return vco_freq[hpll_freq] * 1000;
 }
@@ -156,9 +156,9 @@ static int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 	if (dev_priv->hpll_freq == 0)
 		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	val = vlv_cck_read(dev_priv, reg);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	divider = val & CCK_FREQUENCY_VALUES;
 
@@ -1174,9 +1174,9 @@ static void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
 	u32 val;
 	bool cur_state;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	val = vlv_cck_read(dev_priv, CCK_REG_DSI_PLL_CONTROL);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	cur_state = val & DSI_PLL_VCO_EN;
 	I915_STATE_WARN(cur_state != state,
@@ -1647,14 +1647,14 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 
 	BUG_ON(!IS_CHERRYVIEW(dev_priv->dev));
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* Enable back the 10bit clock to display controller */
 	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
 	tmp |= DPIO_DCLKP_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), tmp);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	/*
 	 * Need to wait > 100ns between dclkp clock enable bit and PLL enable.
@@ -1823,14 +1823,14 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* Disable 10bit clock to display controller */
 	val = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port));
 	val &= ~DPIO_DCLKP_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), val);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
@@ -2341,7 +2341,7 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 	u32 alignment;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	switch (fb->modifier[0]) {
 	case DRM_FORMAT_MOD_NONE:
@@ -2437,7 +2437,7 @@ static void intel_unpin_fb_obj(struct drm_framebuffer *fb,
 	struct i915_ggtt_view view;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&obj->base.dev->struct_mutex));
 
 	ret = intel_fill_fb_ggtt_view(&view, fb, plane_state);
 	WARN_ONCE(ret, "Couldn't get view from plane state!");
@@ -2566,20 +2566,20 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	mode_cmd.modifier[0] = fb->modifier[0];
 	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (intel_framebuffer_init(dev, to_intel_framebuffer(fb),
 				   &mode_cmd, obj)) {
 		DRM_DEBUG_KMS("intel fb init failed\n");
 		goto out_unref_obj;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG_KMS("initial plane fb obj %p\n", obj);
 	return true;
 
 out_unref_obj:
 	drm_gem_object_unreference(&obj->base);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return false;
 }
 
@@ -3974,9 +3974,9 @@ void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	}
 
 	if (crtc->primary->fb) {
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		intel_finish_fb(crtc->primary->fb);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 }
 
@@ -3989,7 +3989,7 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 	u32 divsel, phaseinc, auxdiv, phasedir = 0;
 	u32 temp;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* It is necessary to ungate the pixclk gate prior to programming
 	 * the divisors, and gate it back when it is done.
@@ -4066,7 +4066,7 @@ static void lpt_program_iclkip(struct drm_crtc *crtc)
 
 	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_UNGATE);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void ironlake_pch_transcoder_set_timings(struct intel_crtc *crtc,
@@ -4592,9 +4592,9 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 
 	assert_plane_enabled(dev_priv, crtc->plane);
 	if (IS_BROADWELL(dev)) {
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 		/* Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
 		 * mailbox." Moreover, the mailbox may return a bogus state,
@@ -4622,9 +4622,9 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 
 	assert_plane_enabled(dev_priv, crtc->plane);
 	if (IS_BROADWELL(dev)) {
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 		/* wait for pcode to finish disabling IPS, which may take up to 42ms */
 		if (wait_for((I915_READ(IPS_CTL) & IPS_ENABLE) == 0, 42))
 			DRM_ERROR("Timed out waiting for IPS disable\n");
@@ -4692,11 +4692,11 @@ static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 		struct drm_device *dev = intel_crtc->base.dev;
 		struct drm_i915_private *dev_priv = dev->dev_private;
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.interruptible = false;
 		(void) intel_overlay_switch_off(intel_crtc->overlay);
 		dev_priv->mm.interruptible = true;
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 
 	/* Let userspace switch the overlay on again. In most cases userspace
@@ -4846,10 +4846,10 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	drm_for_each_plane_mask(p, dev, atomic->disabled_planes) {
 		struct intel_plane *plane = to_intel_plane(p);
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		i915_gem_track_fb(intel_fb_obj(plane->base.fb), NULL,
 				  plane->frontbuffer_bit);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 
 	if (atomic->wait_for_flips)
@@ -5511,11 +5511,11 @@ static void broxton_set_cdclk(struct drm_device *dev, int frequency)
 		return;
 	}
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	/* Inform power controller of upcoming frequency change */
 	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
 				      0x80000000);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (ret) {
 		DRM_ERROR("PCode CDCLK freq change notify failed (err %d, freq %d)\n",
@@ -5572,10 +5572,10 @@ static void broxton_set_cdclk(struct drm_device *dev, int frequency)
 		I915_WRITE(CDCLK_CTL, val);
 	}
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
 				      DIV_ROUND_UP(frequency, 25000));
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (ret) {
 		DRM_ERROR("PCode CDCLK freq set failed, (err %d, freq %d)\n",
@@ -5736,9 +5736,9 @@ static bool skl_cdclk_pcu_ready(struct drm_i915_private *dev_priv)
 
 	/* inform PCU we want to change CDCLK */
 	val = SKL_CDCLK_PREPARE_FOR_CHANGE;
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_read(dev_priv, SKL_PCODE_CDCLK_CONTROL, &val);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return ret == 0 && (val & SKL_CDCLK_READY_FOR_CHANGE);
 }
@@ -5796,9 +5796,9 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv, unsigned int freq)
 	POSTING_READ(CDCLK_CTL);
 
 	/* inform PCU of the change */
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL, pcu_ack);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_update_cdclk(dev);
 }
@@ -5876,7 +5876,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	else
 		cmd = 0;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 	val &= ~DSPFREQGUAR_MASK;
 	val |= (cmd << DSPFREQGUAR_SHIFT);
@@ -5886,9 +5886,9 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	if (cdclk == 400000) {
 		u32 divider;
@@ -5921,7 +5921,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 		val |= 3000 / 250; /* 3.0 usec */
 	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	intel_update_cdclk(dev);
 }
@@ -5952,7 +5952,7 @@ static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
 	 */
 	cmd = DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, cdclk) - 1;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 	val &= ~DSPFREQGUAR_MASK_CHV;
 	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
@@ -5962,7 +5962,7 @@ static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_update_cdclk(dev);
 }
@@ -7334,7 +7334,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
 	u32 coreclk, reg_val;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	bestn = pipe_config->dpll.n;
 	bestm1 = pipe_config->dpll.m1;
@@ -7412,7 +7412,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW7(pipe), coreclk);
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW11(pipe), 0x87871000);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void chv_compute_dpll(struct intel_crtc *crtc,
@@ -7457,7 +7457,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	I915_WRITE(dpll_reg,
 		   pipe_config->dpll_hw_state.dpll & ~DPLL_VCO_ENABLE);
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	/* p1 and p2 divider */
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW13(port),
@@ -7529,7 +7529,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW14(port)) |
 			DPIO_AFC_RECAL);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 /**
@@ -8016,9 +8016,9 @@ static void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	if (!(pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE))
 		return;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	mdiv = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW3(pipe));
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	clock.m1 = (mdiv >> DPIO_M1DIV_SHIFT) & 7;
 	clock.m2 = mdiv & DPIO_M2DIV_MASK;
@@ -8109,13 +8109,13 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2, pll_dw3;
 	int refclk = 100000;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	cmn_dw13 = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW13(port));
 	pll_dw0 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW0(port));
 	pll_dw1 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW1(port));
 	pll_dw2 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW2(port));
 	pll_dw3 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW3(port));
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
 	clock.m2 = (pll_dw0 & 0xff) << 22;
@@ -8507,7 +8507,7 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 	if (WARN(HAS_PCH_LPT_LP(dev) && with_fdi, "LP PCH doesn't have FDI\n"))
 		with_fdi = false;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
 	tmp &= ~SBI_SSCCTL_DISABLE;
@@ -8532,7 +8532,7 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
 	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 /* Sequence to disable CLKOUT_DP */
@@ -8541,7 +8541,7 @@ static void lpt_disable_clkout_dp(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t reg, tmp;
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	reg = HAS_PCH_LPT_LP(dev) ? SBI_GEN0 : SBI_DBUFF0;
 	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
@@ -8559,7 +8559,7 @@ static void lpt_disable_clkout_dp(struct drm_device *dev)
 		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 static void lpt_init_pch_refclk(struct drm_device *dev)
@@ -9410,11 +9410,11 @@ static void hsw_write_dcomp(struct drm_i915_private *dev_priv, uint32_t val)
 	struct drm_device *dev = dev_priv->dev;
 
 	if (IS_HASWELL(dev)) {
-		mutex_lock(&dev_priv->rps.hw_lock);
+		rt_mutex_lock(&dev_priv->rps.hw_lock);
 		if (sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP,
 					    val))
 			DRM_ERROR("Failed to write to D_COMP\n");
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		I915_WRITE(D_COMP_BDW, val);
 		POSTING_READ(D_COMP_BDW);
@@ -9635,10 +9635,10 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 		 "trying to change cdclk frequency with cdclk not enabled\n"))
 		return;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	ret = sandybridge_pcode_write(dev_priv,
 				      BDW_PCODE_DISPLAY_FREQ_CHANGE_REQ, 0x0);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 	if (ret) {
 		DRM_ERROR("failed to inform pcode about cdclk change\n");
 		return;
@@ -9687,9 +9687,9 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 				LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
 		DRM_ERROR("Switching back to LCPLL failed\n");
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ, data);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	I915_WRITE(CDCLK_FREQ, DIV_ROUND_CLOSEST(cdclk, 1000) - 1);
 
@@ -10203,11 +10203,11 @@ intel_framebuffer_create(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ERR_PTR(ret);
 	fb = __intel_framebuffer_create(dev, mode_cmd, obj);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return fb;
 }
@@ -10797,13 +10797,13 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_plane *primary = crtc->base.primary;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(work->old_fb, primary->state);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 
 	if (work->flip_queued_req)
 		i915_gem_request_assign(&work->flip_queued_req, NULL);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_frontbuffer_flip_complete(dev, to_intel_plane(primary)->frontbuffer_bit);
 	drm_framebuffer_unreference(work->old_fb);
@@ -11507,7 +11507,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->pending_flip_obj = obj;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		goto cleanup;
 
@@ -11580,7 +11580,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	i915_gem_track_fb(intel_fb_obj(work->old_fb), obj,
 			  to_intel_plane(primary)->frontbuffer_bit);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_fbc_disable_crtc(intel_crtc);
 	intel_frontbuffer_flip_prepare(dev,
@@ -11596,7 +11596,7 @@ cleanup_pending:
 	if (request)
 		i915_gem_request_cancel(request);
 	atomic_dec(&intel_crtc->unpin_work_count);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 cleanup:
 	crtc->primary->fb = old_fb;
 	update_state_fb(crtc->primary);
@@ -13475,7 +13475,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (!obj)
 		return 0;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev)->cursor_needs_physical) {
@@ -13490,7 +13490,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (ret == 0)
 		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -13514,9 +13514,9 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR ||
 	    !INTEL_INFO(dev)->cursor_needs_physical) {
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		intel_unpin_fb_obj(old_state->fb, old_state);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 }
 
@@ -14266,10 +14266,10 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
 	drm_framebuffer_cleanup(fb);
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	WARN_ON(!intel_fb->obj->framebuffer_references--);
 	drm_gem_object_unreference(&intel_fb->obj->base);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	kfree(intel_fb);
 }
 
@@ -14298,9 +14298,9 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	intel_fb_obj_flush(obj, false, ORIGIN_DIRTYFB);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -14349,7 +14349,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	int ret;
 	u32 pitch_limit, stride_alignment;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
 		/* Enforce that fb modifier and tiling mode match, but only for
@@ -14699,7 +14699,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.queue_flip = intel_default_queue_flip;
 	}
 
-	mutex_init(&dev_priv->pps_mutex);
+	rt_mutex_init(&dev_priv->pps_mutex);
 }
 
 /*
@@ -15512,9 +15512,9 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	intel_init_gt_powersave(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_modeset_init_hw(dev);
 
@@ -15530,12 +15530,12 @@ void intel_modeset_gem_init(struct drm_device *dev)
 		if (obj == NULL)
 			continue;
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		ret = intel_pin_and_fence_fb_obj(c->primary,
 						 c->primary->fb,
 						 c->primary->state,
 						 NULL, NULL);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",
 				  to_intel_crtc(c)->pipe);
@@ -15599,9 +15599,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_cleanup_overlay(dev);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	intel_cleanup_gt_powersave(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_teardown_gmbus(dev);
 }

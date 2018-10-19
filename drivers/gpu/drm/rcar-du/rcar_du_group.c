@@ -88,10 +88,10 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	rcar_du_group_write(rgrp, DORCR, DORCR_PG1D_DS1 | DORCR_DPRS);
 
 	/* Apply planes to CRTCs association. */
-	mutex_lock(&rgrp->lock);
+	rt_mutex_lock(&rgrp->lock);
 	rcar_du_group_write(rgrp, DPTSR, (rgrp->dptsr_planes << 16) |
 			    rgrp->dptsr_planes);
-	mutex_unlock(&rgrp->lock);
+	rt_mutex_unlock(&rgrp->lock);
 }
 
 /*

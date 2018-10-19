@@ -95,7 +95,7 @@ struct sde_fence {
 	int32_t commit_count;
 	int32_t done_count;
 	uint32_t drm_id;
-	struct mutex fence_lock;
+	struct rt_mutex fence_lock;
 };
 
 #if IS_ENABLED(CONFIG_SW_SYNC)

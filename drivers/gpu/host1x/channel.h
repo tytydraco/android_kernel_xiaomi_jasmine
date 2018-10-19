@@ -30,8 +30,8 @@ struct host1x_channel {
 
 	unsigned int refcount;
 	unsigned int id;
-	struct mutex reflock;
-	struct mutex submitlock;
+	struct rt_mutex reflock;
+	struct rt_mutex submitlock;
 	void __iomem *regs;
 	struct device *dev;
 	struct host1x_cdma cdma;

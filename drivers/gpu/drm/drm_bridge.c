@@ -53,7 +53,7 @@
  * desired output at the end of the encoder chain.
  */
 
-static DEFINE_MUTEX(bridge_lock);
+static DEFINE_RT_MUTEX(bridge_lock);
 static LIST_HEAD(bridge_list);
 
 /**
@@ -66,9 +66,9 @@ static LIST_HEAD(bridge_list);
  */
 int drm_bridge_add(struct drm_bridge *bridge)
 {
-	mutex_lock(&bridge_lock);
+	rt_mutex_lock(&bridge_lock);
 	list_add_tail(&bridge->list, &bridge_list);
-	mutex_unlock(&bridge_lock);
+	rt_mutex_unlock(&bridge_lock);
 
 	return 0;
 }
@@ -81,9 +81,9 @@ EXPORT_SYMBOL(drm_bridge_add);
  */
 void drm_bridge_remove(struct drm_bridge *bridge)
 {
-	mutex_lock(&bridge_lock);
+	rt_mutex_lock(&bridge_lock);
 	list_del_init(&bridge->list);
-	mutex_unlock(&bridge_lock);
+	rt_mutex_unlock(&bridge_lock);
 }
 EXPORT_SYMBOL(drm_bridge_remove);
 
@@ -313,16 +313,16 @@ struct drm_bridge *of_drm_find_bridge(struct device_node *np)
 {
 	struct drm_bridge *bridge;
 
-	mutex_lock(&bridge_lock);
+	rt_mutex_lock(&bridge_lock);
 
 	list_for_each_entry(bridge, &bridge_list, list) {
 		if (bridge->of_node == np) {
-			mutex_unlock(&bridge_lock);
+			rt_mutex_unlock(&bridge_lock);
 			return bridge;
 		}
 	}
 
-	mutex_unlock(&bridge_lock);
+	rt_mutex_unlock(&bridge_lock);
 	return NULL;
 }
 EXPORT_SYMBOL(of_drm_find_bridge);

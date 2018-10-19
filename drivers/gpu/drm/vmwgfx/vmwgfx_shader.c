@@ -324,14 +324,14 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
 	if (likely(res->id == -1))
 		return 0;
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	vmw_binding_res_list_scrub(&res->binding_head);
 
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for shader "
 			  "destruction.\n");
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
 
@@ -339,7 +339,7 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.shid = res->id;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 	vmw_resource_release_id(res);
 	vmw_fifo_resource_dec(dev_priv);
 
@@ -365,18 +365,18 @@ static void vmw_dx_shader_commit_notify(struct vmw_resource *res,
 	struct vmw_private *dev_priv = res->dev_priv;
 
 	if (state == VMW_CMDBUF_RES_ADD) {
-		mutex_lock(&dev_priv->binding_mutex);
+		rt_mutex_lock(&dev_priv->binding_mutex);
 		vmw_cotable_add_resource(shader->cotable,
 					 &shader->cotable_head);
 		shader->committed = true;
 		res->id = shader->id;
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 	} else {
-		mutex_lock(&dev_priv->binding_mutex);
+		rt_mutex_lock(&dev_priv->binding_mutex);
 		list_del_init(&shader->cotable_head);
 		shader->committed = false;
 		res->id = -1;
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 	}
 }
 
@@ -437,9 +437,9 @@ static int vmw_dx_shader_create(struct vmw_resource *res)
 	WARN_ON_ONCE(!shader->committed);
 
 	if (!list_empty(&res->mob_head)) {
-		mutex_lock(&dev_priv->binding_mutex);
+		rt_mutex_lock(&dev_priv->binding_mutex);
 		ret = vmw_dx_shader_unscrub(res);
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 	}
 
 	res->id = shader->id;
@@ -460,9 +460,9 @@ static int vmw_dx_shader_bind(struct vmw_resource *res,
 	struct ttm_buffer_object *bo = val_buf->bo;
 
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_shader_unscrub(res);
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 
 	return 0;
 }
@@ -527,9 +527,9 @@ static int vmw_dx_shader_unbind(struct vmw_resource *res,
 
 	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	ret = vmw_dx_shader_scrub(res);
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 
 	if (ret)
 		return ret;
@@ -561,7 +561,7 @@ void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
 {
 	struct vmw_dx_shader *entry, *next;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	WARN_ON_ONCE(!rt_mutex_is_locked(&dev_priv->binding_mutex));
 
 	list_for_each_entry_safe(entry, next, list, cotable_head) {
 		WARN_ON(vmw_dx_shader_scrub(&entry->res));

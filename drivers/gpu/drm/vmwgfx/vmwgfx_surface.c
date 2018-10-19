@@ -339,10 +339,10 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 		 * the destroy path.
 		 */
 
-		mutex_lock(&dev_priv->cmdbuf_mutex);
+		rt_mutex_lock(&dev_priv->cmdbuf_mutex);
 		srf = vmw_res_to_srf(res);
 		dev_priv->used_memory_size -= res->backup_size;
-		mutex_unlock(&dev_priv->cmdbuf_mutex);
+		rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 	}
 	vmw_fifo_resource_dec(dev_priv);
 }
@@ -1241,7 +1241,7 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	if (likely(res->id == -1))
 		return 0;
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	vmw_view_surface_list_destroy(dev_priv, &srf->view_list);
 	vmw_binding_res_list_scrub(&res->binding_head);
 
@@ -1249,7 +1249,7 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
 			  "destruction.\n");
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
 
@@ -1257,7 +1257,7 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.sid = res->id;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 	vmw_resource_release_id(res);
 	vmw_fifo_resource_dec(dev_priv);
 
@@ -1424,10 +1424,10 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 		goto out_bad_resource;
 	}
 
-	mutex_lock(&dev_priv->cmdbuf_mutex); /* Protect res->backup */
+	rt_mutex_lock(&dev_priv->cmdbuf_mutex); /* Protect res->backup */
 	ret = vmw_user_dmabuf_reference(tfile, srf->res.backup,
 					&backup_handle);
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Could not add a reference to a GB surface "

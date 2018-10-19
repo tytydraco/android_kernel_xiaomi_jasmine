@@ -99,8 +99,8 @@ struct vmw_cmdbuf_context {
  * @size: The size of the command buffer space. Immutable.
  */
 struct vmw_cmdbuf_man {
-	struct mutex cur_mutex;
-	struct mutex space_mutex;
+	struct rt_mutex cur_mutex;
+	struct rt_mutex space_mutex;
 	struct work_struct work;
 	struct vmw_private *dev_priv;
 	struct vmw_cmdbuf_context ctx[SVGA_CB_CONTEXT_MAX];
@@ -196,10 +196,10 @@ static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, bool enable);
 static int vmw_cmdbuf_cur_lock(struct vmw_cmdbuf_man *man, bool interruptible)
 {
 	if (interruptible) {
-		if (mutex_lock_interruptible(&man->cur_mutex))
+		if (rt_mutex_lock_interruptible(&man->cur_mutex))
 			return -ERESTARTSYS;
 	} else {
-		mutex_lock(&man->cur_mutex);
+		rt_mutex_lock(&man->cur_mutex);
 	}
 
 	return 0;
@@ -212,7 +212,7 @@ static int vmw_cmdbuf_cur_lock(struct vmw_cmdbuf_man *man, bool interruptible)
  */
 static void vmw_cmdbuf_cur_unlock(struct vmw_cmdbuf_man *man)
 {
-	mutex_unlock(&man->cur_mutex);
+	rt_mutex_unlock(&man->cur_mutex);
 }
 
 /**
@@ -565,7 +565,7 @@ static void __vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man)
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	WARN_ON(!rt_mutex_is_locked(&man->cur_mutex));
 
 	if (!cur)
 		return;
@@ -719,10 +719,10 @@ static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
 	 * at a time waiting for space.
 	 */
 	if (interruptible) {
-		if (mutex_lock_interruptible(&man->space_mutex))
+		if (rt_mutex_lock_interruptible(&man->space_mutex))
 			return -ERESTARTSYS;
 	} else {
-		mutex_lock(&man->space_mutex);
+		rt_mutex_lock(&man->space_mutex);
 	}
 
 	/* Try to allocate space without waiting. */
@@ -742,7 +742,7 @@ static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
 			vmw_generic_waiter_remove
 				(man->dev_priv, SVGA_IRQFLAG_COMMAND_BUFFER,
 				 &man->dev_priv->cmdbuf_waiters);
-			mutex_unlock(&man->space_mutex);
+			rt_mutex_unlock(&man->space_mutex);
 			return ret;
 		}
 	} else {
@@ -753,7 +753,7 @@ static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
 				  &man->dev_priv->cmdbuf_waiters);
 
 out_unlock:
-	mutex_unlock(&man->space_mutex);
+	rt_mutex_unlock(&man->space_mutex);
 
 	return 0;
 }
@@ -958,7 +958,7 @@ static void vmw_cmdbuf_commit_cur(struct vmw_cmdbuf_man *man,
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	WARN_ON(!rt_mutex_is_locked(&man->cur_mutex));
 
 	WARN_ON(size > cur->reserved);
 	man->cur_pos += size;
@@ -1231,8 +1231,8 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 
 	INIT_LIST_HEAD(&man->error);
 	spin_lock_init(&man->lock);
-	mutex_init(&man->cur_mutex);
-	mutex_init(&man->space_mutex);
+	rt_mutex_init(&man->cur_mutex);
+	rt_mutex_init(&man->space_mutex);
 	tasklet_init(&man->tasklet, vmw_cmdbuf_man_tasklet,
 		     (unsigned long) man);
 	man->default_size = VMW_CMDBUF_INLINE_SIZE;
@@ -1308,7 +1308,7 @@ void vmw_cmdbuf_man_destroy(struct vmw_cmdbuf_man *man)
 	(void) cancel_work_sync(&man->work);
 	dma_pool_destroy(man->dheaders);
 	dma_pool_destroy(man->headers);
-	mutex_destroy(&man->cur_mutex);
-	mutex_destroy(&man->space_mutex);
+	rt_mutex_destroy(&man->cur_mutex);
+	rt_mutex_destroy(&man->space_mutex);
 	kfree(man);
 }

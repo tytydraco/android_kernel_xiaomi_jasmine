@@ -70,7 +70,7 @@ struct msm_property_info {
 	void *state_cache[MSM_PROP_STATE_CACHE_SIZE];
 	uint32_t state_size;
 	int32_t state_cache_size;
-	struct mutex property_lock;
+	struct rt_mutex property_lock;
 };
 
 /**
@@ -88,10 +88,10 @@ uint64_t msm_property_get_default(struct msm_property_info *info,
 	if (!info)
 		return 0;
 
-	mutex_lock(&info->property_lock);
+	rt_mutex_lock(&info->property_lock);
 	if (property_idx < info->property_count)
 		rc = info->property_data[property_idx].default_value;
-	mutex_unlock(&info->property_lock);
+	rt_mutex_unlock(&info->property_lock);
 
 	return rc;
 }
@@ -105,9 +105,9 @@ static inline
 void msm_property_set_is_active(struct msm_property_info *info, bool is_active)
 {
 	if (info) {
-		mutex_lock(&info->property_lock);
+		rt_mutex_lock(&info->property_lock);
 		info->is_active = is_active;
-		mutex_unlock(&info->property_lock);
+		rt_mutex_unlock(&info->property_lock);
 	}
 }
 
@@ -122,9 +122,9 @@ bool msm_property_get_is_active(struct msm_property_info *info)
 	bool rc = false;
 
 	if (info) {
-		mutex_lock(&info->property_lock);
+		rt_mutex_lock(&info->property_lock);
 		rc = info->is_active;
-		mutex_unlock(&info->property_lock);
+		rt_mutex_unlock(&info->property_lock);
 	}
 
 	return rc;

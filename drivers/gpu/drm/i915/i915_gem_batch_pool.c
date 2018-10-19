@@ -65,7 +65,7 @@ void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool)
 {
 	int n;
 
-	WARN_ON(!mutex_is_locked(&pool->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&pool->dev->struct_mutex));
 
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++) {
 		while (!list_empty(&pool->cache_list[n])) {
@@ -102,7 +102,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	struct list_head *list;
 	int n;
 
-	WARN_ON(!mutex_is_locked(&pool->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&pool->dev->struct_mutex));
 
 	/* Compute a power-of-two bucket, but throw everything greater than
 	 * 16KiB into the same bucket: i.e. the the buckets hold objects of

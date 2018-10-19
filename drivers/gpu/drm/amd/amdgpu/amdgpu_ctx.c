@@ -95,16 +95,16 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 	if (!ctx)
 		return -ENOMEM;
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	r = idr_alloc(&mgr->ctx_handles, ctx, 1, 0, GFP_KERNEL);
 	if (r < 0) {
-		mutex_unlock(&mgr->lock);
+		rt_mutex_unlock(&mgr->lock);
 		kfree(ctx);
 		return r;
 	}
 	*id = (uint32_t)r;
 	r = amdgpu_ctx_init(adev, false, ctx);
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 
 	return r;
 }
@@ -125,15 +125,15 @@ static int amdgpu_ctx_free(struct amdgpu_fpriv *fpriv, uint32_t id)
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
 	struct amdgpu_ctx *ctx;
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	ctx = idr_find(&mgr->ctx_handles, id);
 	if (ctx) {
 		idr_remove(&mgr->ctx_handles, id);
 		kref_put(&ctx->refcount, amdgpu_ctx_do_release);
-		mutex_unlock(&mgr->lock);
+		rt_mutex_unlock(&mgr->lock);
 		return 0;
 	}
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return -EINVAL;
 }
 
@@ -149,10 +149,10 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	mgr = &fpriv->ctx_mgr;
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	ctx = idr_find(&mgr->ctx_handles, id);
 	if (!ctx) {
-		mutex_unlock(&mgr->lock);
+		rt_mutex_unlock(&mgr->lock);
 		return -EINVAL;
 	}
 
@@ -169,7 +169,7 @@ static int amdgpu_ctx_query(struct amdgpu_device *adev,
 		out->state.reset_status = AMDGPU_CTX_UNKNOWN_RESET;
 	ctx->reset_counter = reset_counter;
 
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return 0;
 }
 
@@ -214,11 +214,11 @@ struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id)
 
 	mgr = &fpriv->ctx_mgr;
 
-	mutex_lock(&mgr->lock);
+	rt_mutex_lock(&mgr->lock);
 	ctx = idr_find(&mgr->ctx_handles, id);
 	if (ctx)
 		kref_get(&ctx->refcount);
-	mutex_unlock(&mgr->lock);
+	rt_mutex_unlock(&mgr->lock);
 	return ctx;
 }
 
@@ -287,7 +287,7 @@ struct fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 
 void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr)
 {
-	mutex_init(&mgr->lock);
+	rt_mutex_init(&mgr->lock);
 	idr_init(&mgr->ctx_handles);
 }
 
@@ -305,5 +305,5 @@ void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr)
 	}
 
 	idr_destroy(&mgr->ctx_handles);
-	mutex_destroy(&mgr->lock);
+	rt_mutex_destroy(&mgr->lock);
 }

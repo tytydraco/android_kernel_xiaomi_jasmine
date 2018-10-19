@@ -160,7 +160,7 @@ nv50_vm_flush(struct nvkm_vm *vm)
 	struct nvkm_device *device = subdev->device;
 	int i, vme;
 
-	mutex_lock(&subdev->mutex);
+	rt_mutex_lock(&subdev->mutex);
 	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
 		if (!atomic_read(&vm->engref[i]))
 			continue;
@@ -195,7 +195,7 @@ nv50_vm_flush(struct nvkm_vm *vm)
 		) < 0)
 			nvkm_error(subdev, "vm flush timeout: engine %d\n", vme);
 	}
-	mutex_unlock(&subdev->mutex);
+	rt_mutex_unlock(&subdev->mutex);
 }
 
 static int

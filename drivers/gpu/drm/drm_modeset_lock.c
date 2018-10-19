@@ -73,7 +73,7 @@ void drm_modeset_lock_all(struct drm_device *dev)
 	if (WARN_ON(!ctx))
 		return;
 
-	mutex_lock(&config->mutex);
+	rt_mutex_lock(&config->mutex);
 
 	drm_modeset_acquire_init(ctx, 0);
 
@@ -126,7 +126,7 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 
 	kfree(ctx);
 
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_modeset_unlock_all);
 
@@ -250,7 +250,7 @@ void drm_warn_on_modeset_not_all_locked(struct drm_device *dev)
 		WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->mode_config.mutex));
 }
 EXPORT_SYMBOL(drm_warn_on_modeset_not_all_locked);
 
@@ -309,19 +309,19 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 	if (ctx->trylock_only) {
 		lockdep_assert_held(&ctx->ww_ctx);
 
-		if (!ww_mutex_trylock(&lock->mutex))
+		if (!ww_rt_mutex_trylock(&lock->mutex))
 			return -EBUSY;
 		else
 			return 0;
 	} else if (interruptible && slow) {
-		ret = ww_mutex_lock_slow_interruptible(&lock->mutex, &ctx->ww_ctx);
+		ret = ww_rt_mutex_lock_slow_interruptible(&lock->mutex, &ctx->ww_ctx);
 	} else if (interruptible) {
-		ret = ww_mutex_lock_interruptible(&lock->mutex, &ctx->ww_ctx);
+		ret = ww_rt_mutex_lock_interruptible(&lock->mutex, &ctx->ww_ctx);
 	} else if (slow) {
-		ww_mutex_lock_slow(&lock->mutex, &ctx->ww_ctx);
+		ww_rt_mutex_lock_slow(&lock->mutex, &ctx->ww_ctx);
 		ret = 0;
 	} else {
-		ret = ww_mutex_lock(&lock->mutex, &ctx->ww_ctx);
+		ret = ww_rt_mutex_lock(&lock->mutex, &ctx->ww_ctx);
 	}
 	if (!ret) {
 		WARN_ON(!list_empty(&lock->head));
@@ -398,7 +398,7 @@ int drm_modeset_lock(struct drm_modeset_lock *lock,
 	if (ctx)
 		return modeset_lock(lock, ctx, false, false);
 
-	ww_mutex_lock(&lock->mutex, NULL);
+	ww_rt_mutex_lock(&lock->mutex, NULL);
 	return 0;
 }
 EXPORT_SYMBOL(drm_modeset_lock);
@@ -416,7 +416,7 @@ int drm_modeset_lock_interruptible(struct drm_modeset_lock *lock,
 	if (ctx)
 		return modeset_lock(lock, ctx, true, false);
 
-	return ww_mutex_lock_interruptible(&lock->mutex, NULL);
+	return ww_rt_mutex_lock_interruptible(&lock->mutex, NULL);
 }
 EXPORT_SYMBOL(drm_modeset_lock_interruptible);
 
@@ -427,7 +427,7 @@ EXPORT_SYMBOL(drm_modeset_lock_interruptible);
 void drm_modeset_unlock(struct drm_modeset_lock *lock)
 {
 	list_del_init(&lock->head);
-	ww_mutex_unlock(&lock->mutex);
+	ww_rt_mutex_unlock(&lock->mutex);
 }
 EXPORT_SYMBOL(drm_modeset_unlock);
 

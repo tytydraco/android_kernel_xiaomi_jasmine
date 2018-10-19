@@ -248,7 +248,7 @@ int psb_gtt_pin(struct gtt_range *gt)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 gpu_base = dev_priv->gtt.gatt_start;
 
-	mutex_lock(&dev_priv->gtt_mutex);
+	rt_mutex_lock(&dev_priv->gtt_mutex);
 
 	if (gt->in_gart == 0 && gt->stolen == 0) {
 		ret = psb_gtt_attach_pages(gt);
@@ -265,7 +265,7 @@ int psb_gtt_pin(struct gtt_range *gt)
 	}
 	gt->in_gart++;
 out:
-	mutex_unlock(&dev_priv->gtt_mutex);
+	rt_mutex_unlock(&dev_priv->gtt_mutex);
 	return ret;
 }
 
@@ -288,7 +288,7 @@ void psb_gtt_unpin(struct gtt_range *gt)
 	int ret;
 
 	/* While holding the gtt_mutex no new blits can be initiated */
-	mutex_lock(&dev_priv->gtt_mutex);
+	rt_mutex_lock(&dev_priv->gtt_mutex);
 
 	/* Wait for any possible usage of the memory to be finished */
 	ret = gma_blt_wait_idle(dev_priv);
@@ -308,7 +308,7 @@ void psb_gtt_unpin(struct gtt_range *gt)
 	}
 
 out:
-	mutex_unlock(&dev_priv->gtt_mutex);
+	rt_mutex_unlock(&dev_priv->gtt_mutex);
 }
 
 /*
@@ -424,7 +424,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	uint32_t pte;
 
 	if (!resume) {
-		mutex_init(&dev_priv->gtt_mutex);
+		rt_mutex_init(&dev_priv->gtt_mutex);
 		psb_gtt_alloc(dev);
 	}
 
@@ -566,7 +566,7 @@ int psb_gtt_restore(struct drm_device *dev)
 	unsigned int restored = 0, total = 0, size = 0;
 
 	/* On resume, the gtt_mutex is already initialized */
-	mutex_lock(&dev_priv->gtt_mutex);
+	rt_mutex_lock(&dev_priv->gtt_mutex);
 	psb_gtt_init(dev, 1);
 
 	while (r != NULL) {
@@ -579,7 +579,7 @@ int psb_gtt_restore(struct drm_device *dev)
 		r = r->sibling;
 		total++;
 	}
-	mutex_unlock(&dev_priv->gtt_mutex);
+	rt_mutex_unlock(&dev_priv->gtt_mutex);
 	DRM_DEBUG_DRIVER("Restored %u of %u gtt ranges (%u KB)", restored,
 			 total, (size / 1024));
 

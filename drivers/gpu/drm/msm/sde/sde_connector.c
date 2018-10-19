@@ -167,7 +167,7 @@ static void sde_connector_destroy(struct drm_connector *connector)
 	msm_property_destroy(&c_conn->property_info);
 
 	drm_connector_unregister(connector);
-	mutex_destroy(&c_conn->lock);
+	rt_mutex_destroy(&c_conn->lock);
 	sde_fence_deinit(&c_conn->retire_fence);
 	drm_connector_cleanup(connector);
 	kfree(c_conn);
@@ -407,9 +407,9 @@ static int _sde_connector_update_power_locked(struct sde_connector *c_conn)
 		display = c_conn->display;
 		set_power = c_conn->ops.set_power;
 
-		mutex_unlock(&c_conn->lock);
+		rt_mutex_unlock(&c_conn->lock);
 		rc = set_power(connector, mode, display);
-		mutex_lock(&c_conn->lock);
+		rt_mutex_lock(&c_conn->lock);
 	}
 	c_conn->last_panel_power_mode = mode;
 
@@ -474,10 +474,10 @@ static int sde_connector_atomic_set_property(struct drm_connector *connector,
 			SDE_ERROR("invalid topology_control: 0x%llX\n", val);
 		break;
 	case CONNECTOR_PROP_LP:
-		mutex_lock(&c_conn->lock);
+		rt_mutex_lock(&c_conn->lock);
 		c_conn->lp_mode = val;
 		_sde_connector_update_power_locked(c_conn);
-		mutex_unlock(&c_conn->lock);
+		rt_mutex_unlock(&c_conn->lock);
 		break;
 	case CONNECTOR_PROP_HPD_OFF:
 		c_conn->hpd_mode = val;
@@ -610,10 +610,10 @@ static int sde_connector_dpms(struct drm_connector *connector,
 		break;
 	}
 
-	mutex_lock(&c_conn->lock);
+	rt_mutex_lock(&c_conn->lock);
 	c_conn->dpms_mode = mode;
 	_sde_connector_update_power_locked(c_conn);
-	mutex_unlock(&c_conn->lock);
+	rt_mutex_unlock(&c_conn->lock);
 
 	/* use helper for boilerplate handling */
 	return drm_atomic_helper_connector_dpms(connector, mode);
@@ -631,9 +631,9 @@ int sde_connector_get_dpms(struct drm_connector *connector)
 
 	c_conn = to_sde_connector(connector);
 
-	mutex_lock(&c_conn->lock);
+	rt_mutex_lock(&c_conn->lock);
 	rc = c_conn->dpms_mode;
-	mutex_unlock(&c_conn->lock);
+	rt_mutex_unlock(&c_conn->lock);
 
 	return rc;
 }
@@ -848,7 +848,7 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 		goto error_cleanup_conn;
 	}
 
-	mutex_init(&c_conn->lock);
+	rt_mutex_init(&c_conn->lock);
 
 	rc = drm_connector_register(&c_conn->base);
 	if (rc) {
@@ -969,7 +969,7 @@ error_destroy_property:
 error_unregister_conn:
 	drm_connector_unregister(&c_conn->base);
 error_cleanup_fence:
-	mutex_destroy(&c_conn->lock);
+	rt_mutex_destroy(&c_conn->lock);
 	sde_fence_deinit(&c_conn->retire_fence);
 error_cleanup_conn:
 	drm_connector_cleanup(&c_conn->base);

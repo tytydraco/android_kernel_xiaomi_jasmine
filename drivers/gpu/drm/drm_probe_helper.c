@@ -110,7 +110,7 @@ void drm_kms_helper_poll_enable_locked(struct drm_device *dev)
 	bool poll = false;
 	struct drm_connector *connector;
 
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->mode_config.mutex));
 
 	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll)
 		return;
@@ -139,7 +139,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 	bool verbose_prune = true;
 	enum drm_connector_status old_status;
 
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->mode_config.mutex));
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			connector->name);
@@ -345,7 +345,7 @@ static void output_poll_execute(struct work_struct *work)
 	if (!drm_kms_helper_poll)
 		goto out;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 
 		/* Ignore forced connectors. */
@@ -401,7 +401,7 @@ static void output_poll_execute(struct work_struct *work)
 		}
 	}
 
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 out:
 	if (changed)
@@ -461,9 +461,9 @@ EXPORT_SYMBOL(drm_kms_helper_poll_disable);
  */
 void drm_kms_helper_poll_enable(struct drm_device *dev)
 {
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_kms_helper_poll_enable_locked(dev);
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
@@ -537,7 +537,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 	if (!dev->mode_config.poll_enabled)
 		return false;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 
 		/* Only handle HPD capable connectors. */
@@ -556,7 +556,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 			changed = true;
 	}
 
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	if (changed)
 		drm_kms_helper_hotplug_event(dev);

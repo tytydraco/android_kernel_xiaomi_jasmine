@@ -138,7 +138,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
@@ -173,7 +173,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	if (ret < 0)
 		goto err_destroy_framebuffer;
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 
 err_destroy_framebuffer:
@@ -187,7 +187,7 @@ err_destroy_gem:
  * to any specific driver such as fimd or hdmi driver.
  */
 out:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -200,7 +200,7 @@ static bool exynos_drm_fbdev_is_anything_connected(struct drm_device *dev)
 	struct drm_connector *connector;
 	bool ret = false;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->status != connector_status_connected)
 			continue;
@@ -208,7 +208,7 @@ static bool exynos_drm_fbdev_is_anything_connected(struct drm_device *dev)
 		ret = true;
 		break;
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
 }

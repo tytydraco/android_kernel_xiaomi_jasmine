@@ -216,7 +216,7 @@ nvkm_udevice_fini(struct nvkm_object *object, bool suspend)
 	struct nvkm_device *device = udev->device;
 	int ret = 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (!--device->refcount) {
 		ret = nvkm_device_fini(device, suspend);
 		if (ret && suspend) {
@@ -226,7 +226,7 @@ nvkm_udevice_fini(struct nvkm_object *object, bool suspend)
 	}
 
 done:
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return ret;
 }
 
@@ -237,7 +237,7 @@ nvkm_udevice_init(struct nvkm_object *object)
 	struct nvkm_device *device = udev->device;
 	int ret = 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (!device->refcount++) {
 		ret = nvkm_device_init(device);
 		if (ret) {
@@ -247,7 +247,7 @@ nvkm_udevice_init(struct nvkm_object *object)
 	}
 
 done:
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return ret;
 }
 

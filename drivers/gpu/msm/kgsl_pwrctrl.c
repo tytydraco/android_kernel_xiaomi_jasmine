@@ -553,7 +553,7 @@ static ssize_t kgsl_pwrctrl_thermal_pwrlevel_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	if (level > pwr->num_pwrlevels - 2)
 		level = pwr->num_pwrlevels - 2;
@@ -562,7 +562,7 @@ static ssize_t kgsl_pwrctrl_thermal_pwrlevel_store(struct device *dev,
 
 	/* Update the current level using the new limit */
 	kgsl_pwrctrl_pwrlevel_change(device, pwr->active_pwrlevel);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return count;
 }
@@ -598,7 +598,7 @@ static ssize_t kgsl_pwrctrl_max_pwrlevel_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	/* You can't set a maximum power level lower than the minimum */
 	if (level > pwr->min_pwrlevel)
@@ -608,7 +608,7 @@ static ssize_t kgsl_pwrctrl_max_pwrlevel_store(struct device *dev,
 
 	/* Update the current level using the new limit */
 	kgsl_pwrctrl_pwrlevel_change(device, pwr->active_pwrlevel);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return count;
 }
@@ -631,7 +631,7 @@ static void kgsl_pwrctrl_min_pwrlevel_set(struct kgsl_device *device,
 {
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (level > pwr->num_pwrlevels - 2)
 		level = pwr->num_pwrlevels - 2;
 
@@ -644,7 +644,7 @@ static void kgsl_pwrctrl_min_pwrlevel_set(struct kgsl_device *device,
 	/* Update the current level using the new limit */
 	kgsl_pwrctrl_pwrlevel_change(device, pwr->active_pwrlevel);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 static ssize_t kgsl_pwrctrl_min_pwrlevel_store(struct device *dev,
@@ -713,7 +713,7 @@ static void kgsl_pwrctrl_max_clock_set(struct kgsl_device *device, int val)
 
 	pwr = &device->pwrctrl;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	level = _get_nearest_pwrlevel(pwr, val);
 	/* If the requested power level is not supported by hw, try cycling */
 	if (level < 0) {
@@ -741,7 +741,7 @@ static void kgsl_pwrctrl_max_clock_set(struct kgsl_device *device, int val)
 		pwr->thermal_cycle = CYCLE_DISABLE;
 		del_timer_sync(&pwr->thermal_timer);
 	}
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	if (pwr->sysfs_pwr_limit)
 		kgsl_pwr_limits_set_freq(pwr->sysfs_pwr_limit,
@@ -749,7 +749,7 @@ static void kgsl_pwrctrl_max_clock_set(struct kgsl_device *device, int val)
 	return;
 
 err:
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 static ssize_t kgsl_pwrctrl_max_gpuclk_store(struct device *dev,
@@ -821,12 +821,12 @@ static ssize_t kgsl_pwrctrl_gpuclk_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	level = _get_nearest_pwrlevel(pwr, val);
 	if (level >= 0)
 		kgsl_pwrctrl_pwrlevel_change(device, (unsigned int) level);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return count;
 }
 
@@ -866,12 +866,12 @@ static ssize_t __timer_store(struct device *dev, struct device_attribute *attr,
 	if (val > jiffies_to_usecs(MAX_JIFFY_OFFSET))
 		return -EINVAL;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	/* Let the timeout be requested in ms, but convert to jiffies. */
 	if (timer == KGSL_PWR_IDLE_TIMER)
 		device->pwrctrl.interval_timeout = msecs_to_jiffies(val);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return count;
 }
@@ -910,9 +910,9 @@ static ssize_t kgsl_pwrctrl_pmqos_active_latency_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	device->pwrctrl.pm_qos_active_latency = val;
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return count;
 }
@@ -984,9 +984,9 @@ static ssize_t kgsl_pwrctrl_gpu_clock_stats_show(
 	if (device == NULL)
 		return 0;
 	pwr = &device->pwrctrl;
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	kgsl_pwrscale_update_stats(device);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	for (index = 0; index < pwr->num_pwrlevels - 1; index++)
 		num_chars += snprintf(buf + num_chars, PAGE_SIZE - num_chars,
 			"%llu ", pwr->clock_times[index]);
@@ -1057,9 +1057,9 @@ static ssize_t __force_on_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	__force_on(device, flag, val);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return count;
 }
@@ -1147,9 +1147,9 @@ static ssize_t kgsl_pwrctrl_bus_split_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	device->pwrctrl.bus_control = val ? true : false;
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return count;
 }
@@ -1358,14 +1358,14 @@ static ssize_t kgsl_pwrctrl_pwrscale_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	if (enable)
 		kgsl_pwrscale_enable(device);
 	else
 		kgsl_pwrscale_disable(device, false);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return count;
 }
@@ -1791,7 +1791,7 @@ static void kgsl_thermal_cycle(struct work_struct *work)
 	if (device == NULL)
 		return;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (pwr->thermal_cycle == CYCLE_ACTIVE) {
 		if (pwr->thermal_highlow)
 			kgsl_pwrctrl_pwrlevel_change(device,
@@ -1800,7 +1800,7 @@ static void kgsl_thermal_cycle(struct work_struct *work)
 			kgsl_pwrctrl_pwrlevel_change(device,
 					pwr->thermal_pwrlevel + 1);
 	}
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 static void kgsl_thermal_timer(unsigned long data)
@@ -2313,7 +2313,7 @@ void kgsl_idle_check(struct work_struct *work)
 	if (device == NULL)
 		return;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	requested_state = device->requested_state;
 
@@ -2359,7 +2359,7 @@ done:
 					device->pwrctrl.interval_timeout);
 	}
 	kgsl_pwrscale_update(device);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 EXPORT_SYMBOL(kgsl_idle_check);
 
@@ -2395,7 +2395,7 @@ static bool kgsl_pwrctrl_isenabled(struct kgsl_device *device)
 void kgsl_pre_hwaccess(struct kgsl_device *device)
 {
 	/* In order to touch a register you must hold the device mutex...*/
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 	/* and have the clock on! */
 	BUG_ON(!kgsl_pwrctrl_isenabled(device));
 }
@@ -2833,13 +2833,13 @@ EXPORT_SYMBOL(kgsl_pwrstate_to_str);
 int kgsl_active_count_get(struct kgsl_device *device)
 {
 	int ret = 0;
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 
 	if ((atomic_read(&device->active_cnt) == 0) &&
 		(device->state != KGSL_STATE_ACTIVE)) {
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 		wait_for_completion(&device->hwaccess_gate);
-		mutex_lock(&device->mutex);
+		rt_mutex_lock(&device->mutex);
 		device->pwrctrl.superfast = true;
 		ret = kgsl_pwrctrl_change_state(device, KGSL_STATE_ACTIVE);
 	}
@@ -2863,7 +2863,7 @@ EXPORT_SYMBOL(kgsl_active_count_get);
  */
 void kgsl_active_count_put(struct kgsl_device *device)
 {
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 	BUG_ON(atomic_read(&device->active_cnt) == 0);
 
 	if (atomic_dec_and_test(&device->active_cnt)) {
@@ -2907,14 +2907,14 @@ int kgsl_active_count_wait(struct kgsl_device *device, int count)
 	int result = 0;
 	long wait_jiffies = HZ;
 
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 
 	while (atomic_read(&device->active_cnt) > count) {
 		long ret;
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 		ret = wait_event_timeout(device->active_cnt_wq,
 			_check_active_count(device, count), wait_jiffies);
-		mutex_lock(&device->mutex);
+		rt_mutex_lock(&device->mutex);
 		result = ret == 0 ? -ETIMEDOUT : 0;
 		if (!result)
 			wait_jiffies = ret;
@@ -2966,10 +2966,10 @@ static void _update_limits(struct kgsl_pwr_limit *limit, unsigned int reason,
 done:
 	spin_unlock(&pwr->limits_lock);
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	pwr->thermal_pwrlevel = max_level;
 	kgsl_pwrctrl_pwrlevel_change(device, pwr->active_pwrlevel);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 /**
@@ -3074,9 +3074,9 @@ unsigned int kgsl_pwr_limits_get_freq(enum kgsl_deviceid id)
 	if (IS_ERR_OR_NULL(device))
 		return 0;
 	pwr = &device->pwrctrl;
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	freq = pwr->pwrlevels[pwr->thermal_pwrlevel].gpu_freq;
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return freq;
 }

@@ -629,7 +629,7 @@ static int cz_dpm_sw_init(void *handle)
 	if (amdgpu_dpm == 0)
 		return 0;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	ret = cz_dpm_init(adev);
 	if (ret)
 		goto dpm_init_failed;
@@ -638,14 +638,14 @@ static int cz_dpm_sw_init(void *handle)
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
 
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
 
 	return 0;
 
 dpm_init_failed:
 	cz_dpm_fini(adev);
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	DRM_ERROR("amdgpu: dpm initialization failed\n");
 
 	return ret;
@@ -655,10 +655,10 @@ static int cz_dpm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	amdgpu_pm_sysfs_fini(adev);
 	cz_dpm_fini(adev);
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	return 0;
 }
@@ -1315,7 +1315,7 @@ static int cz_dpm_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret = 0;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 
 	/* smu init only needs to be called at startup, not resume.
 	 * It should be in sw_init, but requires the fw info gathered
@@ -1324,7 +1324,7 @@ static int cz_dpm_hw_init(void *handle)
 	ret = cz_smu_init(adev);
 	if (ret) {
 		DRM_ERROR("amdgpu: smc initialization failed\n");
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 		return ret;
 	}
 
@@ -1332,13 +1332,13 @@ static int cz_dpm_hw_init(void *handle)
 	ret = cz_smu_start(adev);
 	if (ret) {
 		DRM_ERROR("amdgpu: smc start failed\n");
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 		return ret;
 	}
 
 	if (!amdgpu_dpm) {
 		adev->pm.dpm_enabled = false;
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 		return ret;
 	}
 
@@ -1352,7 +1352,7 @@ static int cz_dpm_hw_init(void *handle)
 	else
 		adev->pm.dpm_enabled = true;
 
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	return 0;
 }
@@ -1386,7 +1386,7 @@ static int cz_dpm_hw_fini(void *handle)
 	int ret = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 
 	/* smu fini only needs to be called at teardown, not suspend.
 	 * It should be in sw_fini, but we put it here for symmetry
@@ -1404,7 +1404,7 @@ static int cz_dpm_hw_fini(void *handle)
 
 	adev->pm.dpm_enabled = false;
 
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	return ret;
 }
@@ -1415,7 +1415,7 @@ static int cz_dpm_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pm.dpm_enabled) {
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 
 		ret = cz_dpm_disable(adev);
 
@@ -1423,7 +1423,7 @@ static int cz_dpm_suspend(void *handle)
 			adev->pm.dpm.requested_ps =
 			adev->pm.dpm.boot_ps;
 
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 	}
 
 	return ret;
@@ -1434,19 +1434,19 @@ static int cz_dpm_resume(void *handle)
 	int ret = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 
 	/* do the actual fw loading */
 	ret = cz_smu_start(adev);
 	if (ret) {
 		DRM_ERROR("amdgpu: smc start failed\n");
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 		return ret;
 	}
 
 	if (!amdgpu_dpm) {
 		adev->pm.dpm_enabled = false;
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 		return ret;
 	}
 
@@ -1460,7 +1460,7 @@ static int cz_dpm_resume(void *handle)
 	else
 		adev->pm.dpm_enabled = true;
 
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	/* upon resume, re-compute the clocks */
 	if (adev->pm.dpm_enabled)
 		amdgpu_pm_compute_clocks(adev);

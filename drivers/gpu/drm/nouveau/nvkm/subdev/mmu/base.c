@@ -282,11 +282,11 @@ nvkm_vm_get(struct nvkm_vm *vm, u64 size, u32 page_shift, u32 access,
 	u32 fpde, lpde, pde;
 	int ret;
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	ret = nvkm_mm_head(&vm->mm, 0, page_shift, msize, msize, align,
 			   &vma->node);
 	if (unlikely(ret != 0)) {
-		mutex_unlock(&vm->mutex);
+		rt_mutex_unlock(&vm->mutex);
 		return ret;
 	}
 
@@ -307,11 +307,11 @@ nvkm_vm_get(struct nvkm_vm *vm, u64 size, u32 page_shift, u32 access,
 			if (pde != fpde)
 				nvkm_vm_unmap_pgt(vm, big, fpde, pde - 1);
 			nvkm_mm_free(&vm->mm, &vma->node);
-			mutex_unlock(&vm->mutex);
+			rt_mutex_unlock(&vm->mutex);
 			return ret;
 		}
 	}
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 
 	vma->vm = NULL;
 	nvkm_vm_ref(vm, &vma->vm, NULL);
@@ -335,10 +335,10 @@ nvkm_vm_put(struct nvkm_vma *vma)
 	fpde = (vma->node->offset >> mmu->func->pgt_bits);
 	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->func->pgt_bits;
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	nvkm_vm_unmap_pgt(vm, vma->node->type != mmu->func->spg_shift, fpde, lpde);
 	nvkm_mm_free(&vm->mm, &vma->node);
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 
 	nvkm_vm_ref(NULL, &vma->vm, NULL);
 }
@@ -374,7 +374,7 @@ nvkm_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
 	if (!vm)
 		return -ENOMEM;
 
-	__mutex_init(&vm->mutex, "&vm->mutex", key ? key : &_key);
+	__rt_mutex_init(&vm->mutex, "&vm->mutex", key ? key : &_key);
 	INIT_LIST_HEAD(&vm->pgd_list);
 	vm->mmu = mmu;
 	kref_init(&vm->refcount);
@@ -426,11 +426,11 @@ nvkm_vm_link(struct nvkm_vm *vm, struct nvkm_gpuobj *pgd)
 
 	vpgd->obj = pgd;
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	for (i = vm->fpde; i <= vm->lpde; i++)
 		mmu->func->map_pgt(pgd, i, vm->pgt[i - vm->fpde].mem);
 	list_add(&vpgd->head, &vm->pgd_list);
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 	return 0;
 }
 
@@ -442,7 +442,7 @@ nvkm_vm_unlink(struct nvkm_vm *vm, struct nvkm_gpuobj *mpgd)
 	if (!mpgd)
 		return;
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
 		if (vpgd->obj == mpgd) {
 			list_del(&vpgd->head);
@@ -450,7 +450,7 @@ nvkm_vm_unlink(struct nvkm_vm *vm, struct nvkm_gpuobj *mpgd)
 			break;
 		}
 	}
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 }
 
 static void

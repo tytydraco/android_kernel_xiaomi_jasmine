@@ -644,15 +644,15 @@ int drm_control(struct drm_device *dev, void *data,
 		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
 		    ctl->irq != irq)
 			return -EINVAL;
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		ret = drm_irq_install(dev, irq);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 		return ret;
 	case DRM_UNINST_HANDLER:
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		ret = drm_irq_uninstall(dev);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 		return ret;
 	default:

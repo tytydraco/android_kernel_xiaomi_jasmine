@@ -83,9 +83,9 @@ int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 		return 0;
 
 	if (interruptible)
-		return mutex_lock_interruptible(&man->io_reserve_mutex);
+		return rt_mutex_lock_interruptible(&man->io_reserve_mutex);
 
-	mutex_lock(&man->io_reserve_mutex);
+	rt_mutex_lock(&man->io_reserve_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_mem_io_lock);
@@ -95,7 +95,7 @@ void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
 	if (likely(man->io_reserve_fastpath))
 		return;
 
-	mutex_unlock(&man->io_reserve_mutex);
+	rt_mutex_unlock(&man->io_reserve_mutex);
 }
 EXPORT_SYMBOL(ttm_mem_io_unlock);
 
@@ -471,7 +471,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->acc_size = 0;
 	fbo->resv = &fbo->ttm_resv;
 	reservation_object_init(fbo->resv);
-	ret = ww_mutex_trylock(&fbo->resv->lock);
+	ret = ww_rt_mutex_trylock(&fbo->resv->lock);
 	WARN_ON(!ret);
 
 	*new_obj = fbo;

@@ -738,7 +738,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			goto fail_free;
 	}
 
-	mutex_lock(&cli->mutex);
+	rt_mutex_lock(&cli->mutex);
 	ret = ttm_bo_reserve(&new_bo->bo, true, false, false, NULL);
 	if (ret)
 		goto fail_unpin;
@@ -797,7 +797,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
 	if (ret)
 		goto fail_unreserve;
-	mutex_unlock(&cli->mutex);
+	rt_mutex_unlock(&cli->mutex);
 
 	/* Update the crtc struct and cleanup */
 	crtc->primary->fb = fb;
@@ -813,7 +813,7 @@ fail_unreserve:
 	drm_vblank_put(dev, nouveau_crtc(crtc)->index);
 	ttm_bo_unreserve(&old_bo->bo);
 fail_unpin:
-	mutex_unlock(&cli->mutex);
+	rt_mutex_unlock(&cli->mutex);
 	if (old_bo != new_bo)
 		nouveau_bo_unpin(new_bo);
 fail_free:

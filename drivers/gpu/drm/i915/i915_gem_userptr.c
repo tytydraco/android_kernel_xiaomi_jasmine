@@ -69,7 +69,7 @@ static void __cancel_userptr__worker(struct work_struct *work)
 	struct drm_i915_gem_object *obj = mo->obj;
 	struct drm_device *dev = obj->base.dev;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	/* Cancel any active worker and force us to re-evaluate gup */
 	obj->userptr.work = NULL;
 
@@ -91,7 +91,7 @@ static void __cancel_userptr__worker(struct work_struct *work)
 	}
 
 	drm_gem_object_unreference(&obj->base);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 static unsigned long cancel_userptr(struct i915_mmu_object *mo)
@@ -190,7 +190,7 @@ i915_mmu_notifier_add(struct drm_device *dev,
 	 * signal pending (and partly because of that expensive setup, X
 	 * using an interrupt timer is likely to get stuck in an EINTR loop).
 	 */
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	/* Make sure we drop the final active reference (and thereby
 	 * remove the objects from the interval tree) before we do
@@ -227,7 +227,7 @@ i915_mmu_notifier_add(struct drm_device *dev,
 		list_add(&mo->link, &mn->linear);
 
 	spin_unlock(&mn->lock);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -281,13 +281,13 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 		return mn;
 
 	down_write(&mm->mm->mmap_sem);
-	mutex_lock(&to_i915(mm->dev)->mm_lock);
+	rt_mutex_lock(&to_i915(mm->dev)->mm_lock);
 	if ((mn = mm->mn) == NULL) {
 		mn = i915_mmu_notifier_create(mm->mm);
 		if (!IS_ERR(mn))
 			mm->mn = mn;
 	}
-	mutex_unlock(&to_i915(mm->dev)->mm_lock);
+	rt_mutex_unlock(&to_i915(mm->dev)->mm_lock);
 	up_write(&mm->mm->mmap_sem);
 
 	return mn;
@@ -395,12 +395,12 @@ i915_gem_userptr_init__mm_struct(struct drm_i915_gem_object *obj)
 	 * the last reference and so call exit_mmap(). exit_mmap() will
 	 * attempt to reap the vma, and if we were holding a GTT mmap
 	 * would then call drm_gem_vm_close() and attempt to reacquire
-	 * the struct mutex. So in order to avoid that recursion, we have
+	 * the struct rt_mutex. So in order to avoid that recursion, we have
 	 * to defer releasing the mm reference until after we drop the
 	 * struct_mutex, i.e. we need to schedule a worker to do the clean
 	 * up.
 	 */
-	mutex_lock(&dev_priv->mm_lock);
+	rt_mutex_lock(&dev_priv->mm_lock);
 	mm = __i915_mm_struct_find(dev_priv, current->mm);
 	if (mm == NULL) {
 		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
@@ -425,7 +425,7 @@ i915_gem_userptr_init__mm_struct(struct drm_i915_gem_object *obj)
 
 	obj->userptr.mm = mm;
 out:
-	mutex_unlock(&dev_priv->mm_lock);
+	rt_mutex_unlock(&dev_priv->mm_lock);
 	return ret;
 }
 
@@ -445,7 +445,7 @@ __i915_mm_struct_free(struct kref *kref)
 
 	/* Protected by dev_priv->mm_lock */
 	hash_del(&mm->node);
-	mutex_unlock(&to_i915(mm->dev)->mm_lock);
+	rt_mutex_unlock(&to_i915(mm->dev)->mm_lock);
 
 	INIT_WORK(&mm->work, __i915_mm_struct_free__worker);
 	schedule_work(&mm->work);
@@ -597,7 +597,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 		up_read(&mm->mmap_sem);
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (obj->userptr.work == &work->work) {
 		if (pinned == npages) {
 			ret = __i915_gem_userptr_set_pages(obj, pvec, npages);
@@ -616,7 +616,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 
 	obj->userptr.workers--;
 	drm_gem_object_unreference(&obj->base);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	release_pages(pvec, pinned, 0);
 	drm_free_large(pvec);
@@ -895,7 +895,7 @@ int
 i915_gem_init_userptr(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	mutex_init(&dev_priv->mm_lock);
+	rt_mutex_init(&dev_priv->mm_lock);
 	hash_init(dev_priv->mm_structs);
 	return 0;
 }

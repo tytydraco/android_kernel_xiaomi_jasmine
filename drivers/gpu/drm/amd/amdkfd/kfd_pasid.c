@@ -26,7 +26,7 @@
 
 static unsigned long *pasid_bitmap;
 static unsigned int pasid_limit;
-static DEFINE_MUTEX(pasid_mutex);
+static DEFINE_RT_MUTEX(pasid_mutex);
 
 int kfd_pasid_init(void)
 {
@@ -51,7 +51,7 @@ bool kfd_set_pasid_limit(unsigned int new_limit)
 	if (new_limit < pasid_limit) {
 		bool ok;
 
-		mutex_lock(&pasid_mutex);
+		rt_mutex_lock(&pasid_mutex);
 
 		/* ensure that no pasids >= new_limit are in-use */
 		ok = (find_next_bit(pasid_bitmap, pasid_limit, new_limit) ==
@@ -59,7 +59,7 @@ bool kfd_set_pasid_limit(unsigned int new_limit)
 		if (ok)
 			pasid_limit = new_limit;
 
-		mutex_unlock(&pasid_mutex);
+		rt_mutex_unlock(&pasid_mutex);
 
 		return ok;
 	}
@@ -76,7 +76,7 @@ unsigned int kfd_pasid_alloc(void)
 {
 	unsigned int found;
 
-	mutex_lock(&pasid_mutex);
+	rt_mutex_lock(&pasid_mutex);
 
 	found = find_first_zero_bit(pasid_bitmap, pasid_limit);
 	if (found == pasid_limit)
@@ -84,7 +84,7 @@ unsigned int kfd_pasid_alloc(void)
 	else
 		set_bit(found, pasid_bitmap);
 
-	mutex_unlock(&pasid_mutex);
+	rt_mutex_unlock(&pasid_mutex);
 
 	return found;
 }

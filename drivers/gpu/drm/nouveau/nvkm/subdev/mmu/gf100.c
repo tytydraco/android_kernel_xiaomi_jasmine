@@ -170,7 +170,7 @@ gf100_vm_flush(struct nvkm_vm *vm)
 	if (atomic_read(&vm->engref[NVKM_SUBDEV_BAR]))
 		type |= 0x00000004; /* HUB_ONLY */
 
-	mutex_lock(&mmu->subdev.mutex);
+	rt_mutex_lock(&mmu->subdev.mutex);
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
 		/* looks like maybe a "free flush slots" counter, the
 		 * faster you write to 0x100cbc to more it decreases
@@ -189,7 +189,7 @@ gf100_vm_flush(struct nvkm_vm *vm)
 				break;
 		);
 	}
-	mutex_unlock(&mmu->subdev.mutex);
+	rt_mutex_unlock(&mmu->subdev.mutex);
 }
 
 static int

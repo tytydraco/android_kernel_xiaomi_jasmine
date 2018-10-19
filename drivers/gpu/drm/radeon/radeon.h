@@ -565,7 +565,7 @@ struct radeon_sa_bo {
  * GEM objects.
  */
 struct radeon_gem {
-	struct mutex		mutex;
+	struct rt_mutex		mutex;
 	struct list_head	objects;
 };
 
@@ -928,7 +928,7 @@ struct radeon_vm_id {
 };
 
 struct radeon_vm {
-	struct mutex		mutex;
+	struct rt_mutex		mutex;
 
 	struct rb_root		va;
 
@@ -1600,7 +1600,7 @@ void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable);
 void radeon_dpm_enable_vce(struct radeon_device *rdev, bool enable);
 
 struct radeon_pm {
-	struct mutex		mutex;
+	struct rt_mutex		mutex;
 	/* write locked while reprogramming mclk */
 	struct rw_semaphore	mclk_lock;
 	u32			active_crtcs;
@@ -2378,7 +2378,7 @@ struct radeon_device {
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	wait_queue_head_t		fence_queue;
 	unsigned			fence_context;
-	struct mutex			ring_lock;
+	struct rt_mutex			ring_lock;
 	struct radeon_ring		ring[RADEON_NUM_RINGS];
 	bool				ib_pool_ready;
 	struct radeon_sa_manager	ring_tmp_bo;
@@ -2419,7 +2419,7 @@ struct radeon_device {
 	struct work_struct dp_work;
 	struct work_struct audio_work;
 	int num_crtc; /* number of crtcs */
-	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
+	struct rt_mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 	bool has_uvd;
 	struct r600_audio audio; /* audio stuff */
 	struct notifier_block acpi_nb;
@@ -2433,7 +2433,7 @@ struct radeon_device {
 	unsigned 		debugfs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
-	struct mutex			gpu_clock_mutex;
+	struct rt_mutex			gpu_clock_mutex;
 	/* memory stats */
 	atomic64_t			vram_usage;
 	atomic64_t			gtt_usage;
@@ -2443,9 +2443,9 @@ struct radeon_device {
 	struct radeon_atif		atif;
 	struct radeon_atcs		atcs;
 	/* srbm instance registers */
-	struct mutex			srbm_mutex;
+	struct rt_mutex			srbm_mutex;
 	/* GRBM index mutex. Protects concurrents access to GRBM index */
-	struct mutex			grbm_idx_mutex;
+	struct rt_mutex			grbm_idx_mutex;
 	/* clock, powergating flags */
 	u32 cg_flags;
 	u32 pg_flags;
@@ -2461,7 +2461,7 @@ struct radeon_device {
 	/* amdkfd interface */
 	struct kfd_dev		*kfd;
 
-	struct mutex	mn_lock;
+	struct rt_mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);
 };
 

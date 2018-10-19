@@ -7,7 +7,7 @@ struct nvkm_subdev {
 	struct nvkm_device *device;
 	enum nvkm_devidx index;
 	u32 pmc_enable;
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	u32 debug;
 
 	bool oneinit;

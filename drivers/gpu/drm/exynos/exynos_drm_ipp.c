@@ -87,8 +87,8 @@ struct drm_exynos_ipp_mem_node {
  */
 struct ipp_context {
 	struct exynos_drm_subdrv	subdrv;
-	struct mutex	ipp_lock;
-	struct mutex	prop_lock;
+	struct rt_mutex	ipp_lock;
+	struct rt_mutex	prop_lock;
 	struct idr	ipp_idr;
 	struct idr	prop_idr;
 	struct workqueue_struct	*event_workq;
@@ -96,52 +96,52 @@ struct ipp_context {
 };
 
 static LIST_HEAD(exynos_drm_ippdrv_list);
-static DEFINE_MUTEX(exynos_drm_ippdrv_lock);
+static DEFINE_RT_MUTEX(exynos_drm_ippdrv_lock);
 static BLOCKING_NOTIFIER_HEAD(exynos_drm_ippnb_list);
 
 int exynos_drm_ippdrv_register(struct exynos_drm_ippdrv *ippdrv)
 {
-	mutex_lock(&exynos_drm_ippdrv_lock);
+	rt_mutex_lock(&exynos_drm_ippdrv_lock);
 	list_add_tail(&ippdrv->drv_list, &exynos_drm_ippdrv_list);
-	mutex_unlock(&exynos_drm_ippdrv_lock);
+	rt_mutex_unlock(&exynos_drm_ippdrv_lock);
 
 	return 0;
 }
 
 int exynos_drm_ippdrv_unregister(struct exynos_drm_ippdrv *ippdrv)
 {
-	mutex_lock(&exynos_drm_ippdrv_lock);
+	rt_mutex_lock(&exynos_drm_ippdrv_lock);
 	list_del(&ippdrv->drv_list);
-	mutex_unlock(&exynos_drm_ippdrv_lock);
+	rt_mutex_unlock(&exynos_drm_ippdrv_lock);
 
 	return 0;
 }
 
-static int ipp_create_id(struct idr *id_idr, struct mutex *lock, void *obj)
+static int ipp_create_id(struct idr *id_idr, struct rt_mutex *lock, void *obj)
 {
 	int ret;
 
-	mutex_lock(lock);
+	rt_mutex_lock(lock);
 	ret = idr_alloc(id_idr, obj, 1, 0, GFP_KERNEL);
-	mutex_unlock(lock);
+	rt_mutex_unlock(lock);
 
 	return ret;
 }
 
-static void ipp_remove_id(struct idr *id_idr, struct mutex *lock, u32 id)
+static void ipp_remove_id(struct idr *id_idr, struct rt_mutex *lock, u32 id)
 {
-	mutex_lock(lock);
+	rt_mutex_lock(lock);
 	idr_remove(id_idr, id);
-	mutex_unlock(lock);
+	rt_mutex_unlock(lock);
 }
 
-static void *ipp_find_obj(struct idr *id_idr, struct mutex *lock, u32 id)
+static void *ipp_find_obj(struct idr *id_idr, struct rt_mutex *lock, u32 id)
 {
 	void *obj;
 
-	mutex_lock(lock);
+	rt_mutex_lock(lock);
 	obj = idr_find(id_idr, id);
-	mutex_unlock(lock);
+	rt_mutex_unlock(lock);
 
 	return obj;
 }
@@ -210,14 +210,14 @@ static struct exynos_drm_ippdrv *ipp_find_drv_by_handle(u32 prop_id)
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
 		DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n", count++, (int)ippdrv);
 
-		mutex_lock(&ippdrv->cmd_lock);
+		rt_mutex_lock(&ippdrv->cmd_lock);
 		list_for_each_entry(c_node, &ippdrv->cmd_list, list) {
 			if (c_node->property.prop_id == prop_id) {
-				mutex_unlock(&ippdrv->cmd_lock);
+				rt_mutex_unlock(&ippdrv->cmd_lock);
 				return ippdrv;
 			}
 		}
-		mutex_unlock(&ippdrv->cmd_lock);
+		rt_mutex_unlock(&ippdrv->cmd_lock);
 	}
 
 	return ERR_PTR(-ENODEV);
@@ -417,9 +417,9 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 		goto err_free_stop;
 	}
 
-	mutex_init(&c_node->lock);
-	mutex_init(&c_node->mem_lock);
-	mutex_init(&c_node->event_lock);
+	rt_mutex_init(&c_node->lock);
+	rt_mutex_init(&c_node->mem_lock);
+	rt_mutex_init(&c_node->event_lock);
 
 	init_completion(&c_node->start_complete);
 	init_completion(&c_node->stop_complete);
@@ -428,9 +428,9 @@ int exynos_drm_ipp_set_property(struct drm_device *drm_dev, void *data,
 		INIT_LIST_HEAD(&c_node->mem_list[i]);
 
 	INIT_LIST_HEAD(&c_node->event_list);
-	mutex_lock(&ippdrv->cmd_lock);
+	rt_mutex_lock(&ippdrv->cmd_lock);
 	list_add_tail(&c_node->list, &ippdrv->cmd_list);
-	mutex_unlock(&ippdrv->cmd_lock);
+	rt_mutex_unlock(&ippdrv->cmd_lock);
 
 	/* make dedicated state without m2m */
 	if (!ipp_is_m2m_cmd(property->cmd))
@@ -587,14 +587,14 @@ static struct drm_exynos_ipp_mem_node
 		}
 	}
 
-	mutex_lock(&c_node->mem_lock);
+	rt_mutex_lock(&c_node->mem_lock);
 	if (ipp_validate_mem_node(drm_dev, m_node, c_node)) {
 		ipp_put_mem_node(drm_dev, c_node, m_node);
-		mutex_unlock(&c_node->mem_lock);
+		rt_mutex_unlock(&c_node->mem_lock);
 		return ERR_PTR(-EFAULT);
 	}
 	list_add_tail(&m_node->list, &c_node->mem_list[qbuf->ops_id]);
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 
 	return m_node;
 }
@@ -605,7 +605,7 @@ static void ipp_clean_mem_nodes(struct drm_device *drm_dev,
 	struct drm_exynos_ipp_mem_node *m_node, *tm_node;
 	struct list_head *head = &c_node->mem_list[ops];
 
-	mutex_lock(&c_node->mem_lock);
+	rt_mutex_lock(&c_node->mem_lock);
 
 	list_for_each_entry_safe(m_node, tm_node, head, list) {
 		int ret;
@@ -615,7 +615,7 @@ static void ipp_clean_mem_nodes(struct drm_device *drm_dev,
 			DRM_ERROR("failed to put m_node.\n");
 	}
 
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 }
 
 static void ipp_free_event(struct drm_pending_event *event)
@@ -649,9 +649,9 @@ static int ipp_get_event(struct drm_device *drm_dev,
 	e->base.event = &e->event.base;
 	e->base.file_priv = c_node->filp;
 	e->base.destroy = ipp_free_event;
-	mutex_lock(&c_node->event_lock);
+	rt_mutex_lock(&c_node->event_lock);
 	list_add_tail(&e->base.link, &c_node->event_list);
-	mutex_unlock(&c_node->event_lock);
+	rt_mutex_unlock(&c_node->event_lock);
 
 	return 0;
 }
@@ -662,7 +662,7 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 	struct drm_exynos_ipp_send_event *e, *te;
 	int count = 0;
 
-	mutex_lock(&c_node->event_lock);
+	rt_mutex_lock(&c_node->event_lock);
 	list_for_each_entry_safe(e, te, &c_node->event_list, base.link) {
 		DRM_DEBUG_KMS("count[%d]e[0x%x]\n", count++, (int)e);
 
@@ -688,7 +688,7 @@ static void ipp_put_event(struct drm_exynos_ipp_cmd_node *c_node,
 	}
 
 out_unlock:
-	mutex_unlock(&c_node->event_lock);
+	rt_mutex_unlock(&c_node->event_lock);
 	return;
 }
 
@@ -715,9 +715,9 @@ static void ipp_clean_cmd_node(struct ipp_context *ctx,
 			c_node->property.prop_id);
 
 	/* destroy mutex */
-	mutex_destroy(&c_node->lock);
-	mutex_destroy(&c_node->mem_lock);
-	mutex_destroy(&c_node->event_lock);
+	rt_mutex_destroy(&c_node->lock);
+	rt_mutex_destroy(&c_node->mem_lock);
+	rt_mutex_destroy(&c_node->event_lock);
 
 	/* free command node */
 	kfree(c_node->start_work);
@@ -842,9 +842,9 @@ static int ipp_queue_buf_with_run(struct device *dev,
 		return 0;
 	}
 
-	mutex_lock(&c_node->mem_lock);
+	rt_mutex_lock(&c_node->mem_lock);
 	if (!ipp_check_mem_list(c_node)) {
-		mutex_unlock(&c_node->mem_lock);
+		rt_mutex_unlock(&c_node->mem_lock);
 		DRM_DEBUG_KMS("empty memory.\n");
 		return 0;
 	}
@@ -861,12 +861,12 @@ static int ipp_queue_buf_with_run(struct device *dev,
 	} else {
 		ret = ipp_set_mem_node(ippdrv, c_node, m_node);
 		if (ret) {
-			mutex_unlock(&c_node->mem_lock);
+			rt_mutex_unlock(&c_node->mem_lock);
 			DRM_ERROR("failed to set m node.\n");
 			return ret;
 		}
 	}
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 
 	return 0;
 }
@@ -878,14 +878,14 @@ static void ipp_clean_queue_buf(struct drm_device *drm_dev,
 	struct drm_exynos_ipp_mem_node *m_node, *tm_node;
 
 	/* delete list */
-	mutex_lock(&c_node->mem_lock);
+	rt_mutex_lock(&c_node->mem_lock);
 	list_for_each_entry_safe(m_node, tm_node,
 		&c_node->mem_list[qbuf->ops_id], list) {
 		if (m_node->buf_id == qbuf->buf_id &&
 		    m_node->ops_id == qbuf->ops_id)
 			ipp_put_mem_node(drm_dev, c_node, m_node);
 	}
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 }
 
 int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
@@ -956,7 +956,7 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 		}
 		break;
 	case IPP_BUF_DEQUEUE:
-		mutex_lock(&c_node->lock);
+		rt_mutex_lock(&c_node->lock);
 
 		/* put event for destination buffer */
 		if (qbuf->ops_id == EXYNOS_DRM_OPS_DST)
@@ -964,7 +964,7 @@ int exynos_drm_ipp_queue_buf(struct drm_device *drm_dev, void *data,
 
 		ipp_clean_queue_buf(drm_dev, c_node, qbuf);
 
-		mutex_unlock(&c_node->lock);
+		rt_mutex_unlock(&c_node->lock);
 		break;
 	default:
 		DRM_ERROR("invalid buffer control.\n");
@@ -1086,12 +1086,12 @@ int exynos_drm_ipp_cmd_ctrl(struct drm_device *drm_dev, void *data,
 
 		c_node->state = IPP_STATE_STOP;
 		ippdrv->dedicated = false;
-		mutex_lock(&ippdrv->cmd_lock);
+		rt_mutex_lock(&ippdrv->cmd_lock);
 		ipp_clean_cmd_node(ctx, c_node);
 
 		if (list_empty(&ippdrv->cmd_list))
 			pm_runtime_put_sync(ippdrv->dev);
-		mutex_unlock(&ippdrv->cmd_lock);
+		rt_mutex_unlock(&ippdrv->cmd_lock);
 		break;
 	case IPP_CTRL_PAUSE:
 		cmd_work = c_node->stop_work;
@@ -1212,7 +1212,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	/* store command info in ippdrv */
 	ippdrv->c_node = c_node;
 
-	mutex_lock(&c_node->mem_lock);
+	rt_mutex_lock(&c_node->mem_lock);
 	if (!ipp_check_mem_list(c_node)) {
 		DRM_DEBUG_KMS("empty memory.\n");
 		ret = -ENOMEM;
@@ -1275,7 +1275,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 		ret = -EINVAL;
 		goto err_unlock;
 	}
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 
 	DRM_DEBUG_KMS("cmd[%d]\n", property->cmd);
 
@@ -1292,7 +1292,7 @@ static int ipp_start_property(struct exynos_drm_ippdrv *ippdrv,
 	return 0;
 
 err_unlock:
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 	ippdrv->c_node = NULL;
 	return ret;
 }
@@ -1351,7 +1351,7 @@ void ipp_sched_cmd(struct work_struct *work)
 		return;
 	}
 
-	mutex_lock(&c_node->lock);
+	rt_mutex_lock(&c_node->lock);
 
 	property = &c_node->property;
 
@@ -1399,7 +1399,7 @@ void ipp_sched_cmd(struct work_struct *work)
 	DRM_DEBUG_KMS("ctrl[%d] done.\n", cmd_work->ctrl);
 
 err_unlock:
-	mutex_unlock(&c_node->lock);
+	rt_mutex_unlock(&c_node->lock);
 }
 
 static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
@@ -1429,14 +1429,14 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 		return -EINVAL;
 	}
 
-	mutex_lock(&c_node->event_lock);
+	rt_mutex_lock(&c_node->event_lock);
 	if (list_empty(&c_node->event_list)) {
 		DRM_DEBUG_KMS("event list is empty.\n");
 		ret = 0;
 		goto err_event_unlock;
 	}
 
-	mutex_lock(&c_node->mem_lock);
+	rt_mutex_lock(&c_node->mem_lock);
 	if (!ipp_check_mem_list(c_node)) {
 		DRM_DEBUG_KMS("empty memory.\n");
 		ret = 0;
@@ -1500,7 +1500,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 		ret = -EINVAL;
 		goto err_mem_unlock;
 	}
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 
 	if (tbuf_id[EXYNOS_DRM_OPS_DST] != buf_id[EXYNOS_DRM_OPS_DST])
 		DRM_ERROR("failed to match buf_id[%d %d]prop_id[%d]\n",
@@ -1529,7 +1529,7 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	list_move_tail(&e->base.link, &e->base.file_priv->event_list);
 	wake_up_interruptible(&e->base.file_priv->event_wait);
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
-	mutex_unlock(&c_node->event_lock);
+	rt_mutex_unlock(&c_node->event_lock);
 
 	DRM_DEBUG_KMS("done cmd[%d]prop_id[%d]buf_id[%d]\n",
 		property->cmd, property->prop_id, tbuf_id[EXYNOS_DRM_OPS_DST]);
@@ -1537,9 +1537,9 @@ static int ipp_send_event(struct exynos_drm_ippdrv *ippdrv,
 	return 0;
 
 err_mem_unlock:
-	mutex_unlock(&c_node->mem_lock);
+	rt_mutex_unlock(&c_node->mem_lock);
 err_event_unlock:
-	mutex_unlock(&c_node->event_lock);
+	rt_mutex_unlock(&c_node->event_lock);
 	return ret;
 }
 
@@ -1620,7 +1620,7 @@ static int ipp_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 		ippdrv->event_workq = ctx->event_workq;
 		ippdrv->sched_event = ipp_sched_event;
 		INIT_LIST_HEAD(&ippdrv->cmd_list);
-		mutex_init(&ippdrv->cmd_lock);
+		rt_mutex_init(&ippdrv->cmd_lock);
 
 		ret = drm_iommu_attach_device(drm_dev, ippdrv->dev);
 		if (ret) {
@@ -1682,7 +1682,7 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 	int count = 0;
 
 	list_for_each_entry(ippdrv, &exynos_drm_ippdrv_list, drv_list) {
-		mutex_lock(&ippdrv->cmd_lock);
+		rt_mutex_lock(&ippdrv->cmd_lock);
 		list_for_each_entry_safe(c_node, tc_node,
 			&ippdrv->cmd_list, list) {
 			DRM_DEBUG_KMS("count[%d]ippdrv[0x%x]\n",
@@ -1707,7 +1707,7 @@ static void ipp_subdrv_close(struct drm_device *drm_dev, struct device *dev,
 					pm_runtime_put_sync(ippdrv->dev);
 			}
 		}
-		mutex_unlock(&ippdrv->cmd_lock);
+		rt_mutex_unlock(&ippdrv->cmd_lock);
 	}
 
 	return;
@@ -1724,8 +1724,8 @@ static int ipp_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	mutex_init(&ctx->ipp_lock);
-	mutex_init(&ctx->prop_lock);
+	rt_mutex_init(&ctx->ipp_lock);
+	rt_mutex_init(&ctx->prop_lock);
 
 	idr_init(&ctx->ipp_idr);
 	idr_init(&ctx->prop_idr);
@@ -1794,8 +1794,8 @@ static int ipp_remove(struct platform_device *pdev)
 	idr_destroy(&ctx->ipp_idr);
 	idr_destroy(&ctx->prop_idr);
 
-	mutex_destroy(&ctx->ipp_lock);
-	mutex_destroy(&ctx->prop_lock);
+	rt_mutex_destroy(&ctx->ipp_lock);
+	rt_mutex_destroy(&ctx->prop_lock);
 
 	/* destroy command, event work queue */
 	destroy_workqueue(ctx->cmd_workq);

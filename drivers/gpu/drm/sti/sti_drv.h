@@ -28,7 +28,7 @@ struct sti_private {
 	struct {
 		struct drm_atomic_state *state;
 		struct work_struct work;
-		struct mutex lock;
+		struct rt_mutex lock;
 	} commit;
 };
 

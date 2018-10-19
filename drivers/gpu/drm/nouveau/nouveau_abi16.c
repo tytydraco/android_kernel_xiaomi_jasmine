@@ -67,10 +67,10 @@ struct nouveau_abi16 *
 nouveau_abi16_get(struct drm_file *file_priv)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	mutex_lock(&cli->mutex);
+	rt_mutex_lock(&cli->mutex);
 	if (nouveau_abi16(file_priv))
 		return cli->abi16;
-	mutex_unlock(&cli->mutex);
+	rt_mutex_unlock(&cli->mutex);
 	return NULL;
 }
 
@@ -78,7 +78,7 @@ int
 nouveau_abi16_put(struct nouveau_abi16 *abi16, int ret)
 {
 	struct nouveau_cli *cli = (void *)abi16->device.object.client;
-	mutex_unlock(&cli->mutex);
+	rt_mutex_unlock(&cli->mutex);
 	return ret;
 }
 

@@ -83,9 +83,9 @@ retry:
 	*obj = &robj->gem_base;
 	robj->pid = task_pid_nr(current);
 
-	mutex_lock(&rdev->gem.mutex);
+	rt_mutex_lock(&rdev->gem.mutex);
 	list_add_tail(&robj->list, &rdev->gem.objects);
-	mutex_unlock(&rdev->gem.mutex);
+	rt_mutex_unlock(&rdev->gem.mutex);
 
 	return 0;
 }
@@ -568,7 +568,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 			goto error_unreserve;
 	}
 
-	mutex_lock(&bo_va->vm->mutex);
+	rt_mutex_lock(&bo_va->vm->mutex);
 	r = radeon_vm_clear_freed(rdev, bo_va->vm);
 	if (r)
 		goto error_unlock;
@@ -577,7 +577,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 		r = radeon_vm_bo_update(rdev, bo_va, &bo_va->bo->tbo.mem);
 
 error_unlock:
-	mutex_unlock(&bo_va->vm->mutex);
+	rt_mutex_unlock(&bo_va->vm->mutex);
 
 error_unreserve:
 	ttm_eu_backoff_reservation(&ticket, &list);
@@ -773,7 +773,7 @@ static int radeon_debugfs_gem_info(struct seq_file *m, void *data)
 	struct radeon_bo *rbo;
 	unsigned i = 0;
 
-	mutex_lock(&rdev->gem.mutex);
+	rt_mutex_lock(&rdev->gem.mutex);
 	list_for_each_entry(rbo, &rdev->gem.objects, list) {
 		unsigned domain;
 		const char *placement;
@@ -796,7 +796,7 @@ static int radeon_debugfs_gem_info(struct seq_file *m, void *data)
 			   placement, (unsigned long)rbo->pid);
 		i++;
 	}
-	mutex_unlock(&rdev->gem.mutex);
+	rt_mutex_unlock(&rdev->gem.mutex);
 	return 0;
 }
 

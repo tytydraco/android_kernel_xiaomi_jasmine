@@ -87,7 +87,7 @@ static int sti_atomic_commit(struct drm_device *drm,
 		return err;
 
 	/* serialize outstanding asynchronous commits */
-	mutex_lock(&private->commit.lock);
+	rt_mutex_lock(&private->commit.lock);
 	flush_work(&private->commit.work);
 
 	/*
@@ -103,7 +103,7 @@ static int sti_atomic_commit(struct drm_device *drm,
 	else
 		sti_atomic_complete(private, state);
 
-	mutex_unlock(&private->commit.lock);
+	rt_mutex_unlock(&private->commit.lock);
 	return 0;
 }
 
@@ -142,7 +142,7 @@ static int sti_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)private;
 	private->drm_dev = dev;
 
-	mutex_init(&private->commit.lock);
+	rt_mutex_init(&private->commit.lock);
 	INIT_WORK(&private->commit.work, sti_atomic_work);
 
 	drm_mode_config_init(dev);

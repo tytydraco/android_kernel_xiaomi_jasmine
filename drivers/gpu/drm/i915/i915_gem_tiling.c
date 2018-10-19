@@ -176,7 +176,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (obj->pin_display || obj->framebuffer_references) {
 		ret = -EBUSY;
 		goto err;
@@ -267,7 +267,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 err:
 	drm_gem_object_unreference(&obj->base);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -297,7 +297,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	if (&obj->base == NULL)
 		return -ENOENT;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	args->tiling_mode = obj->tiling_mode;
 	switch (obj->tiling_mode) {
@@ -325,7 +325,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
 
 	drm_gem_object_unreference(&obj->base);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }

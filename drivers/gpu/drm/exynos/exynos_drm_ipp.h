@@ -67,9 +67,9 @@ struct drm_exynos_ipp_cmd_node {
 	struct list_head	list;
 	struct list_head	event_list;
 	struct list_head	mem_list[EXYNOS_DRM_OPS_MAX];
-	struct mutex	lock;
-	struct mutex	mem_lock;
-	struct mutex	event_lock;
+	struct rt_mutex	lock;
+	struct rt_mutex	mem_lock;
+	struct rt_mutex	event_lock;
 	struct completion	start_complete;
 	struct completion	stop_complete;
 	struct drm_exynos_ipp_property	property;
@@ -165,7 +165,7 @@ struct exynos_drm_ippdrv {
 	struct workqueue_struct	*event_workq;
 	struct drm_exynos_ipp_cmd_node *c_node;
 	struct list_head	cmd_list;
-	struct mutex	cmd_lock;
+	struct rt_mutex	cmd_lock;
 	struct drm_exynos_ipp_prop_list prop_list;
 
 	int (*check_property)(struct device *dev,

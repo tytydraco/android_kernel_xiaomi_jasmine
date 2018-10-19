@@ -628,9 +628,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->dev = dev;
 	dev_priv->vmw_chipset = chipset;
 	dev_priv->last_read_seqno = (uint32_t) -100;
-	mutex_init(&dev_priv->cmdbuf_mutex);
-	mutex_init(&dev_priv->release_mutex);
-	mutex_init(&dev_priv->binding_mutex);
+	rt_mutex_init(&dev_priv->cmdbuf_mutex);
+	rt_mutex_init(&dev_priv->release_mutex);
+	rt_mutex_init(&dev_priv->binding_mutex);
 	rwlock_init(&dev_priv->resource_lock);
 	ttm_lock_init(&dev_priv->reservation_sem);
 	spin_lock_init(&dev_priv->hw_lock);
@@ -643,7 +643,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		INIT_LIST_HEAD(&dev_priv->res_lru[i]);
 	}
 
-	mutex_init(&dev_priv->init_mutex);
+	rt_mutex_init(&dev_priv->init_mutex);
 	init_waitqueue_head(&dev_priv->fence_queue);
 	init_waitqueue_head(&dev_priv->fifo_queue);
 	dev_priv->fence_queue_waiters = 0;
@@ -1049,12 +1049,12 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 	    !(flags & DRM_AUTH))
 		return NULL;
 
-	ret = mutex_lock_interruptible(&dev->master_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->master_mutex);
 	if (unlikely(ret != 0))
 		return ERR_PTR(-ERESTARTSYS);
 
 	if (file_priv->is_master) {
-		mutex_unlock(&dev->master_mutex);
+		rt_mutex_unlock(&dev->master_mutex);
 		return NULL;
 	}
 
@@ -1063,7 +1063,7 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 	 * case, allow at least render node functionality.
 	 */
 	if (vmw_fp->locked_master) {
-		mutex_unlock(&dev->master_mutex);
+		rt_mutex_unlock(&dev->master_mutex);
 
 		if (flags & DRM_RENDER_ALLOW)
 			return NULL;
@@ -1072,7 +1072,7 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 			  "requires authentication.\n");
 		return ERR_PTR(-EACCES);
 	}
-	mutex_unlock(&dev->master_mutex);
+	rt_mutex_unlock(&dev->master_mutex);
 
 	/*
 	 * Take the TTM lock. Possibly sleep waiting for the authenticating

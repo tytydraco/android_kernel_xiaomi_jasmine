@@ -70,7 +70,7 @@ struct ipu_dp_priv {
 	struct device *dev;
 	void __iomem *base;
 	struct ipu_flow flow[IPUV3_NUM_FLOWS];
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	int use_count;
 };
 
@@ -91,7 +91,7 @@ int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable,
 	struct ipu_dp_priv *priv = flow->priv;
 	u32 reg;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	reg = readl(flow->base + DP_COM_CONF);
 	if (bg_chan)
@@ -114,7 +114,7 @@ int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable,
 
 	ipu_srm_dp_sync_update(priv->ipu);
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 
 	return 0;
 }
@@ -180,7 +180,7 @@ int ipu_dp_setup_channel(struct ipu_dp *dp,
 	struct ipu_flow *flow = to_flow(dp);
 	struct ipu_dp_priv *priv = flow->priv;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	dp->in_cs = in;
 
@@ -209,7 +209,7 @@ int ipu_dp_setup_channel(struct ipu_dp *dp,
 
 	ipu_srm_dp_sync_update(priv->ipu);
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 
 	return 0;
 }
@@ -219,14 +219,14 @@ int ipu_dp_enable(struct ipu_soc *ipu)
 {
 	struct ipu_dp_priv *priv = ipu->dp_priv;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	if (!priv->use_count)
 		ipu_module_enable(priv->ipu, IPU_CONF_DP_EN);
 
 	priv->use_count++;
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 
 	return 0;
 }
@@ -241,7 +241,7 @@ int ipu_dp_enable_channel(struct ipu_dp *dp)
 	if (!dp->foreground)
 		return 0;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	reg = readl(flow->base + DP_COM_CONF);
 	reg |= DP_COM_CONF_FG_EN;
@@ -249,7 +249,7 @@ int ipu_dp_enable_channel(struct ipu_dp *dp)
 
 	ipu_srm_dp_sync_update(priv->ipu);
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 
 	return 0;
 }
@@ -264,7 +264,7 @@ void ipu_dp_disable_channel(struct ipu_dp *dp)
 	if (!dp->foreground)
 		return;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	reg = readl(flow->base + DP_COM_CONF);
 	csc = reg & DP_COM_CONF_CSC_DEF_MASK;
@@ -280,7 +280,7 @@ void ipu_dp_disable_channel(struct ipu_dp *dp)
 	if (ipu_idmac_channel_busy(priv->ipu, IPUV3_CHANNEL_MEM_BG_SYNC))
 		ipu_wait_interrupt(priv->ipu, IPU_IRQ_DP_SF_END, 50);
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dp_disable_channel);
 
@@ -288,7 +288,7 @@ void ipu_dp_disable(struct ipu_soc *ipu)
 {
 	struct ipu_dp_priv *priv = ipu->dp_priv;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	priv->use_count--;
 
@@ -298,7 +298,7 @@ void ipu_dp_disable(struct ipu_soc *ipu)
 	if (priv->use_count < 0)
 		priv->use_count = 0;
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dp_disable);
 
@@ -347,7 +347,7 @@ int ipu_dp_init(struct ipu_soc *ipu, struct device *dev, unsigned long base)
 	if (!priv->base)
 		return -ENOMEM;
 
-	mutex_init(&priv->mutex);
+	rt_mutex_init(&priv->mutex);
 
 	for (i = 0; i < IPUV3_NUM_FLOWS; i++) {
 		priv->flow[i].foreground.foreground = true;

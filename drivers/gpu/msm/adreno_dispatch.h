@@ -83,7 +83,7 @@ struct adreno_dispatcher_drawqueue {
  * for every RB that is scheduled to run on the device
  */
 struct adreno_dispatcher {
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	unsigned long priv;
 	struct timer_list timer;
 	struct timer_list fault_timer;

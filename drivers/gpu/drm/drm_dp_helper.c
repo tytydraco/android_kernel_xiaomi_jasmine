@@ -186,7 +186,7 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	msg.buffer = buffer;
 	msg.size = size;
 
-	mutex_lock(&aux->hw_mutex);
+	rt_mutex_lock(&aux->hw_mutex);
 
 	/*
 	 * The specification doesn't give any recommendation on how often to
@@ -225,7 +225,7 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	err = -EIO;
 
 unlock:
-	mutex_unlock(&aux->hw_mutex);
+	rt_mutex_unlock(&aux->hw_mutex);
 	return err;
 }
 
@@ -687,7 +687,7 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 
 	memset(&msg, 0, sizeof(msg));
 
-	mutex_lock(&aux->hw_mutex);
+	rt_mutex_lock(&aux->hw_mutex);
 
 	for (i = 0; i < num; i++) {
 		msg.address = msgs[i].addr;
@@ -743,7 +743,7 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 	msg.size = 0;
 	(void)drm_dp_i2c_do_msg(aux, &msg);
 
-	mutex_unlock(&aux->hw_mutex);
+	rt_mutex_unlock(&aux->hw_mutex);
 
 	return err;
 }
@@ -761,7 +761,7 @@ static const struct i2c_algorithm drm_dp_i2c_algo = {
  */
 int drm_dp_aux_register(struct drm_dp_aux *aux)
 {
-	mutex_init(&aux->hw_mutex);
+	rt_mutex_init(&aux->hw_mutex);
 
 	aux->ddc.algo = &drm_dp_i2c_algo;
 	aux->ddc.algo_data = aux;

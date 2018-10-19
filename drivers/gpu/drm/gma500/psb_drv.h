@@ -462,7 +462,7 @@ struct drm_psb_private {
 	u16 gmch_ctrl;		/* Saved GTT setup */
 	u32 pge_ctl;
 
-	struct mutex gtt_mutex;
+	struct rt_mutex gtt_mutex;
 	struct resource *gtt_mem;	/* Our PCI resource */
 
 	struct psb_mmu_driver *mmu;

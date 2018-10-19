@@ -232,7 +232,7 @@ struct g2d_data {
 	/* cmdlist */
 	struct g2d_cmdlist_node		*cmdlist_node;
 	struct list_head		free_cmdlist;
-	struct mutex			cmdlist_mutex;
+	struct rt_mutex			cmdlist_mutex;
 	dma_addr_t			cmdlist_pool;
 	void				*cmdlist_pool_virt;
 	struct dma_attrs		cmdlist_dma_attrs;
@@ -240,7 +240,7 @@ struct g2d_data {
 	/* runqueue*/
 	struct g2d_runqueue_node	*runqueue_node;
 	struct list_head		runqueue;
-	struct mutex			runqueue_mutex;
+	struct rt_mutex			runqueue_mutex;
 	struct kmem_cache		*runqueue_slab;
 
 	unsigned long			current_pool;
@@ -317,26 +317,26 @@ static struct g2d_cmdlist_node *g2d_get_cmdlist(struct g2d_data *g2d)
 	struct device *dev = g2d->dev;
 	struct g2d_cmdlist_node *node;
 
-	mutex_lock(&g2d->cmdlist_mutex);
+	rt_mutex_lock(&g2d->cmdlist_mutex);
 	if (list_empty(&g2d->free_cmdlist)) {
 		dev_err(dev, "there is no free cmdlist\n");
-		mutex_unlock(&g2d->cmdlist_mutex);
+		rt_mutex_unlock(&g2d->cmdlist_mutex);
 		return NULL;
 	}
 
 	node = list_first_entry(&g2d->free_cmdlist, struct g2d_cmdlist_node,
 				list);
 	list_del_init(&node->list);
-	mutex_unlock(&g2d->cmdlist_mutex);
+	rt_mutex_unlock(&g2d->cmdlist_mutex);
 
 	return node;
 }
 
 static void g2d_put_cmdlist(struct g2d_data *g2d, struct g2d_cmdlist_node *node)
 {
-	mutex_lock(&g2d->cmdlist_mutex);
+	rt_mutex_lock(&g2d->cmdlist_mutex);
 	list_move_tail(&node->list, &g2d->free_cmdlist);
-	mutex_unlock(&g2d->cmdlist_mutex);
+	rt_mutex_unlock(&g2d->cmdlist_mutex);
 }
 
 static void g2d_add_cmdlist_to_inuse(struct exynos_drm_g2d_private *g2d_priv,
@@ -835,7 +835,7 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
 	if (!runqueue_node)
 		return;
 
-	mutex_lock(&g2d->cmdlist_mutex);
+	rt_mutex_lock(&g2d->cmdlist_mutex);
 	/*
 	 * commands in run_cmdlist have been completed so unmap all gem
 	 * objects in each command node so that they are unreferenced.
@@ -843,7 +843,7 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
 	list_for_each_entry(node, &runqueue_node->run_cmdlist, list)
 		g2d_unmap_cmdlist_gem(g2d, node, runqueue_node->filp);
 	list_splice_tail_init(&runqueue_node->run_cmdlist, &g2d->free_cmdlist);
-	mutex_unlock(&g2d->cmdlist_mutex);
+	rt_mutex_unlock(&g2d->cmdlist_mutex);
 
 	kmem_cache_free(g2d->runqueue_slab, runqueue_node);
 }
@@ -860,7 +860,7 @@ static void g2d_runqueue_worker(struct work_struct *work)
 	struct g2d_data *g2d = container_of(work, struct g2d_data,
 					    runqueue_work);
 
-	mutex_lock(&g2d->runqueue_mutex);
+	rt_mutex_lock(&g2d->runqueue_mutex);
 	pm_runtime_put_sync(g2d->dev);
 
 	complete(&g2d->runqueue_node->complete);
@@ -871,7 +871,7 @@ static void g2d_runqueue_worker(struct work_struct *work)
 		g2d->runqueue_node = NULL;
 	else
 		g2d_exec_runqueue(g2d);
-	mutex_unlock(&g2d->runqueue_mutex);
+	rt_mutex_unlock(&g2d->runqueue_mutex);
 }
 
 static void g2d_finish_event(struct g2d_data *g2d, u32 cmdlist_no)
@@ -1274,13 +1274,13 @@ int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 		return -EPERM;
 	}
 
-	mutex_lock(&g2d->runqueue_mutex);
+	rt_mutex_lock(&g2d->runqueue_mutex);
 	runqueue_node->pid = current->pid;
 	runqueue_node->filp = file;
 	list_add_tail(&runqueue_node->list, &g2d->runqueue);
 	if (!g2d->runqueue_node)
 		g2d_exec_runqueue(g2d);
-	mutex_unlock(&g2d->runqueue_mutex);
+	rt_mutex_unlock(&g2d->runqueue_mutex);
 
 	if (runqueue_node->async)
 		goto out;
@@ -1358,7 +1358,7 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 	if (!g2d)
 		return;
 
-	mutex_lock(&g2d->cmdlist_mutex);
+	rt_mutex_lock(&g2d->cmdlist_mutex);
 	list_for_each_entry_safe(node, n, &g2d_priv->inuse_cmdlist, list) {
 		/*
 		 * unmap all gem objects not completed.
@@ -1370,7 +1370,7 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 		g2d_unmap_cmdlist_gem(g2d, node, file);
 		list_move_tail(&node->list, &g2d->free_cmdlist);
 	}
-	mutex_unlock(&g2d->cmdlist_mutex);
+	rt_mutex_unlock(&g2d->cmdlist_mutex);
 
 	/* release all g2d_userptr in pool. */
 	g2d_userptr_free_all(drm_dev, g2d, file);
@@ -1408,8 +1408,8 @@ static int g2d_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&g2d->free_cmdlist);
 	INIT_LIST_HEAD(&g2d->runqueue);
 
-	mutex_init(&g2d->cmdlist_mutex);
-	mutex_init(&g2d->runqueue_mutex);
+	rt_mutex_init(&g2d->cmdlist_mutex);
+	rt_mutex_init(&g2d->runqueue_mutex);
 
 	g2d->gate_clk = devm_clk_get(dev, "fimg2d");
 	if (IS_ERR(g2d->gate_clk)) {
@@ -1499,9 +1499,9 @@ static int g2d_suspend(struct device *dev)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
 
-	mutex_lock(&g2d->runqueue_mutex);
+	rt_mutex_lock(&g2d->runqueue_mutex);
 	g2d->suspended = true;
-	mutex_unlock(&g2d->runqueue_mutex);
+	rt_mutex_unlock(&g2d->runqueue_mutex);
 
 	while (g2d->runqueue_node)
 		/* FIXME: good range? */

@@ -120,10 +120,10 @@ int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw)
 {
 	int r;
 
-	mutex_lock(ring->ring_lock);
+	rt_mutex_lock(ring->ring_lock);
 	r = amdgpu_ring_alloc(ring, ndw);
 	if (r) {
-		mutex_unlock(ring->ring_lock);
+		rt_mutex_unlock(ring->ring_lock);
 		return r;
 	}
 	return 0;
@@ -178,7 +178,7 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 void amdgpu_ring_unlock_commit(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_commit(ring);
-	mutex_unlock(ring->ring_lock);
+	rt_mutex_unlock(ring->ring_lock);
 }
 
 /**
@@ -203,7 +203,7 @@ void amdgpu_ring_undo(struct amdgpu_ring *ring)
 void amdgpu_ring_unlock_undo(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_undo(ring);
-	mutex_unlock(ring->ring_lock);
+	rt_mutex_unlock(ring->ring_lock);
 }
 
 /**
@@ -219,17 +219,17 @@ unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
 	unsigned size, ptr, i;
 
 	/* just in case lock the ring */
-	mutex_lock(ring->ring_lock);
+	rt_mutex_lock(ring->ring_lock);
 	*data = NULL;
 
 	if (ring->ring_obj == NULL) {
-		mutex_unlock(ring->ring_lock);
+		rt_mutex_unlock(ring->ring_lock);
 		return 0;
 	}
 
 	/* it doesn't make sense to save anything if all fences are signaled */
 	if (!amdgpu_fence_count_emitted(ring)) {
-		mutex_unlock(ring->ring_lock);
+		rt_mutex_unlock(ring->ring_lock);
 		return 0;
 	}
 
@@ -239,14 +239,14 @@ unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
 	size -= ptr;
 	size &= ring->ptr_mask;
 	if (size == 0) {
-		mutex_unlock(ring->ring_lock);
+		rt_mutex_unlock(ring->ring_lock);
 		return 0;
 	}
 
 	/* and then save the content of the ring */
 	*data = kmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
 	if (!*data) {
-		mutex_unlock(ring->ring_lock);
+		rt_mutex_unlock(ring->ring_lock);
 		return 0;
 	}
 	for (i = 0; i < size; ++i) {
@@ -254,7 +254,7 @@ unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
 		ptr &= ring->ptr_mask;
 	}
 
-	mutex_unlock(ring->ring_lock);
+	rt_mutex_unlock(ring->ring_lock);
 	return size;
 }
 
@@ -413,12 +413,12 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 	if (ring->ring_lock == NULL)
 		return;
 
-	mutex_lock(ring->ring_lock);
+	rt_mutex_lock(ring->ring_lock);
 	ring_obj = ring->ring_obj;
 	ring->ready = false;
 	ring->ring = NULL;
 	ring->ring_obj = NULL;
-	mutex_unlock(ring->ring_lock);
+	rt_mutex_unlock(ring->ring_lock);
 
 	amdgpu_wb_free(ring->adev, ring->fence_offs);
 	amdgpu_wb_free(ring->adev, ring->rptr_offs);

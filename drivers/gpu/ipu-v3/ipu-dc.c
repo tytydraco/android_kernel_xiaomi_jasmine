@@ -110,7 +110,7 @@ struct ipu_dc_priv {
 	struct ipu_soc		*ipu;
 	struct device		*dev;
 	struct ipu_dc		channels[IPU_DC_NUM_CHANNELS];
-	struct mutex		mutex;
+	struct rt_mutex		mutex;
 	struct completion	comp;
 	int			dc_irq;
 	int			dp_irq;
@@ -242,14 +242,14 @@ void ipu_dc_enable(struct ipu_soc *ipu)
 {
 	struct ipu_dc_priv *priv = ipu->dc_priv;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	if (!priv->use_count)
 		ipu_module_enable(priv->ipu, IPU_CONF_DC_EN);
 
 	priv->use_count++;
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_enable);
 
@@ -314,7 +314,7 @@ void ipu_dc_disable(struct ipu_soc *ipu)
 {
 	struct ipu_dc_priv *priv = ipu->dc_priv;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	priv->use_count--;
 	if (!priv->use_count)
@@ -323,7 +323,7 @@ void ipu_dc_disable(struct ipu_soc *ipu)
 	if (priv->use_count < 0)
 		priv->use_count = 0;
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_disable);
 
@@ -362,16 +362,16 @@ struct ipu_dc *ipu_dc_get(struct ipu_soc *ipu, int channel)
 
 	dc = &priv->channels[channel];
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 
 	if (dc->in_use) {
-		mutex_unlock(&priv->mutex);
+		rt_mutex_unlock(&priv->mutex);
 		return ERR_PTR(-EBUSY);
 	}
 
 	dc->in_use = true;
 
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 
 	return dc;
 }
@@ -381,9 +381,9 @@ void ipu_dc_put(struct ipu_dc *dc)
 {
 	struct ipu_dc_priv *priv = dc->priv;
 
-	mutex_lock(&priv->mutex);
+	rt_mutex_lock(&priv->mutex);
 	dc->in_use = false;
-	mutex_unlock(&priv->mutex);
+	rt_mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_put);
 
@@ -399,7 +399,7 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 	if (!priv)
 		return -ENOMEM;
 
-	mutex_init(&priv->mutex);
+	rt_mutex_init(&priv->mutex);
 
 	priv->dev = dev;
 	priv->ipu = ipu;

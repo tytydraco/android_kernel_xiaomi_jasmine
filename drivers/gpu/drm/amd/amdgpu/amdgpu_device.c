@@ -899,7 +899,7 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 		return -ENOMEM;
 	}
 
-	mutex_init(&adev->mode_info.atom_context->mutex);
+	rt_mutex_init(&adev->mode_info.atom_context->mutex);
 	amdgpu_atombios_scratch_regs_init(adev);
 	amdgpu_atom_allocate_fb_scratch(adev->mode_info.atom_context);
 	return 0;
@@ -1413,14 +1413,14 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
-	mutex_init(&adev->ring_lock);
+	rt_mutex_init(&adev->ring_lock);
 	atomic_set(&adev->irq.ih.lock, 0);
-	mutex_init(&adev->gem.mutex);
-	mutex_init(&adev->pm.mutex);
-	mutex_init(&adev->gfx.gpu_clock_mutex);
-	mutex_init(&adev->srbm_mutex);
-	mutex_init(&adev->grbm_idx_mutex);
-	mutex_init(&adev->mn_lock);
+	rt_mutex_init(&adev->gem.mutex);
+	rt_mutex_init(&adev->pm.mutex);
+	rt_mutex_init(&adev->gfx.gpu_clock_mutex);
+	rt_mutex_init(&adev->srbm_mutex);
+	rt_mutex_init(&adev->grbm_idx_mutex);
+	rt_mutex_init(&adev->mn_lock);
 	hash_init(adev->mn_hash);
 
 	amdgpu_check_arguments(adev);

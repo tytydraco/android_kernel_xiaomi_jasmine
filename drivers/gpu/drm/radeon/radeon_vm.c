@@ -335,9 +335,9 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&bo_va->bo_list);
 	INIT_LIST_HEAD(&bo_va->vm_status);
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	list_add_tail(&bo_va->bo_list, &bo->va);
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 
 	return bo_va;
 }
@@ -473,7 +473,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		eoffset = last_pfn = 0;
 	}
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	soffset /= RADEON_GPU_PAGE_SIZE;
 	eoffset /= RADEON_GPU_PAGE_SIZE;
 	if (soffset || eoffset) {
@@ -486,7 +486,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			dev_err(rdev->dev, "bo %p va 0x%010Lx conflict with "
 				"(bo %p 0x%010lx 0x%010lx)\n", bo_va->bo,
 				soffset, tmp->bo, tmp->it.start, tmp->it.last);
-			mutex_unlock(&vm->mutex);
+			rt_mutex_unlock(&vm->mutex);
 			r = -EINVAL;
 			goto error_unreserve;
 		}
@@ -497,7 +497,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		struct radeon_bo_va *tmp;
 		tmp = kzalloc(sizeof(struct radeon_bo_va), GFP_KERNEL);
 		if (!tmp) {
-			mutex_unlock(&vm->mutex);
+			rt_mutex_unlock(&vm->mutex);
 			r = -ENOMEM;
 			goto error_unreserve;
 		}
@@ -544,7 +544,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			continue;
 
 		/* drop mutex to allocate and clear page table */
-		mutex_unlock(&vm->mutex);
+		rt_mutex_unlock(&vm->mutex);
 
 		r = radeon_bo_create(rdev, RADEON_VM_PTE_COUNT * 8,
 				     RADEON_GPU_PAGE_SIZE, true,
@@ -560,12 +560,12 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		}
 
 		/* aquire mutex again */
-		mutex_lock(&vm->mutex);
+		rt_mutex_lock(&vm->mutex);
 		if (vm->page_tables[pt_idx].bo) {
 			/* someone else allocated the pt in the meantime */
-			mutex_unlock(&vm->mutex);
+			rt_mutex_unlock(&vm->mutex);
 			radeon_bo_unref(&pt);
-			mutex_lock(&vm->mutex);
+			rt_mutex_lock(&vm->mutex);
 			continue;
 		}
 
@@ -573,7 +573,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 		vm->page_tables[pt_idx].bo = pt;
 	}
 
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 	return 0;
 
 error_unreserve:
@@ -1121,7 +1121,7 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 
 	list_del(&bo_va->bo_list);
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	if (bo_va->it.start || bo_va->it.last)
 		interval_tree_remove(&bo_va->it, &vm->va);
 
@@ -1136,7 +1136,7 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 	}
 	spin_unlock(&vm->status_lock);
 
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 }
 
 /**
@@ -1183,7 +1183,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 		vm->ids[i].flushed_updates = NULL;
 		vm->ids[i].last_id_use = NULL;
 	}
-	mutex_init(&vm->mutex);
+	rt_mutex_init(&vm->mutex);
 	vm->va = RB_ROOT;
 	spin_lock_init(&vm->status_lock);
 	INIT_LIST_HEAD(&vm->invalidated);
@@ -1261,5 +1261,5 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 		radeon_fence_unref(&vm->ids[i].last_id_use);
 	}
 
-	mutex_destroy(&vm->mutex);
+	rt_mutex_destroy(&vm->mutex);
 }

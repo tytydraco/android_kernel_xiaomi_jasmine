@@ -602,7 +602,7 @@ int kgsl_cff_dump_enable_set(void *data, u64 val)
 	struct kgsl_device *device = (struct kgsl_device *)data;
 	int i;
 
-	mutex_lock(&kgsl_driver.devlock);
+	rt_mutex_lock(&kgsl_driver.devlock);
 	if (val) {
 		/* Check if CFF is on for some other device already */
 		for (i = 0; i < KGSL_DEVICE_MAX; i++) {
@@ -625,20 +625,20 @@ int kgsl_cff_dump_enable_set(void *data, u64 val)
 			 * force device to slumber so that we ensure that the
 			 * start opcode in CFF is present
 			 */
-			mutex_lock(&device->mutex);
+			rt_mutex_lock(&device->mutex);
 			ret = kgsl_pwrctrl_change_state(device,
 				KGSL_STATE_SUSPEND);
 			ret |= kgsl_pwrctrl_change_state(device,
 				KGSL_STATE_SLUMBER);
 			if (ret)
 				device->cff_dump_enable = 0;
-			mutex_unlock(&device->mutex);
+			rt_mutex_unlock(&device->mutex);
 		}
 	} else if (device->cff_dump_enable && !val) {
 		device->cff_dump_enable = 0;
 	}
 done:
-	mutex_unlock(&kgsl_driver.devlock);
+	rt_mutex_unlock(&kgsl_driver.devlock);
 	return ret;
 }
 EXPORT_SYMBOL(kgsl_cff_dump_enable_set);

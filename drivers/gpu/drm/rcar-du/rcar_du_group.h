@@ -42,7 +42,7 @@ struct rcar_du_group {
 	unsigned int use_count;
 	unsigned int used_crtcs;
 
-	struct mutex lock;
+	struct rt_mutex lock;
 	unsigned int dptsr_planes;
 
 	unsigned int num_planes;

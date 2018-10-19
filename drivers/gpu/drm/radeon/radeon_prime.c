@@ -66,16 +66,16 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 	struct radeon_bo *bo;
 	int ret;
 
-	ww_mutex_lock(&resv->lock, NULL);
+	ww_rt_mutex_lock(&resv->lock, NULL);
 	ret = radeon_bo_create(rdev, attach->dmabuf->size, PAGE_SIZE, false,
 			       RADEON_GEM_DOMAIN_GTT, 0, sg, resv, &bo);
-	ww_mutex_unlock(&resv->lock);
+	ww_rt_mutex_unlock(&resv->lock);
 	if (ret)
 		return ERR_PTR(ret);
 
-	mutex_lock(&rdev->gem.mutex);
+	rt_mutex_lock(&rdev->gem.mutex);
 	list_add_tail(&bo->list, &rdev->gem.objects);
-	mutex_unlock(&rdev->gem.mutex);
+	rt_mutex_unlock(&rdev->gem.mutex);
 
 	return &bo->gem_base;
 }

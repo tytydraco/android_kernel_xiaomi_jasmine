@@ -31,7 +31,7 @@ static int _isdb_set(void *data, u64 val)
 	if (test_bit(ADRENO_DEVICE_ISDB_ENABLED, &adreno_dev->priv))
 		return 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	/*
 	 * Bring down the GPU so we can bring it back up with the correct power
@@ -41,7 +41,7 @@ static int _isdb_set(void *data, u64 val)
 	set_bit(ADRENO_DEVICE_ISDB_ENABLED, &adreno_dev->priv);
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_SLUMBER);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return 0;
 }
@@ -74,10 +74,10 @@ static int _lm_limit_set(void *data, u64 val)
 	adreno_dev->lm_limit = val;
 
 	if (test_bit(ADRENO_LM_CTRL, &adreno_dev->pwrctrl_flag)) {
-		mutex_lock(&device->mutex);
+		rt_mutex_lock(&device->mutex);
 		kgsl_pwrctrl_change_state(device, KGSL_STATE_SUSPEND);
 		kgsl_pwrctrl_change_state(device, KGSL_STATE_SLUMBER);
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 	}
 
 	return 0;

@@ -144,10 +144,10 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 		if (!node)
 			return -ENOSPC;
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		ret = drm_mm_insert_node(&priv->linear, node, size, align,
 					 DRM_MM_SEARCH_DEFAULT);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		if (ret) {
 			kfree(node);
 			return ret;
@@ -158,9 +158,9 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 		/* Ensure that the memory we're returning is cleared. */
 		ptr = ioremap_wc(obj->linear->start, size);
 		if (!ptr) {
-			mutex_lock(&dev->struct_mutex);
+			rt_mutex_lock(&dev->struct_mutex);
 			drm_mm_remove_node(obj->linear);
-			mutex_unlock(&dev->struct_mutex);
+			rt_mutex_unlock(&dev->struct_mutex);
 			kfree(obj->linear);
 			obj->linear = NULL;
 			return -ENOMEM;
@@ -274,7 +274,7 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 	struct armada_gem_object *obj;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	obj = armada_gem_object_lookup(dev, file, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object\n");
@@ -296,7 +296,7 @@ int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 
 	drm_gem_object_unreference(&obj->obj);
  err_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }

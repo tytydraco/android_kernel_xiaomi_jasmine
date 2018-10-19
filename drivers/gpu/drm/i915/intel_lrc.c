@@ -948,7 +948,7 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 	struct drm_i915_gem_request *req, *tmp;
 	struct list_head retired_list;
 
-	WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&ring->dev->struct_mutex));
 	if (list_empty(&ring->execlist_retired_req_list))
 		return;
 
@@ -1015,7 +1015,7 @@ static int intel_lr_context_do_pin(struct intel_engine_cs *ring,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&ring->dev->struct_mutex));
 	ret = i915_gem_obj_ggtt_pin(ctx_obj, GEN8_LR_CONTEXT_ALIGN,
 			PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
 	if (ret)
@@ -1065,7 +1065,7 @@ void intel_lr_context_unpin(struct drm_i915_gem_request *rq)
 	struct intel_ringbuffer *ringbuf = rq->ringbuf;
 
 	if (ctx_obj) {
-		WARN_ON(!mutex_is_locked(&ring->dev->struct_mutex));
+		WARN_ON(!rt_mutex_is_locked(&ring->dev->struct_mutex));
 		if (--rq->ctx->engine[ring->id].pin_count == 0) {
 			intel_unpin_ringbuffer_obj(ringbuf);
 			i915_gem_object_ggtt_unpin(ctx_obj);

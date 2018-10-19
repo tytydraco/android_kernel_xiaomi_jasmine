@@ -112,7 +112,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	rd = obj->sg->sgl;
 	wr = sgt->sgl;
@@ -137,7 +137,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 	attach->priv = udl_attach;
 
 err_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return sgt;
 }
 

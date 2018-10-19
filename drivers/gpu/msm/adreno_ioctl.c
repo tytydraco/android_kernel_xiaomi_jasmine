@@ -24,7 +24,7 @@ long adreno_ioctl_perfcounter_get(struct kgsl_device_private *dev_priv,
 	struct kgsl_perfcounter_get *get = data;
 	int result;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	/*
 	 * adreno_perfcounter_get() is called by kernel clients
@@ -39,7 +39,7 @@ long adreno_ioctl_perfcounter_get(struct kgsl_device_private *dev_priv,
 			&get->offset_hi, PERFCOUNTER_FLAG_NONE);
 		kgsl_active_count_put(device);
 	}
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return (long) result;
 }
@@ -52,10 +52,10 @@ long adreno_ioctl_perfcounter_put(struct kgsl_device_private *dev_priv,
 	struct kgsl_perfcounter_put *put = data;
 	int result;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	result = adreno_perfcounter_put(adreno_dev, put->groupid,
 		put->countable, PERFCOUNTER_FLAG_NONE);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return (long) result;
 }

@@ -55,7 +55,7 @@ gf100_fifo_runlist_update(struct gf100_fifo *fifo)
 	struct nvkm_memory *cur;
 	int nr = 0;
 
-	mutex_lock(&subdev->mutex);
+	rt_mutex_lock(&subdev->mutex);
 	cur = fifo->runlist.mem[fifo->runlist.active];
 	fifo->runlist.active = !fifo->runlist.active;
 
@@ -74,7 +74,7 @@ gf100_fifo_runlist_update(struct gf100_fifo *fifo)
 			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
 			       msecs_to_jiffies(2000)) == 0)
 		nvkm_error(subdev, "runlist update timeout\n");
-	mutex_unlock(&subdev->mutex);
+	rt_mutex_unlock(&subdev->mutex);
 }
 
 static inline int

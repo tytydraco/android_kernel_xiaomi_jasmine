@@ -719,12 +719,12 @@ static void sde_encoder_phys_wb_enable(struct sde_encoder_phys *phys_enc)
 	dev = wb_enc->base.parent->dev;
 
 	/* find associated writeback connector */
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, phys_enc->parent->dev) {
 		if (connector->encoder == phys_enc->parent)
 			break;
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	if (!connector || connector->encoder != phys_enc->parent) {
 		SDE_ERROR("failed to find writeback connector\n");

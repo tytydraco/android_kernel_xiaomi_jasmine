@@ -80,7 +80,7 @@ static int fiji_dpm_hw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 
 	ret = fiji_smu_init(adev);
 	if (ret) {
@@ -94,21 +94,21 @@ static int fiji_dpm_hw_init(void *handle)
 		goto fail;
 	}
 
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	return 0;
 
 fail:
 	adev->firmware.smu_load = false;
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	return -EINVAL;
 }
 
 static int fiji_dpm_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	fiji_smu_fini(adev);
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	return 0;
 }
 

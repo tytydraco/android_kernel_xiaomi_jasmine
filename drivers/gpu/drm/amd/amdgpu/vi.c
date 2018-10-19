@@ -243,7 +243,7 @@ static const u32 stoney_mgcg_cgcg_init[] =
 static void vi_init_golden_registers(struct amdgpu_device *adev)
 {
 	/* Some of the registers might be dependent on GRBM_GFX_INDEX */
-	mutex_lock(&adev->grbm_idx_mutex);
+	rt_mutex_lock(&adev->grbm_idx_mutex);
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
@@ -274,7 +274,7 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-	mutex_unlock(&adev->grbm_idx_mutex);
+	rt_mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 /**
@@ -473,7 +473,7 @@ static uint32_t vi_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
 {
 	uint32_t val;
 
-	mutex_lock(&adev->grbm_idx_mutex);
+	rt_mutex_lock(&adev->grbm_idx_mutex);
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
 		gfx_v8_0_select_se_sh(adev, se_num, sh_num);
 
@@ -481,7 +481,7 @@ static uint32_t vi_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
 
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
 		gfx_v8_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
-	mutex_unlock(&adev->grbm_idx_mutex);
+	rt_mutex_unlock(&adev->grbm_idx_mutex);
 	return val;
 }
 

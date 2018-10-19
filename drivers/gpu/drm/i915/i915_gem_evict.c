@@ -218,7 +218,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	struct i915_vma *vma, *next;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&vm->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&vm->dev->struct_mutex));
 	trace_i915_gem_evict_vm(vm);
 
 	if (do_idle) {

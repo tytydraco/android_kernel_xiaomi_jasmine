@@ -197,6 +197,6 @@ nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
 	subdev->index = index;
 	subdev->pmc_enable = pmc_enable;
 
-	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
+	__rt_mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
 	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
 }

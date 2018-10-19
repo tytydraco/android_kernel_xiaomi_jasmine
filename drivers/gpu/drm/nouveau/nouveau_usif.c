@@ -324,12 +324,12 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	/* USIF slightly abuses some return-only ioctl members in order
 	 * to provide interoperability with the older ABI16 objects
 	 */
-	mutex_lock(&cli->mutex);
+	rt_mutex_lock(&cli->mutex);
 	if (argv->v0.route) {
 		if (ret = -EINVAL, argv->v0.route == 0xff)
 			ret = nouveau_abi16_usif(filp, argv, argc);
 		if (ret) {
-			mutex_unlock(&cli->mutex);
+			rt_mutex_unlock(&cli->mutex);
 			goto done;
 		}
 	}
@@ -367,7 +367,7 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 		argv->v0.token = 0;
 	}
 	argv->v0.owner = owner;
-	mutex_unlock(&cli->mutex);
+	rt_mutex_unlock(&cli->mutex);
 
 	if (copy_to_user(user, argv, argc))
 		ret = -EFAULT;

@@ -34,7 +34,7 @@ struct nvkm_i2c_bus {
 #define NVKM_I2C_BUS_SEC /* ccb secondary comm. port */                      -2
 	int id;
 
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	struct list_head head;
 	struct i2c_adapter i2c;
 };
@@ -53,7 +53,7 @@ struct nvkm_i2c_aux {
 #define NVKM_I2C_AUX_EXT(n) /* 'n' is dcb external encoder type */ ((n) + 0x100)
 	int id;
 
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	struct list_head head;
 	struct i2c_adapter i2c;
 

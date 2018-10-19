@@ -69,7 +69,7 @@ module_param_named(mmutype, kgsl_mmu_type, charp, 0);
 MODULE_PARM_DESC(kgsl_mmu_type, "Type of MMU to be used for graphics");
 
 /* Mutex used for the IOMMU sync quirk */
-DEFINE_MUTEX(kgsl_mmu_sync);
+DEFINE_RT_MUTEX(kgsl_mmu_sync);
 EXPORT_SYMBOL(kgsl_mmu_sync);
 
 struct kgsl_dma_buf_meta {
@@ -677,7 +677,7 @@ struct kgsl_device *kgsl_get_device(int dev_idx)
 	int i;
 	struct kgsl_device *ret = NULL;
 
-	mutex_lock(&kgsl_driver.devlock);
+	rt_mutex_lock(&kgsl_driver.devlock);
 
 	for (i = 0; i < KGSL_DEVICE_MAX; i++) {
 		if (kgsl_driver.devp[i] && kgsl_driver.devp[i]->id == dev_idx) {
@@ -686,7 +686,7 @@ struct kgsl_device *kgsl_get_device(int dev_idx)
 		}
 	}
 
-	mutex_unlock(&kgsl_driver.devlock);
+	rt_mutex_unlock(&kgsl_driver.devlock);
 	return ret;
 }
 EXPORT_SYMBOL(kgsl_get_device);
@@ -698,9 +698,9 @@ static struct kgsl_device *kgsl_get_minor(int minor)
 	if (minor < 0 || minor >= KGSL_DEVICE_MAX)
 		return NULL;
 
-	mutex_lock(&kgsl_driver.devlock);
+	rt_mutex_lock(&kgsl_driver.devlock);
 	ret = kgsl_driver.devp[minor];
-	mutex_unlock(&kgsl_driver.devlock);
+	rt_mutex_unlock(&kgsl_driver.devlock);
 
 	return ret;
 }
@@ -732,9 +732,9 @@ static int kgsl_suspend_device(struct kgsl_device *device, pm_message_t state)
 
 	KGSL_PWR_WARN(device, "suspend start\n");
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	status = kgsl_pwrctrl_change_state(device, KGSL_STATE_SUSPEND);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	KGSL_PWR_WARN(device, "suspend end\n");
 	return status;
@@ -746,7 +746,7 @@ static int kgsl_resume_device(struct kgsl_device *device)
 		return -EINVAL;
 
 	KGSL_PWR_WARN(device, "resume start\n");
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (device->state == KGSL_STATE_SUSPEND) {
 		kgsl_pwrctrl_change_state(device, KGSL_STATE_SLUMBER);
 	} else if (device->state != KGSL_STATE_INIT) {
@@ -763,7 +763,7 @@ static int kgsl_resume_device(struct kgsl_device *device)
 			"resume invoked without a suspend\n");
 	}
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	KGSL_PWR_WARN(device, "resume end\n");
 	return 0;
 }
@@ -857,7 +857,7 @@ struct kgsl_process_private *kgsl_process_private_find(pid_t pid)
 {
 	struct kgsl_process_private *p, *private = NULL;
 
-	mutex_lock(&kgsl_driver.process_mutex);
+	rt_mutex_lock(&kgsl_driver.process_mutex);
 	list_for_each_entry(p, &kgsl_driver.process_list, list) {
 		if (p->pid == pid) {
 			if (kgsl_process_private_get(p))
@@ -865,7 +865,7 @@ struct kgsl_process_private *kgsl_process_private_find(pid_t pid)
 			break;
 		}
 	}
-	mutex_unlock(&kgsl_driver.process_mutex);
+	rt_mutex_unlock(&kgsl_driver.process_mutex);
 	return private;
 }
 
@@ -965,10 +965,10 @@ static void process_release_sync_sources(struct kgsl_process_private *private)
 static void kgsl_process_private_close(struct kgsl_device_private *dev_priv,
 		struct kgsl_process_private *private)
 {
-	mutex_lock(&kgsl_driver.process_mutex);
+	rt_mutex_lock(&kgsl_driver.process_mutex);
 
 	if (--private->fd_count > 0) {
-		mutex_unlock(&kgsl_driver.process_mutex);
+		rt_mutex_unlock(&kgsl_driver.process_mutex);
 		kgsl_process_private_put(private);
 		return;
 	}
@@ -994,7 +994,7 @@ static void kgsl_process_private_close(struct kgsl_device_private *dev_priv,
 	 * Unlock the mutex before releasing the memory - this prevents a
 	 * deadlock with the IOMMU mutex if a page fault occurs
 	 */
-	mutex_unlock(&kgsl_driver.process_mutex);
+	rt_mutex_unlock(&kgsl_driver.process_mutex);
 
 	process_release_memory(private);
 
@@ -1007,7 +1007,7 @@ static struct kgsl_process_private *kgsl_process_private_open(
 {
 	struct kgsl_process_private *private;
 
-	mutex_lock(&kgsl_driver.process_mutex);
+	rt_mutex_lock(&kgsl_driver.process_mutex);
 	private = kgsl_process_private_new(device);
 
 	if (IS_ERR(private))
@@ -1026,7 +1026,7 @@ static struct kgsl_process_private *kgsl_process_private_open(
 	}
 
 done:
-	mutex_unlock(&kgsl_driver.process_mutex);
+	rt_mutex_unlock(&kgsl_driver.process_mutex);
 	return private;
 }
 
@@ -1034,7 +1034,7 @@ static int kgsl_close_device(struct kgsl_device *device)
 {
 	int result = 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	device->open_count--;
 	if (device->open_count == 0) {
 
@@ -1046,7 +1046,7 @@ static int kgsl_close_device(struct kgsl_device *device)
 
 		result = kgsl_pwrctrl_change_state(device, KGSL_STATE_INIT);
 	}
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return result;
 
 }
@@ -1110,7 +1110,7 @@ static int kgsl_open_device(struct kgsl_device *device)
 {
 	int result = 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (device->open_count == 0) {
 		/*
 		 * active_cnt special case: we are starting up for the first
@@ -1145,7 +1145,7 @@ err:
 		atomic_dec(&device->active_cnt);
 	}
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return result;
 }
 
@@ -1734,7 +1734,7 @@ long kgsl_ioctl_cmdstream_readtimestamp_ctxtid(struct kgsl_device_private
 	struct kgsl_context *context;
 	long result = -EINVAL;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	context = kgsl_context_get_owner(dev_priv, param->context_id);
 
 	if (context) {
@@ -1746,7 +1746,7 @@ long kgsl_ioctl_cmdstream_readtimestamp_ctxtid(struct kgsl_device_private
 	}
 
 	kgsl_context_put(context);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return result;
 }
 
@@ -4548,9 +4548,9 @@ static const struct file_operations kgsl_fops = {
 };
 
 struct kgsl_driver kgsl_driver  = {
-	.process_mutex = __MUTEX_INITIALIZER(kgsl_driver.process_mutex),
+	.process_mutex = __RT_MUTEX_INITIALIZER(kgsl_driver.process_mutex),
 	.ptlock = __SPIN_LOCK_UNLOCKED(kgsl_driver.ptlock),
-	.devlock = __MUTEX_INITIALIZER(kgsl_driver.devlock),
+	.devlock = __RT_MUTEX_INITIALIZER(kgsl_driver.devlock),
 	/*
 	 * Full cache flushes are faster than line by line on at least
 	 * 8064 and 8974 once the region to be flushed is > 16mb.
@@ -4574,7 +4574,7 @@ static void _unregister_device(struct kgsl_device *device)
 {
 	int minor;
 
-	mutex_lock(&kgsl_driver.devlock);
+	rt_mutex_lock(&kgsl_driver.devlock);
 	for (minor = 0; minor < KGSL_DEVICE_MAX; minor++) {
 		if (device == kgsl_driver.devp[minor])
 			break;
@@ -4584,7 +4584,7 @@ static void _unregister_device(struct kgsl_device *device)
 				MKDEV(MAJOR(kgsl_driver.major), minor));
 		kgsl_driver.devp[minor] = NULL;
 	}
-	mutex_unlock(&kgsl_driver.devlock);
+	rt_mutex_unlock(&kgsl_driver.devlock);
 }
 
 static int _register_device(struct kgsl_device *device)
@@ -4594,14 +4594,14 @@ static int _register_device(struct kgsl_device *device)
 
 	/* Find a minor for the device */
 
-	mutex_lock(&kgsl_driver.devlock);
+	rt_mutex_lock(&kgsl_driver.devlock);
 	for (minor = 0; minor < KGSL_DEVICE_MAX; minor++) {
 		if (kgsl_driver.devp[minor] == NULL) {
 			kgsl_driver.devp[minor] = device;
 			break;
 		}
 	}
-	mutex_unlock(&kgsl_driver.devlock);
+	rt_mutex_unlock(&kgsl_driver.devlock);
 
 	if (minor == KGSL_DEVICE_MAX) {
 		KGSL_CORE_ERR("minor devices exhausted\n");
@@ -4616,9 +4616,9 @@ static int _register_device(struct kgsl_device *device)
 				    device->name);
 
 	if (IS_ERR(device->dev)) {
-		mutex_lock(&kgsl_driver.devlock);
+		rt_mutex_lock(&kgsl_driver.devlock);
 		kgsl_driver.devp[minor] = NULL;
-		mutex_unlock(&kgsl_driver.devlock);
+		rt_mutex_unlock(&kgsl_driver.devlock);
 		ret = PTR_ERR(device->dev);
 		KGSL_CORE_ERR("device_create(%s): %d\n", device->name, ret);
 		return ret;

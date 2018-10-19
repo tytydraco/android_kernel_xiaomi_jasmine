@@ -282,7 +282,7 @@ struct kfd_dbgmgr {
 };
 
 /* prototypes for debug manager functions */
-struct mutex *kfd_get_dbgmgr_mutex(void);
+struct rt_mutex *kfd_get_dbgmgr_mutex(void);
 void kfd_dbgmgr_destroy(struct kfd_dbgmgr *pmgr);
 bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev);
 long kfd_dbgmgr_register(struct kfd_dbgmgr *pmgr, struct kfd_process *p);

@@ -171,7 +171,7 @@ struct sde_encoder_virt {
 	void *crtc_vblank_cb_data;
 
 	struct dentry *debugfs_root;
-	struct mutex enc_lock;
+	struct rt_mutex enc_lock;
 	DECLARE_BITMAP(frame_busy_mask, MAX_PHYS_ENCODERS_PER_VIRTUAL);
 	void (*crtc_frame_event_cb)(void *, u32 event);
 	void *crtc_frame_event_cb_data;
@@ -225,7 +225,7 @@ void sde_encoder_destroy(struct drm_encoder *drm_enc)
 	sde_enc = to_sde_encoder_virt(drm_enc);
 	SDE_DEBUG_ENC(sde_enc, "\n");
 
-	mutex_lock(&sde_enc->enc_lock);
+	rt_mutex_lock(&sde_enc->enc_lock);
 	for (i = 0; i < sde_enc->num_phys_encs; i++) {
 		struct sde_encoder_phys *phys = sde_enc->phys_encs[i];
 
@@ -240,11 +240,11 @@ void sde_encoder_destroy(struct drm_encoder *drm_enc)
 		SDE_ERROR_ENC(sde_enc, "expected 0 num_phys_encs not %d\n",
 				sde_enc->num_phys_encs);
 	sde_enc->num_phys_encs = 0;
-	mutex_unlock(&sde_enc->enc_lock);
+	rt_mutex_unlock(&sde_enc->enc_lock);
 
 	drm_encoder_cleanup(drm_enc);
 	debugfs_remove_recursive(sde_enc->debugfs_root);
-	mutex_destroy(&sde_enc->enc_lock);
+	rt_mutex_destroy(&sde_enc->enc_lock);
 
 	kfree(sde_enc);
 }
@@ -982,7 +982,7 @@ static int _sde_encoder_status_show(struct seq_file *s, void *data)
 
 	sde_enc = s->private;
 
-	mutex_lock(&sde_enc->enc_lock);
+	rt_mutex_lock(&sde_enc->enc_lock);
 	for (i = 0; i < sde_enc->num_phys_encs; i++) {
 		struct sde_encoder_phys *phys = sde_enc->phys_encs[i];
 
@@ -1012,7 +1012,7 @@ static int _sde_encoder_status_show(struct seq_file *s, void *data)
 			break;
 		}
 	}
-	mutex_unlock(&sde_enc->enc_lock);
+	rt_mutex_unlock(&sde_enc->enc_lock);
 
 	return 0;
 }
@@ -1070,7 +1070,7 @@ static ssize_t _sde_encoder_misr_set(struct file *file,
 	if (sscanf(buf, "%u %u", &enable, &frame_count) != 2)
 		return -EFAULT;
 
-	mutex_lock(&sde_enc->enc_lock);
+	rt_mutex_lock(&sde_enc->enc_lock);
 	for (i = 0; i < sde_enc->num_phys_encs; i++) {
 		struct sde_encoder_phys *phys = sde_enc->phys_encs[i];
 
@@ -1080,7 +1080,7 @@ static ssize_t _sde_encoder_misr_set(struct file *file,
 		_sde_set_misr_params(phys, enable, frame_count);
 		phys->ops.setup_misr(phys, phys->misr_map);
 	}
-	mutex_unlock(&sde_enc->enc_lock);
+	rt_mutex_unlock(&sde_enc->enc_lock);
 	return count;
 }
 
@@ -1099,7 +1099,7 @@ static ssize_t _sde_encoder_misr_read(
 	drm_enc = file->private_data;
 	sde_enc = to_sde_encoder_virt(drm_enc);
 
-	mutex_lock(&sde_enc->enc_lock);
+	rt_mutex_lock(&sde_enc->enc_lock);
 	for (i = 0; i < sde_enc->num_phys_encs; i++) {
 		struct sde_encoder_phys *phys = sde_enc->phys_encs[i];
 		struct sde_misr_params *misr_map;
@@ -1122,7 +1122,7 @@ static ssize_t _sde_encoder_misr_read(
 		return -EFAULT;
 
 	*ppos += len;   /* increase offset */
-	mutex_unlock(&sde_enc->enc_lock);
+	rt_mutex_unlock(&sde_enc->enc_lock);
 
 	return len;
 }
@@ -1296,7 +1296,7 @@ static int sde_encoder_setup_display(struct sde_encoder_virt *sde_enc,
 
 	SDE_DEBUG("dsi_info->num_of_h_tiles %d\n", disp_info->num_of_h_tiles);
 
-	mutex_lock(&sde_enc->enc_lock);
+	rt_mutex_lock(&sde_enc->enc_lock);
 	for (i = 0; i < disp_info->num_of_h_tiles && !ret; i++) {
 		/*
 		 * Left-most tile is at index 0, content is controller id
@@ -1355,7 +1355,7 @@ static int sde_encoder_setup_display(struct sde_encoder_virt *sde_enc,
 						"failed to add phys encs\n");
 		}
 	}
-	mutex_unlock(&sde_enc->enc_lock);
+	rt_mutex_unlock(&sde_enc->enc_lock);
 
 
 	return ret;
@@ -1406,7 +1406,7 @@ struct drm_encoder *sde_encoder_init(
 		goto fail;
 	}
 
-	mutex_init(&sde_enc->enc_lock);
+	rt_mutex_init(&sde_enc->enc_lock);
 	ret = sde_encoder_setup_display(sde_enc, sde_kms, disp_info,
 			&drm_enc_mode);
 	if (ret)

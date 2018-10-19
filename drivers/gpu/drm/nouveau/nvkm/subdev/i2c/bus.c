@@ -118,7 +118,7 @@ nvkm_i2c_bus_release(struct nvkm_i2c_bus *bus)
 	struct nvkm_i2c_pad *pad = bus->pad;
 	BUS_TRACE(bus, "release");
 	nvkm_i2c_pad_release(pad);
-	mutex_unlock(&bus->mutex);
+	rt_mutex_unlock(&bus->mutex);
 }
 
 int
@@ -127,10 +127,10 @@ nvkm_i2c_bus_acquire(struct nvkm_i2c_bus *bus)
 	struct nvkm_i2c_pad *pad = bus->pad;
 	int ret;
 	BUS_TRACE(bus, "acquire");
-	mutex_lock(&bus->mutex);
+	rt_mutex_lock(&bus->mutex);
 	ret = nvkm_i2c_pad_acquire(pad, NVKM_I2C_PAD_I2C);
 	if (ret)
-		mutex_unlock(&bus->mutex);
+		rt_mutex_unlock(&bus->mutex);
 	return ret;
 }
 
@@ -202,7 +202,7 @@ nvkm_i2c_bus_ctor(const struct nvkm_i2c_bus_func *func,
 	bus->func = func;
 	bus->pad = pad;
 	bus->id = id;
-	mutex_init(&bus->mutex);
+	rt_mutex_init(&bus->mutex);
 	list_add_tail(&bus->head, &pad->i2c->bus);
 	BUS_TRACE(bus, "ctor");
 

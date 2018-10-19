@@ -428,10 +428,10 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	BUG_ON(!dqm);
 
 	pm->dqm = dqm;
-	mutex_init(&pm->lock);
+	rt_mutex_init(&pm->lock);
 	pm->priv_queue = kernel_queue_init(dqm->dev, KFD_QUEUE_TYPE_HIQ);
 	if (pm->priv_queue == NULL) {
-		mutex_destroy(&pm->lock);
+		rt_mutex_destroy(&pm->lock);
 		return -ENOMEM;
 	}
 	pm->allocated = false;
@@ -443,7 +443,7 @@ void pm_uninit(struct packet_manager *pm)
 {
 	BUG_ON(!pm);
 
-	mutex_destroy(&pm->lock);
+	rt_mutex_destroy(&pm->lock);
 	kernel_queue_uninit(pm->priv_queue);
 }
 
@@ -456,12 +456,12 @@ int pm_send_set_resources(struct packet_manager *pm,
 
 	pr_debug("kfd: In func %s\n", __func__);
 
-	mutex_lock(&pm->lock);
+	rt_mutex_lock(&pm->lock);
 	pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
 					sizeof(*packet) / sizeof(uint32_t),
 			(unsigned int **)&packet);
 	if (packet == NULL) {
-		mutex_unlock(&pm->lock);
+		rt_mutex_unlock(&pm->lock);
 		pr_err("kfd: failed to allocate buffer on kernel queue\n");
 		return -ENOMEM;
 	}
@@ -486,7 +486,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
 
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 
 	return 0;
 }
@@ -508,7 +508,7 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 	pr_debug("kfd: runlist IB address: 0x%llX\n", rl_gpu_ib_addr);
 
 	packet_size_dwords = sizeof(struct pm4_runlist) / sizeof(uint32_t);
-	mutex_lock(&pm->lock);
+	rt_mutex_lock(&pm->lock);
 
 	retval = pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
 					packet_size_dwords, &rl_buffer);
@@ -522,14 +522,14 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
 
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 
 	return retval;
 
 fail_create_runlist:
 	pm->priv_queue->ops.rollback_packet(pm->priv_queue);
 fail_acquire_packet_buffer:
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 fail_create_runlist_ib:
 	if (pm->allocated == true)
 		pm_release_ib(pm);
@@ -544,7 +544,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 
 	BUG_ON(!pm || !fence_address);
 
-	mutex_lock(&pm->lock);
+	rt_mutex_lock(&pm->lock);
 	retval = pm->priv_queue->ops.acquire_packet_buffer(
 			pm->priv_queue,
 			sizeof(struct pm4_query_status) / sizeof(uint32_t),
@@ -567,12 +567,12 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 	packet->data_lo = lower_32_bits((uint64_t)fence_value);
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 
 	return 0;
 
 fail_acquire_packet_buffer:
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 	return retval;
 }
 
@@ -587,7 +587,7 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 
 	BUG_ON(!pm);
 
-	mutex_lock(&pm->lock);
+	rt_mutex_lock(&pm->lock);
 	retval = pm->priv_queue->ops.acquire_packet_buffer(
 			pm->priv_queue,
 			sizeof(struct pm4_unmap_queues) / sizeof(uint32_t),
@@ -651,11 +651,11 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
 
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 	return 0;
 
 err_acquire_packet_buffer:
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 	return retval;
 }
 
@@ -663,10 +663,10 @@ void pm_release_ib(struct packet_manager *pm)
 {
 	BUG_ON(!pm);
 
-	mutex_lock(&pm->lock);
+	rt_mutex_lock(&pm->lock);
 	if (pm->allocated) {
 		kfd_gtt_sa_free(pm->dqm->dev, pm->ib_buffer_obj);
 		pm->allocated = false;
 	}
-	mutex_unlock(&pm->lock);
+	rt_mutex_unlock(&pm->lock);
 }

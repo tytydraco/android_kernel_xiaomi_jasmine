@@ -47,15 +47,15 @@ static int show_channels(struct host1x_channel *ch, void *data, bool show_fifo)
 	struct host1x *m = dev_get_drvdata(ch->dev->parent);
 	struct output *o = data;
 
-	mutex_lock(&ch->reflock);
+	rt_mutex_lock(&ch->reflock);
 	if (ch->refcount) {
-		mutex_lock(&ch->cdma.lock);
+		rt_mutex_lock(&ch->cdma.lock);
 		if (show_fifo)
 			host1x_hw_show_channel_fifo(m, ch, o);
 		host1x_hw_show_channel_cdma(m, ch, o);
-		mutex_unlock(&ch->cdma.lock);
+		rt_mutex_unlock(&ch->cdma.lock);
 	}
-	mutex_unlock(&ch->reflock);
+	rt_mutex_unlock(&ch->reflock);
 
 	return 0;
 }

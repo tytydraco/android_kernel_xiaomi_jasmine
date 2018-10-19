@@ -109,7 +109,7 @@ static void a5xx_counter_enable_pm4(struct msm_gpu *gpu,
 	struct msm_ringbuffer *ring = gpu->rb[0];
 	struct adreno_counter *counter = &group->counters[counterid];
 
-	mutex_lock(&gpu->dev->struct_mutex);
+	rt_mutex_lock(&gpu->dev->struct_mutex);
 
 	/* Turn off preemption for the duration of this command */
 	OUT_PKT7(ring, CP_PREEMPT_ENABLE_GLOBAL, 1);
@@ -160,7 +160,7 @@ static void a5xx_counter_enable_pm4(struct msm_gpu *gpu,
 	/* wait for the operation to complete */
 	a5xx_idle(gpu, ring);
 
-	mutex_unlock(&gpu->dev->struct_mutex);
+	rt_mutex_unlock(&gpu->dev->struct_mutex);
 }
 
 /*

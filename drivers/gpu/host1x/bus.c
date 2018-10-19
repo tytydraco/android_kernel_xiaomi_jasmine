@@ -22,13 +22,13 @@
 #include "bus.h"
 #include "dev.h"
 
-static DEFINE_MUTEX(clients_lock);
+static DEFINE_RT_MUTEX(clients_lock);
 static LIST_HEAD(clients);
 
-static DEFINE_MUTEX(drivers_lock);
+static DEFINE_RT_MUTEX(drivers_lock);
 static LIST_HEAD(drivers);
 
-static DEFINE_MUTEX(devices_lock);
+static DEFINE_RT_MUTEX(devices_lock);
 static LIST_HEAD(devices);
 
 struct host1x_subdev {
@@ -52,9 +52,9 @@ static int host1x_subdev_add(struct host1x_device *device,
 	INIT_LIST_HEAD(&subdev->list);
 	subdev->np = of_node_get(np);
 
-	mutex_lock(&device->subdevs_lock);
+	rt_mutex_lock(&device->subdevs_lock);
 	list_add_tail(&subdev->list, &device->subdevs);
-	mutex_unlock(&device->subdevs_lock);
+	rt_mutex_unlock(&device->subdevs_lock);
 
 	return 0;
 }
@@ -101,14 +101,14 @@ static void host1x_subdev_register(struct host1x_device *device,
 	 * and associate it with a client. At the same time, associate the
 	 * client with its parent device.
 	 */
-	mutex_lock(&device->subdevs_lock);
-	mutex_lock(&device->clients_lock);
+	rt_mutex_lock(&device->subdevs_lock);
+	rt_mutex_lock(&device->clients_lock);
 	list_move_tail(&client->list, &device->clients);
 	list_move_tail(&subdev->list, &device->active);
 	client->parent = &device->dev;
 	subdev->client = client;
-	mutex_unlock(&device->clients_lock);
-	mutex_unlock(&device->subdevs_lock);
+	rt_mutex_unlock(&device->clients_lock);
+	rt_mutex_unlock(&device->subdevs_lock);
 
 	if (list_empty(&device->subdevs)) {
 		err = device_add(&device->dev);
@@ -139,7 +139,7 @@ static void __host1x_subdev_unregister(struct host1x_device *device,
 	 * Move the subdevice back to the list of idle subdevices and remove
 	 * it from list of clients.
 	 */
-	mutex_lock(&device->clients_lock);
+	rt_mutex_lock(&device->clients_lock);
 	subdev->client = NULL;
 	client->parent = NULL;
 	list_move_tail(&subdev->list, &device->subdevs);
@@ -152,15 +152,15 @@ static void __host1x_subdev_unregister(struct host1x_device *device,
 	 * also when the composite device is about to be removed.
 	 */
 	list_del_init(&client->list);
-	mutex_unlock(&device->clients_lock);
+	rt_mutex_unlock(&device->clients_lock);
 }
 
 static void host1x_subdev_unregister(struct host1x_device *device,
 				     struct host1x_subdev *subdev)
 {
-	mutex_lock(&device->subdevs_lock);
+	rt_mutex_lock(&device->subdevs_lock);
 	__host1x_subdev_unregister(device, subdev);
-	mutex_unlock(&device->subdevs_lock);
+	rt_mutex_unlock(&device->subdevs_lock);
 }
 
 int host1x_device_init(struct host1x_device *device)
@@ -168,7 +168,7 @@ int host1x_device_init(struct host1x_device *device)
 	struct host1x_client *client;
 	int err;
 
-	mutex_lock(&device->clients_lock);
+	rt_mutex_lock(&device->clients_lock);
 
 	list_for_each_entry(client, &device->clients, list) {
 		if (client->ops && client->ops->init) {
@@ -177,13 +177,13 @@ int host1x_device_init(struct host1x_device *device)
 				dev_err(&device->dev,
 					"failed to initialize %s: %d\n",
 					dev_name(client->dev), err);
-				mutex_unlock(&device->clients_lock);
+				rt_mutex_unlock(&device->clients_lock);
 				return err;
 			}
 		}
 	}
 
-	mutex_unlock(&device->clients_lock);
+	rt_mutex_unlock(&device->clients_lock);
 
 	return 0;
 }
@@ -194,7 +194,7 @@ int host1x_device_exit(struct host1x_device *device)
 	struct host1x_client *client;
 	int err;
 
-	mutex_lock(&device->clients_lock);
+	rt_mutex_lock(&device->clients_lock);
 
 	list_for_each_entry_reverse(client, &device->clients, list) {
 		if (client->ops && client->ops->exit) {
@@ -203,13 +203,13 @@ int host1x_device_exit(struct host1x_device *device)
 				dev_err(&device->dev,
 					"failed to cleanup %s: %d\n",
 					dev_name(client->dev), err);
-				mutex_unlock(&device->clients_lock);
+				rt_mutex_unlock(&device->clients_lock);
 				return err;
 			}
 		}
 	}
 
-	mutex_unlock(&device->clients_lock);
+	rt_mutex_unlock(&device->clients_lock);
 
 	return 0;
 }
@@ -221,19 +221,19 @@ static int host1x_add_client(struct host1x *host1x,
 	struct host1x_device *device;
 	struct host1x_subdev *subdev;
 
-	mutex_lock(&host1x->devices_lock);
+	rt_mutex_lock(&host1x->devices_lock);
 
 	list_for_each_entry(device, &host1x->devices, list) {
 		list_for_each_entry(subdev, &device->subdevs, list) {
 			if (subdev->np == client->dev->of_node) {
 				host1x_subdev_register(device, subdev, client);
-				mutex_unlock(&host1x->devices_lock);
+				rt_mutex_unlock(&host1x->devices_lock);
 				return 0;
 			}
 		}
 	}
 
-	mutex_unlock(&host1x->devices_lock);
+	rt_mutex_unlock(&host1x->devices_lock);
 	return -ENODEV;
 }
 
@@ -243,19 +243,19 @@ static int host1x_del_client(struct host1x *host1x,
 	struct host1x_device *device, *dt;
 	struct host1x_subdev *subdev;
 
-	mutex_lock(&host1x->devices_lock);
+	rt_mutex_lock(&host1x->devices_lock);
 
 	list_for_each_entry_safe(device, dt, &host1x->devices, list) {
 		list_for_each_entry(subdev, &device->active, list) {
 			if (subdev->client == client) {
 				host1x_subdev_unregister(device, subdev);
-				mutex_unlock(&host1x->devices_lock);
+				rt_mutex_unlock(&host1x->devices_lock);
 				return 0;
 			}
 		}
 	}
 
-	mutex_unlock(&host1x->devices_lock);
+	rt_mutex_unlock(&host1x->devices_lock);
 	return -ENODEV;
 }
 
@@ -318,7 +318,7 @@ static void __host1x_device_del(struct host1x_device *device)
 	struct host1x_subdev *subdev, *sd;
 	struct host1x_client *client, *cl;
 
-	mutex_lock(&device->subdevs_lock);
+	rt_mutex_lock(&device->subdevs_lock);
 
 	/* unregister subdevices */
 	list_for_each_entry_safe(subdev, sd, &device->active, list) {
@@ -336,26 +336,26 @@ static void __host1x_device_del(struct host1x_device *device)
 		__host1x_subdev_unregister(device, subdev);
 
 		/* add the client to the list of idle clients */
-		mutex_lock(&clients_lock);
+		rt_mutex_lock(&clients_lock);
 		list_add_tail(&client->list, &clients);
-		mutex_unlock(&clients_lock);
+		rt_mutex_unlock(&clients_lock);
 	}
 
 	/* remove subdevices */
 	list_for_each_entry_safe(subdev, sd, &device->subdevs, list)
 		host1x_subdev_del(subdev);
 
-	mutex_unlock(&device->subdevs_lock);
+	rt_mutex_unlock(&device->subdevs_lock);
 
 	/* move clients to idle list */
-	mutex_lock(&clients_lock);
-	mutex_lock(&device->clients_lock);
+	rt_mutex_lock(&clients_lock);
+	rt_mutex_lock(&device->clients_lock);
 
 	list_for_each_entry_safe(client, cl, &device->clients, list)
 		list_move_tail(&client->list, &clients);
 
-	mutex_unlock(&device->clients_lock);
-	mutex_unlock(&clients_lock);
+	rt_mutex_unlock(&device->clients_lock);
+	rt_mutex_unlock(&clients_lock);
 
 	/* finally remove the device */
 	list_del_init(&device->list);
@@ -383,10 +383,10 @@ static int host1x_device_add(struct host1x *host1x,
 
 	device_initialize(&device->dev);
 
-	mutex_init(&device->subdevs_lock);
+	rt_mutex_init(&device->subdevs_lock);
 	INIT_LIST_HEAD(&device->subdevs);
 	INIT_LIST_HEAD(&device->active);
-	mutex_init(&device->clients_lock);
+	rt_mutex_init(&device->clients_lock);
 	INIT_LIST_HEAD(&device->clients);
 	INIT_LIST_HEAD(&device->list);
 	device->driver = driver;
@@ -406,7 +406,7 @@ static int host1x_device_add(struct host1x *host1x,
 
 	list_add_tail(&device->list, &host1x->devices);
 
-	mutex_lock(&clients_lock);
+	rt_mutex_lock(&clients_lock);
 
 	list_for_each_entry_safe(client, tmp, &clients, list) {
 		list_for_each_entry(subdev, &device->subdevs, list) {
@@ -417,7 +417,7 @@ static int host1x_device_add(struct host1x *host1x,
 		}
 	}
 
-	mutex_unlock(&clients_lock);
+	rt_mutex_unlock(&clients_lock);
 
 	return 0;
 }
@@ -445,11 +445,11 @@ static void host1x_attach_driver(struct host1x *host1x,
 	struct host1x_device *device;
 	int err;
 
-	mutex_lock(&host1x->devices_lock);
+	rt_mutex_lock(&host1x->devices_lock);
 
 	list_for_each_entry(device, &host1x->devices, list) {
 		if (device->driver == driver) {
-			mutex_unlock(&host1x->devices_lock);
+			rt_mutex_unlock(&host1x->devices_lock);
 			return;
 		}
 	}
@@ -458,7 +458,7 @@ static void host1x_attach_driver(struct host1x *host1x,
 	if (err < 0)
 		dev_err(host1x->dev, "failed to allocate device: %d\n", err);
 
-	mutex_unlock(&host1x->devices_lock);
+	rt_mutex_unlock(&host1x->devices_lock);
 }
 
 static void host1x_detach_driver(struct host1x *host1x,
@@ -466,29 +466,29 @@ static void host1x_detach_driver(struct host1x *host1x,
 {
 	struct host1x_device *device, *tmp;
 
-	mutex_lock(&host1x->devices_lock);
+	rt_mutex_lock(&host1x->devices_lock);
 
 	list_for_each_entry_safe(device, tmp, &host1x->devices, list)
 		if (device->driver == driver)
 			host1x_device_del(host1x, device);
 
-	mutex_unlock(&host1x->devices_lock);
+	rt_mutex_unlock(&host1x->devices_lock);
 }
 
 int host1x_register(struct host1x *host1x)
 {
 	struct host1x_driver *driver;
 
-	mutex_lock(&devices_lock);
+	rt_mutex_lock(&devices_lock);
 	list_add_tail(&host1x->list, &devices);
-	mutex_unlock(&devices_lock);
+	rt_mutex_unlock(&devices_lock);
 
-	mutex_lock(&drivers_lock);
+	rt_mutex_lock(&drivers_lock);
 
 	list_for_each_entry(driver, &drivers, list)
 		host1x_attach_driver(host1x, driver);
 
-	mutex_unlock(&drivers_lock);
+	rt_mutex_unlock(&drivers_lock);
 
 	return 0;
 }
@@ -497,16 +497,16 @@ int host1x_unregister(struct host1x *host1x)
 {
 	struct host1x_driver *driver;
 
-	mutex_lock(&drivers_lock);
+	rt_mutex_lock(&drivers_lock);
 
 	list_for_each_entry(driver, &drivers, list)
 		host1x_detach_driver(host1x, driver);
 
-	mutex_unlock(&drivers_lock);
+	rt_mutex_unlock(&drivers_lock);
 
-	mutex_lock(&devices_lock);
+	rt_mutex_lock(&devices_lock);
 	list_del_init(&host1x->list);
-	mutex_unlock(&devices_lock);
+	rt_mutex_unlock(&devices_lock);
 
 	return 0;
 }
@@ -518,16 +518,16 @@ int host1x_driver_register_full(struct host1x_driver *driver,
 
 	INIT_LIST_HEAD(&driver->list);
 
-	mutex_lock(&drivers_lock);
+	rt_mutex_lock(&drivers_lock);
 	list_add_tail(&driver->list, &drivers);
-	mutex_unlock(&drivers_lock);
+	rt_mutex_unlock(&drivers_lock);
 
-	mutex_lock(&devices_lock);
+	rt_mutex_lock(&devices_lock);
 
 	list_for_each_entry(host1x, &devices, list)
 		host1x_attach_driver(host1x, driver);
 
-	mutex_unlock(&devices_lock);
+	rt_mutex_unlock(&devices_lock);
 
 	driver->driver.bus = &host1x_bus_type;
 	driver->driver.owner = owner;
@@ -538,9 +538,9 @@ EXPORT_SYMBOL(host1x_driver_register_full);
 
 void host1x_driver_unregister(struct host1x_driver *driver)
 {
-	mutex_lock(&drivers_lock);
+	rt_mutex_lock(&drivers_lock);
 	list_del_init(&driver->list);
-	mutex_unlock(&drivers_lock);
+	rt_mutex_unlock(&drivers_lock);
 }
 EXPORT_SYMBOL(host1x_driver_unregister);
 
@@ -549,21 +549,21 @@ int host1x_client_register(struct host1x_client *client)
 	struct host1x *host1x;
 	int err;
 
-	mutex_lock(&devices_lock);
+	rt_mutex_lock(&devices_lock);
 
 	list_for_each_entry(host1x, &devices, list) {
 		err = host1x_add_client(host1x, client);
 		if (!err) {
-			mutex_unlock(&devices_lock);
+			rt_mutex_unlock(&devices_lock);
 			return 0;
 		}
 	}
 
-	mutex_unlock(&devices_lock);
+	rt_mutex_unlock(&devices_lock);
 
-	mutex_lock(&clients_lock);
+	rt_mutex_lock(&clients_lock);
 	list_add_tail(&client->list, &clients);
-	mutex_unlock(&clients_lock);
+	rt_mutex_unlock(&clients_lock);
 
 	return 0;
 }
@@ -575,18 +575,18 @@ int host1x_client_unregister(struct host1x_client *client)
 	struct host1x *host1x;
 	int err;
 
-	mutex_lock(&devices_lock);
+	rt_mutex_lock(&devices_lock);
 
 	list_for_each_entry(host1x, &devices, list) {
 		err = host1x_del_client(host1x, client);
 		if (!err) {
-			mutex_unlock(&devices_lock);
+			rt_mutex_unlock(&devices_lock);
 			return 0;
 		}
 	}
 
-	mutex_unlock(&devices_lock);
-	mutex_lock(&clients_lock);
+	rt_mutex_unlock(&devices_lock);
+	rt_mutex_lock(&clients_lock);
 
 	list_for_each_entry(c, &clients, list) {
 		if (c == client) {
@@ -595,7 +595,7 @@ int host1x_client_unregister(struct host1x_client *client)
 		}
 	}
 
-	mutex_unlock(&clients_lock);
+	rt_mutex_unlock(&clients_lock);
 
 	return 0;
 }

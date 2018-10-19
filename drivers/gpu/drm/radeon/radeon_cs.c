@@ -547,7 +547,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
 
-	mutex_lock(&vm->mutex);
+	rt_mutex_lock(&vm->mutex);
 	r = radeon_bo_vm_update_pte(parser, vm);
 	if (r) {
 		goto out;
@@ -568,7 +568,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 
 out:
-	mutex_unlock(&vm->mutex);
+	rt_mutex_unlock(&vm->mutex);
 	return r;
 }
 

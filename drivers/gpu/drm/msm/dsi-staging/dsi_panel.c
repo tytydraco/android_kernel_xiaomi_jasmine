@@ -1603,7 +1603,7 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 
 	panel->panel_of_node = of_node;
 	drm_panel_init(&panel->drm_panel);
-	mutex_init(&panel->panel_lock);
+	rt_mutex_init(&panel->panel_lock);
 	panel->parent = parent;
 	return panel;
 error:
@@ -1636,7 +1636,7 @@ int dsi_panel_drv_init(struct dsi_panel *panel,
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	dev = &panel->mipi_device;
 
@@ -1684,7 +1684,7 @@ error_pinctrl_deinit:
 	(void)dsi_panel_pinctrl_deinit(panel);
 	(void)dsi_panel_vreg_put(panel);
 exit:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1697,7 +1697,7 @@ int dsi_panel_drv_deinit(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_bl_unregister(panel);
 	if (rc)
@@ -1721,7 +1721,7 @@ int dsi_panel_drv_deinit(struct dsi_panel *panel)
 	panel->host = NULL;
 	memset(&panel->mipi_device, 0x0, sizeof(panel->mipi_device));
 
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1740,11 +1740,11 @@ int dsi_panel_get_mode_count(struct dsi_panel *panel, u32 *count)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 	/* TODO:  DT format has not been decided for multiple modes. */
 	*count = 1;
 
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1758,11 +1758,11 @@ int dsi_panel_get_phy_props(struct dsi_panel *panel,
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	memcpy(phy_props, &panel->phy_props, sizeof(*phy_props));
 
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1776,11 +1776,11 @@ int dsi_panel_get_dfps_caps(struct dsi_panel *panel,
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	memcpy(dfps_caps, &panel->dfps_caps, sizeof(*dfps_caps));
 
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1795,13 +1795,13 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 	if (index != 0)
 		rc = -ENOTSUPP; /* TODO: Support more than one mode */
 	else
 		memcpy(mode, &panel->mode, sizeof(*mode));
 
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1816,7 +1816,7 @@ int dsi_panel_get_host_cfg_for_mode(struct dsi_panel *panel,
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	config->panel_mode = panel->mode.panel_mode;
 	memcpy(&config->common_config, &panel->host_config,
@@ -1834,7 +1834,7 @@ int dsi_panel_get_host_cfg_for_mode(struct dsi_panel *panel,
 	       sizeof(config->video_timing));
 
 	config->esc_clk_rate_hz = 19200000;
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1847,7 +1847,7 @@ int dsi_panel_pre_prepare(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	/* If LP11_INIT is set, panel will be powered up during prepare() */
 	if (panel->lp11_init)
@@ -1860,7 +1860,7 @@ int dsi_panel_pre_prepare(struct dsi_panel *panel)
 	}
 
 error:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1873,7 +1873,7 @@ int dsi_panel_prepare(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	if (panel->lp11_init) {
 		rc = dsi_panel_power_on(panel);
@@ -1892,7 +1892,7 @@ int dsi_panel_prepare(struct dsi_panel *panel)
 	}
 
 error:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1905,14 +1905,14 @@ int dsi_panel_enable(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_ON);
 	if (rc) {
 		pr_err("[%s] failed to send DSI_CMD_SET_ON cmds, rc=%d\n",
 		       panel->name, rc);
 	}
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1925,7 +1925,7 @@ int dsi_panel_post_enable(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_POST_ON);
 	if (rc) {
@@ -1934,7 +1934,7 @@ int dsi_panel_post_enable(struct dsi_panel *panel)
 		goto error;
 	}
 error:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1947,7 +1947,7 @@ int dsi_panel_pre_disable(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_PRE_OFF);
 	if (rc) {
@@ -1957,7 +1957,7 @@ int dsi_panel_pre_disable(struct dsi_panel *panel)
 	}
 
 error:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1970,7 +1970,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_OFF);
 	if (rc) {
@@ -1979,7 +1979,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 		goto error;
 	}
 error:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -1992,7 +1992,7 @@ int dsi_panel_unprepare(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_POST_OFF);
 	if (rc) {
@@ -2010,7 +2010,7 @@ int dsi_panel_unprepare(struct dsi_panel *panel)
 		}
 	}
 error:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -2023,7 +2023,7 @@ int dsi_panel_post_unprepare(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
-	mutex_lock(&panel->panel_lock);
+	rt_mutex_lock(&panel->panel_lock);
 
 	if (!panel->lp11_init) {
 		rc = dsi_panel_power_off(panel);
@@ -2034,6 +2034,6 @@ int dsi_panel_post_unprepare(struct dsi_panel *panel)
 		}
 	}
 error:
-	mutex_unlock(&panel->panel_lock);
+	rt_mutex_unlock(&panel->panel_lock);
 	return rc;
 }

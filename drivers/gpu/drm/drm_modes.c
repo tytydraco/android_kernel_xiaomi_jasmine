@@ -116,7 +116,7 @@ EXPORT_SYMBOL(drm_mode_destroy);
 void drm_mode_probed_add(struct drm_connector *connector,
 			 struct drm_display_mode *mode)
 {
-	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&connector->dev->mode_config.mutex));
 
 	list_add_tail(&mode->head, &connector->probed_modes);
 }
@@ -1171,7 +1171,7 @@ void drm_mode_connector_list_update(struct drm_connector *connector,
 	struct drm_display_mode *pmode, *pt;
 	int found_it;
 
-	WARN_ON(!mutex_is_locked(&connector->dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&connector->dev->mode_config.mutex));
 
 	list_for_each_entry_safe(pmode, pt, &connector->probed_modes,
 				 head) {

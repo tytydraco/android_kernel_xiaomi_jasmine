@@ -49,7 +49,7 @@ struct radeon_mn {
 	struct hlist_node	node;
 
 	/* objects protected by lock */
-	struct mutex		lock;
+	struct rt_mutex		lock;
 	struct rb_root		objects;
 };
 
@@ -72,8 +72,8 @@ static void radeon_mn_destroy(struct work_struct *work)
 	struct radeon_mn_node *node, *next_node;
 	struct radeon_bo *bo, *next_bo;
 
-	mutex_lock(&rdev->mn_lock);
-	mutex_lock(&rmn->lock);
+	rt_mutex_lock(&rdev->mn_lock);
+	rt_mutex_lock(&rmn->lock);
 	hash_del(&rmn->node);
 	rbtree_postorder_for_each_entry_safe(node, next_node, &rmn->objects,
 					     it.rb) {
@@ -85,8 +85,8 @@ static void radeon_mn_destroy(struct work_struct *work)
 		}
 		kfree(node);
 	}
-	mutex_unlock(&rmn->lock);
-	mutex_unlock(&rdev->mn_lock);
+	rt_mutex_unlock(&rmn->lock);
+	rt_mutex_unlock(&rdev->mn_lock);
 	mmu_notifier_unregister(&rmn->mn, rmn->mm);
 	kfree(rmn);
 }
@@ -129,7 +129,7 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 	/* notification is exclusive, but interval is inclusive */
 	end -= 1;
 
-	mutex_lock(&rmn->lock);
+	rt_mutex_lock(&rmn->lock);
 
 	it = interval_tree_iter_first(&rmn->objects, start, end);
 	while (it) {
@@ -165,7 +165,7 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 		}
 	}
 	
-	mutex_unlock(&rmn->lock);
+	rt_mutex_unlock(&rmn->lock);
 }
 
 static const struct mmu_notifier_ops radeon_mn_ops = {
@@ -187,7 +187,7 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
 	int r;
 
 	down_write(&mm->mmap_sem);
-	mutex_lock(&rdev->mn_lock);
+	rt_mutex_lock(&rdev->mn_lock);
 
 	hash_for_each_possible(rdev->mn_hash, rmn, node, (unsigned long)mm)
 		if (rmn->mm == mm)
@@ -202,7 +202,7 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
 	rmn->rdev = rdev;
 	rmn->mm = mm;
 	rmn->mn.ops = &radeon_mn_ops;
-	mutex_init(&rmn->lock);
+	rt_mutex_init(&rmn->lock);
 	rmn->objects = RB_ROOT;
 	
 	r = __mmu_notifier_register(&rmn->mn, mm);
@@ -212,13 +212,13 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
 	hash_add(rdev->mn_hash, &rmn->node, (unsigned long)mm);
 
 release_locks:
-	mutex_unlock(&rdev->mn_lock);
+	rt_mutex_unlock(&rdev->mn_lock);
 	up_write(&mm->mmap_sem);
 
 	return rmn;
 
 free_rmn:
-	mutex_unlock(&rdev->mn_lock);
+	rt_mutex_unlock(&rdev->mn_lock);
 	up_write(&mm->mmap_sem);
 	kfree(rmn);
 
@@ -249,7 +249,7 @@ int radeon_mn_register(struct radeon_bo *bo, unsigned long addr)
 
 	INIT_LIST_HEAD(&bos);
 
-	mutex_lock(&rmn->lock);
+	rt_mutex_lock(&rmn->lock);
 
 	while ((it = interval_tree_iter_first(&rmn->objects, addr, end))) {
 		kfree(node);
@@ -263,7 +263,7 @@ int radeon_mn_register(struct radeon_bo *bo, unsigned long addr)
 	if (!node) {
 		node = kmalloc(sizeof(struct radeon_mn_node), GFP_KERNEL);
 		if (!node) {
-			mutex_unlock(&rmn->lock);
+			rt_mutex_unlock(&rmn->lock);
 			return -ENOMEM;
 		}
 	}
@@ -278,7 +278,7 @@ int radeon_mn_register(struct radeon_bo *bo, unsigned long addr)
 
 	interval_tree_insert(&node->it, &rmn->objects);
 
-	mutex_unlock(&rmn->lock);
+	rt_mutex_unlock(&rmn->lock);
 
 	return 0;
 }
@@ -296,14 +296,14 @@ void radeon_mn_unregister(struct radeon_bo *bo)
 	struct radeon_mn *rmn;
 	struct list_head *head;
 
-	mutex_lock(&rdev->mn_lock);
+	rt_mutex_lock(&rdev->mn_lock);
 	rmn = bo->mn;
 	if (rmn == NULL) {
-		mutex_unlock(&rdev->mn_lock);
+		rt_mutex_unlock(&rdev->mn_lock);
 		return;
 	}
 
-	mutex_lock(&rmn->lock);
+	rt_mutex_lock(&rmn->lock);
 	/* save the next list entry for later */
 	head = bo->mn_list.next;
 
@@ -317,6 +317,6 @@ void radeon_mn_unregister(struct radeon_bo *bo)
 		kfree(node);
 	}
 
-	mutex_unlock(&rmn->lock);
-	mutex_unlock(&rdev->mn_lock);
+	rt_mutex_unlock(&rmn->lock);
+	rt_mutex_unlock(&rdev->mn_lock);
 }

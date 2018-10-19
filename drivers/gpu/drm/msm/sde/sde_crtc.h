@@ -130,7 +130,7 @@ struct sde_crtc {
 	struct list_head active_list;
 	struct list_head dirty_list;
 
-	struct mutex crtc_lock;
+	struct rt_mutex crtc_lock;
 
 	atomic_t frame_pending;
 	struct sde_crtc_frame_event frame_events[SDE_CRTC_FRAME_EVENT_SIZE];

@@ -106,7 +106,7 @@ int i915_save_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	i915_save_display(dev);
 
@@ -141,7 +141,7 @@ int i915_save_state(struct drm_device *dev)
 			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -151,7 +151,7 @@ int i915_restore_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	i915_gem_restore_fences(dev);
 
@@ -188,7 +188,7 @@ int i915_restore_state(struct drm_device *dev)
 			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_i2c_reset(dev);
 

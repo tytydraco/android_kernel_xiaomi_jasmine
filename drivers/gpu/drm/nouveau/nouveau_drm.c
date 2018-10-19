@@ -118,7 +118,7 @@ nouveau_cli_create(struct drm_device *dev, const char *sname,
 				       nouveau_config, nouveau_debug,
 				       &cli->base);
 		if (ret == 0) {
-			mutex_init(&cli->mutex);
+			rt_mutex_init(&cli->mutex);
 			usif_client_init(cli);
 		}
 		return ret;
@@ -831,9 +831,9 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 
 	fpriv->driver_priv = cli;
 
-	mutex_lock(&drm->client.mutex);
+	rt_mutex_lock(&drm->client.mutex);
 	list_add(&cli->head, &drm->clients);
-	mutex_unlock(&drm->client.mutex);
+	rt_mutex_unlock(&drm->client.mutex);
 
 out_suspend:
 	pm_runtime_mark_last_busy(dev->dev);
@@ -850,14 +850,14 @@ nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
 
 	pm_runtime_get_sync(dev->dev);
 
-	mutex_lock(&cli->mutex);
+	rt_mutex_lock(&cli->mutex);
 	if (cli->abi16)
 		nouveau_abi16_fini(cli->abi16);
-	mutex_unlock(&cli->mutex);
+	rt_mutex_unlock(&cli->mutex);
 
-	mutex_lock(&drm->client.mutex);
+	rt_mutex_lock(&drm->client.mutex);
 	list_del(&cli->head);
-	mutex_unlock(&drm->client.mutex);
+	rt_mutex_unlock(&drm->client.mutex);
 
 }
 

@@ -928,7 +928,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 		}
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (dcrtc->cursor_obj) {
 		dcrtc->cursor_obj->update = NULL;
 		dcrtc->cursor_obj->update_data = NULL;
@@ -942,7 +942,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 		obj->update_data = dcrtc;
 		obj->update = cursor_update;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -957,11 +957,11 @@ static int armada_drm_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	if (!dcrtc->variant->has_spu_adv_reg)
 		return -EFAULT;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	dcrtc->cursor_x = x;
 	dcrtc->cursor_y = y;
 	ret = armada_drm_crtc_cursor_update(dcrtc, false);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }

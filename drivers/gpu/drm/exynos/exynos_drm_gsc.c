@@ -138,7 +138,7 @@ struct gsc_context {
 	struct exynos_drm_ippdrv	ippdrv;
 	struct resource	*regs_res;
 	void __iomem	*regs;
-	struct mutex	lock;
+	struct rt_mutex	lock;
 	struct clk	*gsc_clk;
 	struct gsc_scaler	sc;
 	int	id;
@@ -1127,7 +1127,7 @@ static int gsc_dst_set_buf_seq(struct gsc_context *ctx, u32 buf_id,
 
 	DRM_DEBUG_KMS("buf_id[%d]buf_type[%d]\n", buf_id, buf_type);
 
-	mutex_lock(&ctx->lock);
+	rt_mutex_lock(&ctx->lock);
 
 	/* mask register set */
 	cfg = gsc_read(GSC_OUT_BASE_ADDR_Y_MASK);
@@ -1163,7 +1163,7 @@ static int gsc_dst_set_buf_seq(struct gsc_context *ctx, u32 buf_id,
 		gsc_handle_irq(ctx, false, false, true);
 
 err_unlock:
-	mutex_unlock(&ctx->lock);
+	rt_mutex_unlock(&ctx->lock);
 	return ret;
 }
 
@@ -1721,7 +1721,7 @@ static int gsc_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("id[%d]ippdrv[0x%x]\n", ctx->id, (int)ippdrv);
 
-	mutex_init(&ctx->lock);
+	rt_mutex_init(&ctx->lock);
 	platform_set_drvdata(pdev, ctx);
 
 	pm_runtime_set_active(dev);
@@ -1749,7 +1749,7 @@ static int gsc_remove(struct platform_device *pdev)
 	struct exynos_drm_ippdrv *ippdrv = &ctx->ippdrv;
 
 	exynos_drm_ippdrv_unregister(ippdrv);
-	mutex_destroy(&ctx->lock);
+	rt_mutex_destroy(&ctx->lock);
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);

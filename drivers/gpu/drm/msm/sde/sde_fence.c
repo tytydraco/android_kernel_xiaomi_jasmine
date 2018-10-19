@@ -130,7 +130,7 @@ int sde_fence_init(struct sde_fence *fence,
 	fence->done_count = 0;
 	fence->drm_id = drm_id;
 
-	mutex_init(&fence->fence_lock);
+	rt_mutex_init(&fence->fence_lock);
 	return 0;
 
 }
@@ -142,7 +142,7 @@ void sde_fence_deinit(struct sde_fence *fence)
 		return;
 	}
 
-	mutex_destroy(&fence->fence_lock);
+	rt_mutex_destroy(&fence->fence_lock);
 	if (fence->timeline)
 		sync_timeline_destroy(fence->timeline);
 }
@@ -154,10 +154,10 @@ int sde_fence_prepare(struct sde_fence *fence)
 		return -EINVAL;
 	}
 
-	mutex_lock(&fence->fence_lock);
+	rt_mutex_lock(&fence->fence_lock);
 	++fence->commit_count;
 	SDE_EVT32(fence->drm_id, fence->commit_count, fence->done_count);
-	mutex_unlock(&fence->fence_lock);
+	rt_mutex_unlock(&fence->fence_lock);
 	return 0;
 }
 
@@ -178,7 +178,7 @@ int sde_fence_create(struct sde_fence *fence, uint64_t *val, int offset)
 		 * after an additional delay of one commit, rather than at the
 		 * end of the current one.
 		 */
-		mutex_lock(&fence->fence_lock);
+		rt_mutex_lock(&fence->fence_lock);
 		trigger_value = fence->commit_count + (int32_t)offset;
 		fd = _sde_fence_create_fd(fence->timeline,
 				SDE_FENCE_TIMELINE_NAME(fence),
@@ -186,7 +186,7 @@ int sde_fence_create(struct sde_fence *fence, uint64_t *val, int offset)
 		*val = fd;
 
 		SDE_EVT32(fence->drm_id, trigger_value, fd);
-		mutex_unlock(&fence->fence_lock);
+		rt_mutex_unlock(&fence->fence_lock);
 
 		if (fd >= 0)
 			rc = 0;
@@ -202,7 +202,7 @@ void sde_fence_signal(struct sde_fence *fence, bool is_error)
 		return;
 	}
 
-	mutex_lock(&fence->fence_lock);
+	rt_mutex_lock(&fence->fence_lock);
 	if ((fence->done_count - fence->commit_count) < 0)
 		++fence->done_count;
 	else
@@ -227,6 +227,6 @@ void sde_fence_signal(struct sde_fence *fence, bool is_error)
 	SDE_EVT32(fence->drm_id, fence->done_count,
 			((struct sw_sync_timeline *) fence->timeline)->value);
 
-	mutex_unlock(&fence->fence_lock);
+	rt_mutex_unlock(&fence->fence_lock);
 }
 #endif

@@ -140,16 +140,16 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 
 	if (res->func->destroy == vmw_gb_context_destroy ||
 	    res->func->destroy == vmw_dx_context_destroy) {
-		mutex_lock(&dev_priv->cmdbuf_mutex);
+		rt_mutex_lock(&dev_priv->cmdbuf_mutex);
 		vmw_cmdbuf_res_man_destroy(uctx->man);
-		mutex_lock(&dev_priv->binding_mutex);
+		rt_mutex_lock(&dev_priv->binding_mutex);
 		vmw_binding_state_kill(uctx->cbs);
 		(void) res->func->destroy(res);
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		if (dev_priv->pinned_bo != NULL &&
 		    !dev_priv->query_cid_valid)
 			__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
-		mutex_unlock(&dev_priv->cmdbuf_mutex);
+		rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 		vmw_context_cotables_unref(uctx);
 		return;
 	}
@@ -387,7 +387,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	vmw_binding_state_scrub(uctx->cbs);
 
 	submit_size = sizeof(*cmd2) + (readback ? sizeof(*cmd1) : 0);
@@ -396,7 +396,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for context "
 			  "unbinding.\n");
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
 
@@ -414,7 +414,7 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 	cmd2->body.mobid = SVGA3D_INVALID_ID;
 
 	vmw_fifo_commit(dev_priv, submit_size);
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 
 	/*
 	 * Create a fence object and fence the backup buffer.
@@ -604,7 +604,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	vmw_dx_context_scrub_cotables(res, readback);
 
 	if (uctx->dx_query_mob && uctx->dx_query_mob->dx_query_ctx &&
@@ -620,7 +620,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for context "
 			  "unbinding.\n");
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
 
@@ -638,7 +638,7 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 	cmd2->body.mobid = SVGA3D_INVALID_ID;
 
 	vmw_fifo_commit(dev_priv, submit_size);
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 
 	/*
 	 * Create a fence object and fence the backup buffer.

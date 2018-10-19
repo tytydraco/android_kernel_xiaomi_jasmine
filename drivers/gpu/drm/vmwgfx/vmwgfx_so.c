@@ -128,7 +128,7 @@ static void vmw_view_commit_notify(struct vmw_resource *res,
 	struct vmw_view *view = vmw_view(res);
 	struct vmw_private *dev_priv = res->dev_priv;
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	if (state == VMW_CMDBUF_RES_ADD) {
 		struct vmw_surface *srf = vmw_res_to_srf(view->srf);
 
@@ -143,7 +143,7 @@ static void vmw_view_commit_notify(struct vmw_resource *res,
 		view->committed = false;
 		res->id = -1;
 	}
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 }
 
 /**
@@ -164,9 +164,9 @@ static int vmw_view_create(struct vmw_resource *res)
 		struct vmw_view_define body;
 	} *cmd;
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	if (!view->committed) {
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		return 0;
 	}
 
@@ -174,7 +174,7 @@ static int vmw_view_create(struct vmw_resource *res)
 				  view->ctx->id);
 	if (!cmd) {
 		DRM_ERROR("Failed reserving FIFO space for view creation.\n");
-		mutex_unlock(&dev_priv->binding_mutex);
+		rt_mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
 	memcpy(cmd, &view->cmd, view->cmd_size);
@@ -186,7 +186,7 @@ static int vmw_view_create(struct vmw_resource *res)
 	res->id = view->view_id;
 	list_add_tail(&view->srf_head, &srf->view_list);
 	vmw_cotable_add_resource(view->cotable, &view->cotable_head);
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 
 	return 0;
 }
@@ -208,7 +208,7 @@ static int vmw_view_destroy(struct vmw_resource *res)
 		union vmw_view_destroy body;
 	} *cmd;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	WARN_ON_ONCE(!rt_mutex_is_locked(&dev_priv->binding_mutex));
 	vmw_binding_res_list_scrub(&res->binding_head);
 
 	if (!view->committed || res->id == -1)
@@ -243,10 +243,10 @@ static void vmw_hw_view_destroy(struct vmw_resource *res)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	WARN_ON(vmw_view_destroy(res));
 	res->id = -1;
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 }
 
 /**
@@ -435,7 +435,7 @@ void vmw_view_cotable_list_destroy(struct vmw_private *dev_priv,
 {
 	struct vmw_view *entry, *next;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	WARN_ON_ONCE(!rt_mutex_is_locked(&dev_priv->binding_mutex));
 
 	list_for_each_entry_safe(entry, next, list, cotable_head)
 		WARN_ON(vmw_view_destroy(&entry->res));
@@ -455,7 +455,7 @@ void vmw_view_surface_list_destroy(struct vmw_private *dev_priv,
 {
 	struct vmw_view *entry, *next;
 
-	WARN_ON_ONCE(!mutex_is_locked(&dev_priv->binding_mutex));
+	WARN_ON_ONCE(!rt_mutex_is_locked(&dev_priv->binding_mutex));
 
 	list_for_each_entry_safe(entry, next, list, srf_head)
 		WARN_ON(vmw_view_destroy(&entry->res));

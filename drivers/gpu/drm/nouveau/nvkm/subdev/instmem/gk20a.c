@@ -99,7 +99,7 @@ struct gk20a_instmem {
 	struct list_head vaddr_lru;
 
 	/* Only used if IOMMU if present */
-	struct mutex *mm_mutex;
+	struct rt_mutex *mm_mutex;
 	struct nvkm_mm *mm;
 	struct iommu_domain *domain;
 	unsigned long iommu_pgshift;
@@ -352,9 +352,9 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 	}
 
 	/* Release area from GPU address space */
-	mutex_lock(imem->mm_mutex);
+	rt_mutex_lock(imem->mm_mutex);
 	nvkm_mm_free(imem->mm, &r);
-	mutex_unlock(imem->mm_mutex);
+	rt_mutex_unlock(imem->mm_mutex);
 
 out:
 	return node;
@@ -469,11 +469,11 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 		node->dma_addrs[i] = dma_adr;
 	}
 
-	mutex_lock(imem->mm_mutex);
+	rt_mutex_lock(imem->mm_mutex);
 	/* Reserve area from GPU address space */
 	ret = nvkm_mm_head(imem->mm, 0, 1, npages, npages,
 			   align >> imem->iommu_pgshift, &r);
-	mutex_unlock(imem->mm_mutex);
+	rt_mutex_unlock(imem->mm_mutex);
 	if (ret) {
 		nvkm_error(subdev, "IOMMU space is full!\n");
 		goto free_pages;
@@ -507,9 +507,9 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 	return 0;
 
 release_area:
-	mutex_lock(imem->mm_mutex);
+	rt_mutex_lock(imem->mm_mutex);
 	nvkm_mm_free(imem->mm, &r);
-	mutex_unlock(imem->mm_mutex);
+	rt_mutex_unlock(imem->mm_mutex);
 
 free_pages:
 	for (i = 0; i < npages && node->pages[i] != NULL; i++) {

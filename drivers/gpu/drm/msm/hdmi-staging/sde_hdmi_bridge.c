@@ -538,12 +538,12 @@ static void _sde_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 	if (hdmi->hdcp_ctrl && hdmi->is_hdcp_supported)
 		hdmi_hdcp_ctrl_on(hdmi->hdcp_ctrl);
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 	if (display->codec_ready)
 		sde_hdmi_notify_clients(display, display->connected);
 	else
 		display->client_notify_pending = true;
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 }
 
 static void sde_hdmi_update_hdcp_info(struct drm_connector *connector)
@@ -622,11 +622,11 @@ static void _sde_hdmi_bridge_disable(struct drm_bridge *bridge)
 	struct sde_connector *c_conn = to_sde_connector(hdmi->connector);
 	struct sde_hdmi *display = (struct sde_hdmi *)c_conn->display;
 
-	mutex_lock(&display->display_lock);
+	rt_mutex_lock(&display->display_lock);
 
 	if (!bridge) {
 		SDE_ERROR("Invalid params\n");
-		mutex_unlock(&display->display_lock);
+		rt_mutex_unlock(&display->display_lock);
 		return;
 	}
 
@@ -643,7 +643,7 @@ static void _sde_hdmi_bridge_disable(struct drm_bridge *bridge)
 	/* Clear HDMI VCDB block info */
 	sde_hdmi_clear_vcdb_info(bridge);
 
-	mutex_unlock(&display->display_lock);
+	rt_mutex_unlock(&display->display_lock);
 }
 
 static void _sde_hdmi_bridge_post_disable(struct drm_bridge *bridge)

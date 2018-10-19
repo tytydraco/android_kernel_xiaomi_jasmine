@@ -93,7 +93,7 @@ radeon_dp_aux_transfer_native(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg
 			bytes += msg->size;
 	}
 
-	mutex_lock(&chan->mutex);
+	rt_mutex_lock(&chan->mutex);
 
 	/* switch the pad to aux mode */
 	tmp = RREG32(chan->rec.mask_clk_reg);
@@ -196,7 +196,7 @@ radeon_dp_aux_transfer_native(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg
 	if (is_write)
 		ret = msg->size;
 done:
-	mutex_unlock(&chan->mutex);
+	rt_mutex_unlock(&chan->mutex);
 
 	if (ret >= 0)
 		msg->reply = ack >> 4;

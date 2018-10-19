@@ -432,11 +432,11 @@ gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
 	if (unlikely(mem == NULL))
 		return;
 
-	mutex_lock(&ram->fb->subdev.mutex);
+	rt_mutex_lock(&ram->fb->subdev.mutex);
 	if (mem->tag)
 		nvkm_ltc_tags_free(ltc, &mem->tag);
 	__nv50_ram_put(ram, mem);
-	mutex_unlock(&ram->fb->subdev.mutex);
+	rt_mutex_unlock(&ram->fb->subdev.mutex);
 
 	kfree(mem);
 }
@@ -467,7 +467,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	INIT_LIST_HEAD(&mem->regions);
 	mem->size = size;
 
-	mutex_lock(&ram->fb->subdev.mutex);
+	rt_mutex_lock(&ram->fb->subdev.mutex);
 	if (comp) {
 		/* compression only works with lpages */
 		if (align == (1 << (17 - NVKM_RAM_MM_SHIFT))) {
@@ -486,7 +486,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 		else
 			ret = nvkm_mm_head(mm, 0, 1, size, ncmin, align, &r);
 		if (ret) {
-			mutex_unlock(&ram->fb->subdev.mutex);
+			rt_mutex_unlock(&ram->fb->subdev.mutex);
 			ram->func->put(ram, &mem);
 			return ret;
 		}
@@ -494,7 +494,7 @@ gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 		list_add_tail(&r->rl_entry, &mem->regions);
 		size -= r->length;
 	} while (size);
-	mutex_unlock(&ram->fb->subdev.mutex);
+	rt_mutex_unlock(&ram->fb->subdev.mutex);
 
 	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
 	mem->offset = (u64)r->offset << NVKM_RAM_MM_SHIFT;

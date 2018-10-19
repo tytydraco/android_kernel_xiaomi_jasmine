@@ -626,10 +626,10 @@ nvkm_perfmon_dtor(struct nvkm_object *object)
 {
 	struct nvkm_perfmon *perfmon = nvkm_perfmon(object);
 	struct nvkm_pm *pm = perfmon->pm;
-	mutex_lock(&pm->engine.subdev.mutex);
+	rt_mutex_lock(&pm->engine.subdev.mutex);
 	if (pm->perfmon == &perfmon->object)
 		pm->perfmon = NULL;
-	mutex_unlock(&pm->engine.subdev.mutex);
+	rt_mutex_unlock(&pm->engine.subdev.mutex);
 	return perfmon;
 }
 
@@ -669,11 +669,11 @@ nvkm_pm_oclass_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	if (ret)
 		return ret;
 
-	mutex_lock(&pm->engine.subdev.mutex);
+	rt_mutex_lock(&pm->engine.subdev.mutex);
 	if (pm->perfmon == NULL)
 		pm->perfmon = *pobject;
 	ret = (pm->perfmon == *pobject) ? 0 : -EBUSY;
-	mutex_unlock(&pm->engine.subdev.mutex);
+	rt_mutex_unlock(&pm->engine.subdev.mutex);
 	return ret;
 }
 

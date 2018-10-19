@@ -36,7 +36,7 @@ struct dsi_phy_list_item {
 };
 
 static LIST_HEAD(dsi_phy_list);
-static DEFINE_MUTEX(dsi_phy_list_lock);
+static DEFINE_RT_MUTEX(dsi_phy_list_lock);
 
 static const struct dsi_ver_spec_info dsi_phy_v1_0 = {
 	.version = DSI_PHY_VERSION_1_0,
@@ -434,11 +434,11 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	item->phy = dsi_phy;
 
-	mutex_lock(&dsi_phy_list_lock);
+	rt_mutex_lock(&dsi_phy_list_lock);
 	list_add(&item->list, &dsi_phy_list);
-	mutex_unlock(&dsi_phy_list_lock);
+	rt_mutex_unlock(&dsi_phy_list_lock);
 
-	mutex_init(&dsi_phy->phy_lock);
+	rt_mutex_init(&dsi_phy->phy_lock);
 	/** TODO: initialize debugfs */
 	dsi_phy->pdev = pdev;
 	platform_set_drvdata(pdev, dsi_phy);
@@ -468,7 +468,7 @@ static int dsi_phy_driver_remove(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_phy_list_lock);
+	rt_mutex_lock(&dsi_phy_list_lock);
 	list_for_each_safe(pos, tmp, &dsi_phy_list) {
 		struct dsi_phy_list_item *n;
 
@@ -479,9 +479,9 @@ static int dsi_phy_driver_remove(struct platform_device *pdev)
 			break;
 		}
 	}
-	mutex_unlock(&dsi_phy_list_lock);
+	rt_mutex_unlock(&dsi_phy_list_lock);
 
-	mutex_lock(&phy->phy_lock);
+	rt_mutex_lock(&phy->phy_lock);
 	rc = dsi_phy_settings_deinit(phy);
 	if (rc)
 		pr_err("failed to deinitialize phy settings, rc=%d\n", rc);
@@ -497,9 +497,9 @@ static int dsi_phy_driver_remove(struct platform_device *pdev)
 	rc = dsi_phy_regmap_deinit(phy);
 	if (rc)
 		pr_err("failed to deinitialize regmap, rc=%d\n", rc);
-	mutex_unlock(&phy->phy_lock);
+	rt_mutex_unlock(&phy->phy_lock);
 
-	mutex_destroy(&phy->phy_lock);
+	rt_mutex_destroy(&phy->phy_lock);
 	devm_kfree(&pdev->dev, phy);
 
 	platform_set_drvdata(pdev, NULL);
@@ -549,7 +549,7 @@ struct msm_dsi_phy *dsi_phy_get(struct device_node *of_node)
 	struct list_head *pos, *tmp;
 	struct msm_dsi_phy *phy = NULL;
 
-	mutex_lock(&dsi_phy_list_lock);
+	rt_mutex_lock(&dsi_phy_list_lock);
 	list_for_each_safe(pos, tmp, &dsi_phy_list) {
 		struct dsi_phy_list_item *n;
 
@@ -559,7 +559,7 @@ struct msm_dsi_phy *dsi_phy_get(struct device_node *of_node)
 			break;
 		}
 	}
-	mutex_unlock(&dsi_phy_list_lock);
+	rt_mutex_unlock(&dsi_phy_list_lock);
 
 	if (!phy) {
 		pr_err("Device with of node not found\n");
@@ -567,14 +567,14 @@ struct msm_dsi_phy *dsi_phy_get(struct device_node *of_node)
 		return phy;
 	}
 
-	mutex_lock(&phy->phy_lock);
+	rt_mutex_lock(&phy->phy_lock);
 	if (phy->refcount > 0) {
 		pr_err("[PHY_%d] Device under use\n", phy->index);
 		phy = ERR_PTR(-EINVAL);
 	} else {
 		phy->refcount++;
 	}
-	mutex_unlock(&phy->phy_lock);
+	rt_mutex_unlock(&phy->phy_lock);
 	return phy;
 }
 
@@ -587,14 +587,14 @@ struct msm_dsi_phy *dsi_phy_get(struct device_node *of_node)
  */
 void dsi_phy_put(struct msm_dsi_phy *dsi_phy)
 {
-	mutex_lock(&dsi_phy->phy_lock);
+	rt_mutex_lock(&dsi_phy->phy_lock);
 
 	if (dsi_phy->refcount == 0)
 		pr_err("Unbalanced dsi_phy_put call\n");
 	else
 		dsi_phy->refcount--;
 
-	mutex_unlock(&dsi_phy->phy_lock);
+	rt_mutex_unlock(&dsi_phy->phy_lock);
 }
 
 /**
@@ -643,11 +643,11 @@ int dsi_phy_validate_mode(struct msm_dsi_phy *dsi_phy,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_phy->phy_lock);
+	rt_mutex_lock(&dsi_phy->phy_lock);
 
 	pr_debug("[PHY_%d] Skipping validation\n", dsi_phy->index);
 
-	mutex_unlock(&dsi_phy->phy_lock);
+	rt_mutex_unlock(&dsi_phy->phy_lock);
 	return rc;
 }
 
@@ -667,7 +667,7 @@ int dsi_phy_set_power_state(struct msm_dsi_phy *dsi_phy, bool enable)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_phy->phy_lock);
+	rt_mutex_lock(&dsi_phy->phy_lock);
 
 	if (enable == dsi_phy->power_state) {
 		pr_err("[PHY_%d] No state change\n", dsi_phy->index);
@@ -706,7 +706,7 @@ int dsi_phy_set_power_state(struct msm_dsi_phy *dsi_phy, bool enable)
 
 	dsi_phy->power_state = enable;
 error:
-	mutex_unlock(&dsi_phy->phy_lock);
+	rt_mutex_unlock(&dsi_phy->phy_lock);
 	return rc;
 }
 
@@ -733,7 +733,7 @@ int dsi_phy_enable(struct msm_dsi_phy *phy,
 		return -EINVAL;
 	}
 
-	mutex_lock(&phy->phy_lock);
+	rt_mutex_lock(&phy->phy_lock);
 
 	if (!skip_validation)
 		pr_debug("[PHY_%d] TODO: perform validation\n", phy->index);
@@ -768,7 +768,7 @@ error_disable_clks:
 		goto error;
 	}
 error:
-	mutex_unlock(&phy->phy_lock);
+	rt_mutex_unlock(&phy->phy_lock);
 	return rc;
 }
 
@@ -787,7 +787,7 @@ int dsi_phy_disable(struct msm_dsi_phy *phy)
 		return -EINVAL;
 	}
 
-	mutex_lock(&phy->phy_lock);
+	rt_mutex_lock(&phy->phy_lock);
 
 	rc = dsi_clk_enable_core_clks(&phy->clks.core_clks, true);
 	if (rc) {
@@ -804,7 +804,7 @@ int dsi_phy_disable(struct msm_dsi_phy *phy)
 	}
 
 error:
-	mutex_unlock(&phy->phy_lock);
+	rt_mutex_unlock(&phy->phy_lock);
 	return rc;
 }
 
@@ -831,7 +831,7 @@ int dsi_phy_set_timing_params(struct msm_dsi_phy *phy,
 		return -EINVAL;
 	}
 
-	mutex_lock(&phy->phy_lock);
+	rt_mutex_lock(&phy->phy_lock);
 
 	if (size != (DSI_LANE_MAX * phy->cfg.timing.count_per_lane)) {
 		pr_err("Unexpected timing array size %d\n", size);
@@ -845,7 +845,7 @@ int dsi_phy_set_timing_params(struct msm_dsi_phy *phy,
 			}
 		}
 	}
-	mutex_unlock(&phy->phy_lock);
+	rt_mutex_unlock(&phy->phy_lock);
 	return rc;
 }
 

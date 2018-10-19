@@ -152,7 +152,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	atomic_dec(&bo->glob->bo_count);
 	if (bo->resv == &bo->ttm_resv)
 		reservation_object_fini(&bo->ttm_resv);
-	mutex_destroy(&bo->wu_mutex);
+	rt_mutex_destroy(&bo->wu_mutex);
 	if (bo->destroy)
 		bo->destroy(bo);
 	else {
@@ -400,7 +400,7 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	}
 	ttm_bo_mem_put(bo, &bo->mem);
 
-	ww_mutex_unlock (&bo->resv->lock);
+	ww_rt_mutex_unlock (&bo->resv->lock);
 }
 
 static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
@@ -491,7 +491,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 
 	if (ret && !no_wait_gpu) {
 		long lret;
-		ww_mutex_unlock(&bo->resv->lock);
+		ww_rt_mutex_unlock(&bo->resv->lock);
 		spin_unlock(&glob->lru_lock);
 
 		lret = reservation_object_wait_timeout_rcu(bo->resv,
@@ -1124,7 +1124,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
 	INIT_LIST_HEAD(&bo->io_reserve_lru);
-	mutex_init(&bo->wu_mutex);
+	rt_mutex_init(&bo->wu_mutex);
 	bo->bdev = bdev;
 	bo->glob = bdev->glob;
 	bo->type = type;
@@ -1164,7 +1164,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	 * since otherwise lockdep will be angered in radeon.
 	 */
 	if (!resv) {
-		locked = ww_mutex_trylock(&bo->resv->lock);
+		locked = ww_rt_mutex_trylock(&bo->resv->lock);
 		WARN_ON(!locked);
 	}
 
@@ -1326,7 +1326,7 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	BUG_ON(man->has_type);
 	man->io_reserve_fastpath = true;
 	man->use_io_reserve_lru = false;
-	mutex_init(&man->io_reserve_mutex);
+	rt_mutex_init(&man->io_reserve_mutex);
 	INIT_LIST_HEAD(&man->io_reserve_lru);
 
 	ret = bdev->driver->init_mem_type(bdev, type, man);
@@ -1376,7 +1376,7 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 	struct ttm_bo_global *glob = ref->object;
 	int ret;
 
-	mutex_init(&glob->device_list_mutex);
+	rt_mutex_init(&glob->device_list_mutex);
 	spin_lock_init(&glob->lru_lock);
 	glob->mem_glob = bo_ref->mem_glob;
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);
@@ -1432,9 +1432,9 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 		}
 	}
 
-	mutex_lock(&glob->device_list_mutex);
+	rt_mutex_lock(&glob->device_list_mutex);
 	list_del(&bdev->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	rt_mutex_unlock(&glob->device_list_mutex);
 
 	cancel_delayed_work_sync(&bdev->wq);
 
@@ -1484,9 +1484,9 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	bdev->glob = glob;
 	bdev->need_dma32 = need_dma32;
 	bdev->val_seq = 0;
-	mutex_lock(&glob->device_list_mutex);
+	rt_mutex_lock(&glob->device_list_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	rt_mutex_unlock(&glob->device_list_mutex);
 
 	return 0;
 out_no_sys:
@@ -1719,10 +1719,10 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo)
 	 * bo::wu_mutex can go away if we change locking order to
 	 * mmap_sem -> bo::reserve.
 	 */
-	ret = mutex_lock_interruptible(&bo->wu_mutex);
+	ret = rt_mutex_lock_interruptible(&bo->wu_mutex);
 	if (unlikely(ret != 0))
 		return -ERESTARTSYS;
-	if (!ww_mutex_is_locked(&bo->resv->lock))
+	if (!ww_rt_mutex_is_locked(&bo->resv->lock))
 		goto out_unlock;
 	ret = __ttm_bo_reserve(bo, true, false, false, NULL);
 	if (unlikely(ret != 0))
@@ -1730,6 +1730,6 @@ int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo)
 	__ttm_bo_unreserve(bo);
 
 out_unlock:
-	mutex_unlock(&bo->wu_mutex);
+	rt_mutex_unlock(&bo->wu_mutex);
 	return ret;
 }

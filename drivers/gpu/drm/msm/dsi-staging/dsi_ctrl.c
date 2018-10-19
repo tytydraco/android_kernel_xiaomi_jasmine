@@ -60,7 +60,7 @@ struct dsi_ctrl_list_item {
 };
 
 static LIST_HEAD(dsi_ctrl_list);
-static DEFINE_MUTEX(dsi_ctrl_list_lock);
+static DEFINE_RT_MUTEX(dsi_ctrl_list_lock);
 
 static const enum dsi_ctrl_version dsi_ctrl_v1_4 = DSI_CTRL_VERSION_1_4;
 static const enum dsi_ctrl_version dsi_ctrl_v2_0 = DSI_CTRL_VERSION_2_0;
@@ -1304,11 +1304,11 @@ static int dsi_ctrl_dev_probe(struct platform_device *pdev)
 
 	item->ctrl = dsi_ctrl;
 
-	mutex_lock(&dsi_ctrl_list_lock);
+	rt_mutex_lock(&dsi_ctrl_list_lock);
 	list_add(&item->list, &dsi_ctrl_list);
-	mutex_unlock(&dsi_ctrl_list_lock);
+	rt_mutex_unlock(&dsi_ctrl_list_lock);
 
-	mutex_init(&dsi_ctrl->ctrl_lock);
+	rt_mutex_init(&dsi_ctrl->ctrl_lock);
 
 	dsi_ctrl->pdev = pdev;
 	platform_set_drvdata(pdev, dsi_ctrl);
@@ -1333,7 +1333,7 @@ static int dsi_ctrl_dev_remove(struct platform_device *pdev)
 
 	dsi_ctrl = platform_get_drvdata(pdev);
 
-	mutex_lock(&dsi_ctrl_list_lock);
+	rt_mutex_lock(&dsi_ctrl_list_lock);
 	list_for_each_safe(pos, tmp, &dsi_ctrl_list) {
 		struct dsi_ctrl_list_item *n = list_entry(pos,
 						  struct dsi_ctrl_list_item,
@@ -1343,9 +1343,9 @@ static int dsi_ctrl_dev_remove(struct platform_device *pdev)
 			break;
 		}
 	}
-	mutex_unlock(&dsi_ctrl_list_lock);
+	rt_mutex_unlock(&dsi_ctrl_list_lock);
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 	rc = dsi_ctrl_axi_bus_client_deinit(dsi_ctrl);
 	if (rc)
 		pr_err("failed to deinitialize axi bus client, rc = %d\n", rc);
@@ -1358,9 +1358,9 @@ static int dsi_ctrl_dev_remove(struct platform_device *pdev)
 	if (rc)
 		pr_err("failed to deinitialize clocks, rc=%d\n", rc);
 
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 
-	mutex_destroy(&dsi_ctrl->ctrl_lock);
+	rt_mutex_destroy(&dsi_ctrl->ctrl_lock);
 	devm_kfree(&pdev->dev, dsi_ctrl);
 
 	platform_set_drvdata(pdev, NULL);
@@ -1391,7 +1391,7 @@ struct dsi_ctrl *dsi_ctrl_get(struct device_node *of_node)
 	struct list_head *pos, *tmp;
 	struct dsi_ctrl *ctrl = NULL;
 
-	mutex_lock(&dsi_ctrl_list_lock);
+	rt_mutex_lock(&dsi_ctrl_list_lock);
 	list_for_each_safe(pos, tmp, &dsi_ctrl_list) {
 		struct dsi_ctrl_list_item *n;
 
@@ -1401,7 +1401,7 @@ struct dsi_ctrl *dsi_ctrl_get(struct device_node *of_node)
 			break;
 		}
 	}
-	mutex_unlock(&dsi_ctrl_list_lock);
+	rt_mutex_unlock(&dsi_ctrl_list_lock);
 
 	if (!ctrl) {
 		pr_err("Device with of node not found\n");
@@ -1409,14 +1409,14 @@ struct dsi_ctrl *dsi_ctrl_get(struct device_node *of_node)
 		return ctrl;
 	}
 
-	mutex_lock(&ctrl->ctrl_lock);
+	rt_mutex_lock(&ctrl->ctrl_lock);
 	if (ctrl->refcount == 1) {
 		pr_err("[%s] Device in use\n", ctrl->name);
 		ctrl = ERR_PTR(-EBUSY);
 	} else {
 		ctrl->refcount++;
 	}
-	mutex_unlock(&ctrl->ctrl_lock);
+	rt_mutex_unlock(&ctrl->ctrl_lock);
 	return ctrl;
 }
 
@@ -1429,14 +1429,14 @@ struct dsi_ctrl *dsi_ctrl_get(struct device_node *of_node)
  */
 void dsi_ctrl_put(struct dsi_ctrl *dsi_ctrl)
 {
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	if (dsi_ctrl->refcount == 0)
 		pr_err("Unbalanced dsi_ctrl_put call\n");
 	else
 		dsi_ctrl->refcount--;
 
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 }
 
 /**
@@ -1458,7 +1458,7 @@ int dsi_ctrl_drv_init(struct dsi_ctrl *dsi_ctrl, struct dentry *parent)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 	rc = dsi_ctrl_drv_state_init(dsi_ctrl);
 	if (rc) {
 		pr_err("Failed to initialize driver state, rc=%d\n", rc);
@@ -1473,7 +1473,7 @@ int dsi_ctrl_drv_init(struct dsi_ctrl *dsi_ctrl, struct dentry *parent)
 	}
 
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1494,7 +1494,7 @@ int dsi_ctrl_drv_deinit(struct dsi_ctrl *dsi_ctrl)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_debugfs_deinit(dsi_ctrl);
 	if (rc)
@@ -1504,7 +1504,7 @@ int dsi_ctrl_drv_deinit(struct dsi_ctrl *dsi_ctrl)
 	if (rc)
 		pr_err("Failed to free cmd buffers, rc=%d\n", rc);
 
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1529,7 +1529,7 @@ int dsi_ctrl_phy_sw_reset(struct dsi_ctrl *dsi_ctrl)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_PHY_SW_RESET, 0x0);
 	if (rc) {
 		pr_err("[DSI_%d] Controller state check failed, rc=%d\n",
@@ -1542,7 +1542,7 @@ int dsi_ctrl_phy_sw_reset(struct dsi_ctrl *dsi_ctrl)
 	pr_debug("[DSI_%d] PHY soft reset done\n", dsi_ctrl->index);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_PHY_SW_RESET, 0x0);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1567,7 +1567,7 @@ int dsi_ctrl_async_timing_update(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_ASYNC_TIMING,
 			DSI_CTRL_ENGINE_ON);
@@ -1583,7 +1583,7 @@ int dsi_ctrl_async_timing_update(struct dsi_ctrl *dsi_ctrl,
 	dsi_ctrl->hw.ops.set_video_timing(&dsi_ctrl->hw, host_mode);
 
 exit:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1607,7 +1607,7 @@ int dsi_ctrl_host_init(struct dsi_ctrl *dsi_ctrl)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_HOST_INIT, 0x1);
 	if (rc) {
 		pr_err("[DSI_%d] Controller state check failed, rc=%d\n",
@@ -1649,7 +1649,7 @@ int dsi_ctrl_host_init(struct dsi_ctrl *dsi_ctrl)
 	pr_debug("[DSI_%d]Host initialization complete\n", dsi_ctrl->index);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_HOST_INIT, 0x1);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1671,7 +1671,7 @@ int dsi_ctrl_host_deinit(struct dsi_ctrl *dsi_ctrl)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_HOST_INIT, 0x0);
 	if (rc) {
@@ -1684,7 +1684,7 @@ int dsi_ctrl_host_deinit(struct dsi_ctrl *dsi_ctrl)
 	pr_debug("[DSI_%d] Host deinitization complete\n", dsi_ctrl->index);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_HOST_INIT, 0x0);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1711,7 +1711,7 @@ int dsi_ctrl_update_host_config(struct dsi_ctrl *ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&ctrl->ctrl_lock);
+	rt_mutex_lock(&ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_validate_panel_info(ctrl, config);
 	if (rc) {
@@ -1731,7 +1731,7 @@ int dsi_ctrl_update_host_config(struct dsi_ctrl *ctrl,
 	pr_debug("[DSI_%d]Host config updated\n", ctrl->index);
 	memcpy(&ctrl->host_config, config, sizeof(ctrl->host_config));
 error:
-	mutex_unlock(&ctrl->ctrl_lock);
+	rt_mutex_unlock(&ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1755,8 +1755,8 @@ int dsi_ctrl_validate_timing(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 
 	return rc;
 }
@@ -1786,7 +1786,7 @@ int dsi_ctrl_cmd_transfer(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_CMD_TX, 0x0);
 	if (rc) {
@@ -1815,7 +1815,7 @@ int dsi_ctrl_cmd_transfer(struct dsi_ctrl *dsi_ctrl,
 
 	(void)dsi_ctrl_vote_for_bandwidth(dsi_ctrl, false);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1837,7 +1837,7 @@ int dsi_ctrl_cmd_tx_trigger(struct dsi_ctrl *dsi_ctrl, u32 flags)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	reinit_completion(&dsi_ctrl->int_info.cmd_dma_done);
 
@@ -1862,7 +1862,7 @@ int dsi_ctrl_cmd_tx_trigger(struct dsi_ctrl *dsi_ctrl, u32 flags)
 			       dsi_ctrl->index);
 	}
 
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1890,7 +1890,7 @@ int dsi_ctrl_set_power_state(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_POWER_STATE_CHANGE,
 				  state);
@@ -1963,7 +1963,7 @@ int dsi_ctrl_set_power_state(struct dsi_ctrl *dsi_ctrl,
 		 state);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_POWER_STATE_CHANGE, state);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -1986,7 +1986,7 @@ int dsi_ctrl_set_tpg_state(struct dsi_ctrl *dsi_ctrl, bool on)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_TPG, on);
 	if (rc) {
@@ -2013,7 +2013,7 @@ int dsi_ctrl_set_tpg_state(struct dsi_ctrl *dsi_ctrl, bool on)
 	pr_debug("[DSI_%d]Set test pattern state=%d\n", dsi_ctrl->index, on);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_TPG, on);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -2037,7 +2037,7 @@ int dsi_ctrl_set_host_engine_state(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_HOST_ENGINE, state);
 	if (rc) {
@@ -2055,7 +2055,7 @@ int dsi_ctrl_set_host_engine_state(struct dsi_ctrl *dsi_ctrl,
 		 state);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_HOST_ENGINE, state);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -2079,7 +2079,7 @@ int dsi_ctrl_set_cmd_engine_state(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_CMD_ENGINE, state);
 	if (rc) {
@@ -2097,7 +2097,7 @@ int dsi_ctrl_set_cmd_engine_state(struct dsi_ctrl *dsi_ctrl,
 		 state);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_CMD_ENGINE, state);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -2122,7 +2122,7 @@ int dsi_ctrl_set_vid_engine_state(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_VID_ENGINE, state);
 	if (rc) {
@@ -2142,7 +2142,7 @@ int dsi_ctrl_set_vid_engine_state(struct dsi_ctrl *dsi_ctrl,
 		 state);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_VID_ENGINE, state);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -2164,7 +2164,7 @@ int dsi_ctrl_set_ulps(struct dsi_ctrl *dsi_ctrl, bool enable)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_ULPS_TOGGLE, enable);
 	if (rc) {
@@ -2187,7 +2187,7 @@ int dsi_ctrl_set_ulps(struct dsi_ctrl *dsi_ctrl, bool enable)
 	pr_debug("[DSI_%d] ULPS state = %d\n", dsi_ctrl->index, enable);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_ULPS_TOGGLE, enable);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -2209,7 +2209,7 @@ int dsi_ctrl_set_clamp_state(struct dsi_ctrl *dsi_ctrl, bool enable)
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	rc = dsi_ctrl_check_state(dsi_ctrl, DSI_CTRL_OP_CLAMP_TOGGLE, enable);
 	if (rc) {
@@ -2227,7 +2227,7 @@ int dsi_ctrl_set_clamp_state(struct dsi_ctrl *dsi_ctrl, bool enable)
 	pr_debug("[DSI_%d] Clamp state = %d\n", dsi_ctrl->index, enable);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_CLAMP_TOGGLE, enable);
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 
@@ -2251,7 +2251,7 @@ int dsi_ctrl_set_clock_source(struct dsi_ctrl *dsi_ctrl,
 		return -EINVAL;
 	}
 
-	mutex_lock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_lock(&dsi_ctrl->ctrl_lock);
 
 	if (source_clks->pixel_clk && source_clks->byte_clk)
 		op_state = 1;
@@ -2281,7 +2281,7 @@ int dsi_ctrl_set_clock_source(struct dsi_ctrl *dsi_ctrl,
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_SET_CLK_SOURCE, op_state);
 
 error:
-	mutex_unlock(&dsi_ctrl->ctrl_lock);
+	rt_mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
 }
 

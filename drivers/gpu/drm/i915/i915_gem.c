@@ -109,7 +109,7 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 	return 0;
 }
 
-int i915_mutex_lock_interruptible(struct drm_device *dev)
+int i915_rt_mutex_lock_interruptible(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -118,7 +118,7 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
@@ -137,14 +137,14 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	size_t pinned;
 
 	pinned = 0;
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(vma, &ggtt->base.active_list, mm_list)
 		if (vma->pin_count)
 			pinned += vma->node.size;
 	list_for_each_entry(vma, &ggtt->base.inactive_list, mm_list)
 		if (vma->pin_count)
 			pinned += vma->node.size;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	args->aper_size = dev_priv->gtt.base.total;
 	args->aper_available_size = args->aper_size - pinned;
@@ -342,9 +342,9 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 		 * of the obj, so we can safely drop the lock and continue
 		 * to access vaddr.
 		 */
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		unwritten = copy_from_user(vaddr, user_data, args->size);
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		if (unwritten) {
 			ret = -EFAULT;
 			goto out;
@@ -642,7 +642,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		if (ret == 0)
 			goto next_page;
 
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 		if (likely(!i915.prefault_disable) && !prefaulted) {
 			ret = fault_in_multipages_writeable(user_data, remain);
@@ -658,7 +658,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 				       user_data, page_do_bit17_swizzling,
 				       needs_clflush);
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 
 		if (ret)
 			goto out;
@@ -696,7 +696,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		       args->size))
 		return -EFAULT;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -728,7 +728,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 out:
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -976,13 +976,13 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 			goto next_page;
 
 		hit_slowpath = 1;
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		ret = shmem_pwrite_slow(page, shmem_page_offset, page_length,
 					user_data, page_do_bit17_swizzling,
 					partial_cacheline_write,
 					needs_clflush_after);
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 
 		if (ret)
 			goto out;
@@ -1049,7 +1049,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 	intel_runtime_pm_get(dev_priv);
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		goto put_rpm;
 
@@ -1102,7 +1102,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 out:
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 put_rpm:
 	intel_runtime_pm_put(dev_priv);
 
@@ -1468,7 +1468,7 @@ i915_wait_request(struct drm_i915_gem_request *req)
 	dev_priv = dev->dev_private;
 	interruptible = dev_priv->mm.interruptible;
 
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	BUG_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
 	if (ret)
@@ -1554,7 +1554,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	unsigned reset_counter;
 	int ret, i, n = 0;
 
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	BUG_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!dev_priv->mm.interruptible);
 
 	if (!obj->active)
@@ -1586,11 +1586,11 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 		}
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	for (i = 0; ret == 0 && i < n; i++)
 		ret = __i915_wait_request(requests[i], reset_counter, true,
 					  NULL, rps);
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	for (i = 0; i < n; i++) {
 		if (ret == 0)
@@ -1634,7 +1634,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (write_domain != 0 && read_domains != write_domain)
 		return -EINVAL;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -1667,7 +1667,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 unref:
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -1682,7 +1682,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -1698,7 +1698,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -1803,7 +1803,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
 		PAGE_SHIFT;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		goto out;
 
@@ -1898,7 +1898,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 unpin:
 	i915_gem_object_ggtt_unpin_view(obj, &view);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 out:
 	switch (ret) {
 	case -EIO:
@@ -1916,7 +1916,7 @@ out:
 		/*
 		 * EAGAIN means the gpu is hung and we'll wait for the error
 		 * handler to reset everything when re-faulting in
-		 * i915_mutex_lock_interruptible.
+		 * i915_rt_mutex_lock_interruptible.
 		 */
 	case 0:
 	case -ERESTARTSYS:
@@ -2078,7 +2078,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -2103,7 +2103,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 out:
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -2960,9 +2960,9 @@ i915_gem_retire_work_handler(struct work_struct *work)
 
 	/* Come back later if the device is busy... */
 	idle = false;
-	if (mutex_trylock(&dev->struct_mutex)) {
+	if (rt_mutex_trylock(&dev->struct_mutex)) {
 		idle = i915_gem_retire_requests(dev);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 	if (!idle)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work,
@@ -2984,14 +2984,14 @@ i915_gem_idle_work_handler(struct work_struct *work)
 
 	intel_mark_idle(dev);
 
-	if (mutex_trylock(&dev->struct_mutex)) {
+	if (rt_mutex_trylock(&dev->struct_mutex)) {
 		struct intel_engine_cs *ring;
 		int i;
 
 		for_each_ring(ring, dev_priv, i)
 			i915_gem_batch_pool_fini(&ring->batch_pool);
 
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 }
 
@@ -3064,13 +3064,13 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (args->flags != 0)
 		return -EINVAL;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->bo_handle));
 	if (&obj->base == NULL) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return -ENOENT;
 	}
 
@@ -3100,7 +3100,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		req[n++] = i915_gem_request_reference(obj->last_read_req[i]);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	for (i = 0; i < n; i++) {
 		if (ret == 0)
@@ -3113,7 +3113,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 out:
 	drm_gem_object_unreference(&obj->base);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -3900,7 +3900,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 
 	intel_runtime_pm_get(dev_priv);
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		goto rpm_put;
 
@@ -3914,7 +3914,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 rpm_put:
 	intel_runtime_pm_put(dev_priv);
 
@@ -4275,7 +4275,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -4302,7 +4302,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 unref:
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -4330,7 +4330,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	    return -EINVAL;
 	}
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
@@ -4366,7 +4366,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 out:
 	drm_gem_object_unreference(&obj->base);
 unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -4602,7 +4602,7 @@ i915_gem_suspend(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	ret = i915_gpu_idle(dev);
 	if (ret)
 		goto err;
@@ -4610,7 +4610,7 @@ i915_gem_suspend(struct drm_device *dev)
 	i915_gem_retire_requests(dev);
 
 	i915_gem_stop_ringbuffers(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
@@ -4624,7 +4624,7 @@ i915_gem_suspend(struct drm_device *dev)
 	return 0;
 
 err:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -4892,7 +4892,7 @@ int i915_gem_init(struct drm_device *dev)
 	i915.enable_execlists = intel_sanitize_enable_execlists(dev,
 			i915.enable_execlists);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	if (IS_VALLEYVIEW(dev)) {
 		/* VLVA0 (potential hack), BIOS isn't actually waking us */
@@ -4949,7 +4949,7 @@ int i915_gem_init(struct drm_device *dev)
 
 out_unlock:
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -5049,7 +5049,7 @@ i915_gem_load(struct drm_device *dev)
 
 	i915_gem_shrinker_init(dev_priv);
 
-	mutex_init(&dev_priv->fb_tracking.lock);
+	rt_mutex_init(&dev_priv->fb_tracking.lock);
 }
 
 void i915_gem_release(struct drm_device *dev, struct drm_file *file)
@@ -5119,13 +5119,13 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 		       unsigned frontbuffer_bits)
 {
 	if (old) {
-		WARN_ON(!mutex_is_locked(&old->base.dev->struct_mutex));
+		WARN_ON(!rt_mutex_is_locked(&old->base.dev->struct_mutex));
 		WARN_ON(!(old->frontbuffer_bits & frontbuffer_bits));
 		old->frontbuffer_bits &= ~frontbuffer_bits;
 	}
 
 	if (new) {
-		WARN_ON(!mutex_is_locked(&new->base.dev->struct_mutex));
+		WARN_ON(!rt_mutex_is_locked(&new->base.dev->struct_mutex));
 		WARN_ON(new->frontbuffer_bits & frontbuffer_bits);
 		new->frontbuffer_bits |= frontbuffer_bits;
 	}

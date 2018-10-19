@@ -49,9 +49,9 @@ static void unref_worker(struct drm_flip_work *work, void *val)
 		container_of(work, struct tilcdc_crtc, unref_work);
 	struct drm_device *dev = tilcdc_crtc->base.dev;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_framebuffer_unreference(val);
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void set_scanout(struct drm_crtc *crtc, int n)

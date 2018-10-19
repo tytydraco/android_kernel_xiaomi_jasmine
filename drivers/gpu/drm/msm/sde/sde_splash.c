@@ -39,7 +39,7 @@
 
 #define SDE_LK_EXIT_MAX_LOOP		20
 
-static DEFINE_MUTEX(sde_splash_lock);
+static DEFINE_RT_MUTEX(sde_splash_lock);
 
 /*
  * In order to free reseved memory from bootup, and we are not
@@ -286,10 +286,10 @@ static void _sde_splash_destroy_splash_node(struct sde_splash_info *sinfo)
 static void _sde_splash_get_connector_ref_cnt(struct sde_splash_info *sinfo,
 					u32 *hdmi_cnt, u32 *dsi_cnt)
 {
-	mutex_lock(&sde_splash_lock);
+	rt_mutex_lock(&sde_splash_lock);
 	*hdmi_cnt = sinfo->hdmi_connector_cnt;
 	*dsi_cnt = sinfo->dsi_connector_cnt;
-	mutex_unlock(&sde_splash_lock);
+	rt_mutex_unlock(&sde_splash_lock);
 }
 
 static int _sde_splash_free_resource(struct msm_mmu *mmu,
@@ -522,9 +522,9 @@ bool sde_splash_get_lk_complete_status(struct sde_splash_info *sinfo)
 {
 	bool ret = 0;
 
-	mutex_lock(&sde_splash_lock);
+	rt_mutex_lock(&sde_splash_lock);
 	ret = !sinfo->handoff && !sinfo->lk_is_exited;
-	mutex_unlock(&sde_splash_lock);
+	rt_mutex_unlock(&sde_splash_lock);
 
 	return ret;
 }
@@ -557,7 +557,7 @@ int sde_splash_clean_up_free_resource(struct msm_kms *kms,
 	_sde_splash_get_connector_ref_cnt(sinfo, &hdmi_conn_count,
 						&dsi_conn_count);
 
-	mutex_lock(&sde_splash_lock);
+	rt_mutex_lock(&sde_splash_lock);
 	if (hdmi_conn_count == 0 && dsi_conn_count == 0 &&
 					!sinfo->lk_is_exited) {
 		/* When both hdmi's and dsi's handoff are finished,
@@ -577,7 +577,7 @@ int sde_splash_clean_up_free_resource(struct msm_kms *kms,
 		sde_power_data_bus_bandwidth_ctrl(phandle,
 				sde_kms->core_client, false);
 
-		mutex_unlock(&sde_splash_lock);
+		rt_mutex_unlock(&sde_splash_lock);
 		return 0;
 	}
 
@@ -623,7 +623,7 @@ int sde_splash_clean_up_free_resource(struct msm_kms *kms,
 				__func__, connector_type);
 	}
 
-	mutex_unlock(&sde_splash_lock);
+	rt_mutex_unlock(&sde_splash_lock);
 
 	return ret;
 }
@@ -648,7 +648,7 @@ int sde_splash_clean_up_exit_lk(struct msm_kms *kms)
 	}
 
 	/* Monitor LK's status and tell it to exit. */
-	mutex_lock(&sde_splash_lock);
+	rt_mutex_lock(&sde_splash_lock);
 	if (sinfo->program_scratch_regs) {
 		if (_sde_splash_lk_check(sde_kms->hw_intr))
 			_sde_splash_notify_lk_exit(sde_kms->hw_intr);
@@ -656,7 +656,7 @@ int sde_splash_clean_up_exit_lk(struct msm_kms *kms)
 		sinfo->handoff = false;
 		sinfo->program_scratch_regs = false;
 	}
-	mutex_unlock(&sde_splash_lock);
+	rt_mutex_unlock(&sde_splash_lock);
 
 	if (!sde_kms->aspace[0] || !sde_kms->aspace[0]->mmu) {
 		/* We do not return fault value here, to ensure

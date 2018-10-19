@@ -23,7 +23,7 @@
 #define SDE_WB_MODE_MAX_HEIGHT	4096
 
 /* Serialization lock for sde_wb_list */
-static DEFINE_MUTEX(sde_wb_list_lock);
+static DEFINE_RT_MUTEX(sde_wb_list_lock);
 
 /* List of all writeback devices installed */
 static LIST_HEAD(sde_wb_list);
@@ -79,7 +79,7 @@ int sde_wb_connector_get_modes(struct drm_connector *connector, void *display)
 
 	SDE_DEBUG("\n");
 
-	mutex_lock(&wb_dev->wb_lock);
+	rt_mutex_lock(&wb_dev->wb_lock);
 	if (wb_dev->count_modes && wb_dev->modes) {
 		struct drm_display_mode *mode;
 		int i, ret;
@@ -108,7 +108,7 @@ int sde_wb_connector_get_modes(struct drm_connector *connector, void *display)
 		num_modes = drm_add_modes_noedid(connector, max_width,
 				SDE_WB_MODE_MAX_HEIGHT);
 	}
-	mutex_unlock(&wb_dev->wb_lock);
+	rt_mutex_unlock(&wb_dev->wb_lock);
 	return num_modes;
 }
 
@@ -359,9 +359,9 @@ struct drm_framebuffer *sde_wb_get_output_fb(struct sde_wb_device *wb_dev)
 
 	SDE_DEBUG("\n");
 
-	mutex_lock(&wb_dev->wb_lock);
+	rt_mutex_lock(&wb_dev->wb_lock);
 	fb = sde_wb_connector_state_get_output_fb(wb_dev->connector->state);
-	mutex_unlock(&wb_dev->wb_lock);
+	rt_mutex_unlock(&wb_dev->wb_lock);
 
 	return fb;
 }
@@ -377,10 +377,10 @@ int sde_wb_get_output_roi(struct sde_wb_device *wb_dev, struct sde_rect *roi)
 
 	SDE_DEBUG("\n");
 
-	mutex_lock(&wb_dev->wb_lock);
+	rt_mutex_lock(&wb_dev->wb_lock);
 	rc = sde_wb_connector_state_get_output_roi(
 			wb_dev->connector->state, roi);
-	mutex_unlock(&wb_dev->wb_lock);
+	rt_mutex_unlock(&wb_dev->wb_lock);
 
 	return rc;
 }
@@ -392,11 +392,11 @@ u32 sde_wb_get_num_of_displays(void)
 
 	SDE_DEBUG("\n");
 
-	mutex_lock(&sde_wb_list_lock);
+	rt_mutex_lock(&sde_wb_list_lock);
 	list_for_each_entry(wb_dev, &sde_wb_list, wb_list) {
 		count++;
 	}
-	mutex_unlock(&sde_wb_list_lock);
+	rt_mutex_unlock(&sde_wb_list_lock);
 
 	return count;
 }
@@ -414,13 +414,13 @@ int wb_display_get_displays(void **display_array, u32 max_display_count)
 		return 0;
 	}
 
-	mutex_lock(&sde_wb_list_lock);
+	rt_mutex_lock(&sde_wb_list_lock);
 	list_for_each_entry(curr, &sde_wb_list, wb_list) {
 		if (i >= max_display_count)
 			break;
 		display_array[i++] = curr;
 	}
-	mutex_unlock(&sde_wb_list_lock);
+	rt_mutex_unlock(&sde_wb_list_lock);
 
 	return i;
 }
@@ -460,14 +460,14 @@ int sde_wb_config(struct drm_device *drm_dev, void *data,
 		goto fail;
 	}
 
-	mutex_lock(&sde_wb_list_lock);
+	rt_mutex_lock(&sde_wb_list_lock);
 	list_for_each_entry(curr, &sde_wb_list, wb_list) {
 		if (curr->connector == connector) {
 			wb_dev = curr;
 			break;
 		}
 	}
-	mutex_unlock(&sde_wb_list_lock);
+	rt_mutex_unlock(&sde_wb_list_lock);
 
 	if (!wb_dev) {
 		SDE_ERROR("failed to find wb device\n");
@@ -475,13 +475,13 @@ int sde_wb_config(struct drm_device *drm_dev, void *data,
 		goto fail;
 	}
 
-	mutex_lock(&wb_dev->wb_lock);
+	rt_mutex_lock(&wb_dev->wb_lock);
 
 	rc = sde_wb_connector_set_modes(wb_dev, count_modes,
 		(struct drm_mode_modeinfo __user *) (uintptr_t) modes,
 		(flags & SDE_DRM_WB_CFG_FLAGS_CONNECTED) ? true : false);
 
-	mutex_unlock(&wb_dev->wb_lock);
+	rt_mutex_unlock(&wb_dev->wb_lock);
 	drm_helper_hpd_irq_event(drm_dev);
 fail:
 	return rc;
@@ -547,9 +547,9 @@ static int sde_wb_bind(struct device *dev, struct device *master, void *data)
 
 	SDE_DEBUG("\n");
 
-	mutex_lock(&wb_dev->wb_lock);
+	rt_mutex_lock(&wb_dev->wb_lock);
 	wb_dev->drm_dev = dev_get_drvdata(master);
-	mutex_unlock(&wb_dev->wb_lock);
+	rt_mutex_unlock(&wb_dev->wb_lock);
 
 	return 0;
 }
@@ -578,9 +578,9 @@ static void sde_wb_unbind(struct device *dev,
 
 	SDE_DEBUG("\n");
 
-	mutex_lock(&wb_dev->wb_lock);
+	rt_mutex_lock(&wb_dev->wb_lock);
 	wb_dev->drm_dev = NULL;
-	mutex_unlock(&wb_dev->wb_lock);
+	rt_mutex_unlock(&wb_dev->wb_lock);
 }
 
 static const struct component_ops sde_wb_comp_ops = {
@@ -604,7 +604,7 @@ int sde_wb_drm_init(struct sde_wb_device *wb_dev, struct drm_encoder *encoder)
 
 	SDE_DEBUG("\n");
 
-	mutex_lock(&wb_dev->wb_lock);
+	rt_mutex_lock(&wb_dev->wb_lock);
 
 	if (wb_dev->drm_dev->dev_private) {
 		struct msm_drm_private *priv = wb_dev->drm_dev->dev_private;
@@ -618,7 +618,7 @@ int sde_wb_drm_init(struct sde_wb_device *wb_dev, struct drm_encoder *encoder)
 
 	wb_dev->drm_dev = encoder->dev;
 	wb_dev->encoder = encoder;
-	mutex_unlock(&wb_dev->wb_lock);
+	rt_mutex_unlock(&wb_dev->wb_lock);
 	return rc;
 }
 
@@ -666,12 +666,12 @@ static int sde_wb_probe(struct platform_device *pdev)
 
 	wb_dev->wb_idx = SDE_NONE;
 
-	mutex_init(&wb_dev->wb_lock);
+	rt_mutex_init(&wb_dev->wb_lock);
 	platform_set_drvdata(pdev, wb_dev);
 
-	mutex_lock(&sde_wb_list_lock);
+	rt_mutex_lock(&sde_wb_list_lock);
 	list_add(&wb_dev->wb_list, &sde_wb_list);
-	mutex_unlock(&sde_wb_list_lock);
+	rt_mutex_unlock(&sde_wb_list_lock);
 
 	if (!_sde_wb_dev_init(wb_dev)) {
 		ret = component_add(&pdev->dev, &sde_wb_comp_ops);
@@ -699,17 +699,17 @@ static int sde_wb_remove(struct platform_device *pdev)
 
 	(void)_sde_wb_dev_deinit(wb_dev);
 
-	mutex_lock(&sde_wb_list_lock);
+	rt_mutex_lock(&sde_wb_list_lock);
 	list_for_each_entry_safe(curr, next, &sde_wb_list, wb_list) {
 		if (curr == wb_dev) {
 			list_del(&wb_dev->wb_list);
 			break;
 		}
 	}
-	mutex_unlock(&sde_wb_list_lock);
+	rt_mutex_unlock(&sde_wb_list_lock);
 
 	kfree(wb_dev->modes);
-	mutex_destroy(&wb_dev->wb_lock);
+	rt_mutex_destroy(&wb_dev->wb_lock);
 
 	platform_set_drvdata(pdev, NULL);
 	devm_kfree(&pdev->dev, wb_dev);

@@ -357,9 +357,9 @@ static void adreno_pwr_on_work(struct work_struct *work)
 		container_of(work, typeof(*adreno_dev), pwr_on_work);
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_ACTIVE);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 static int adreno_soft_reset(struct kgsl_device *device);
@@ -1846,7 +1846,7 @@ static int adreno_setproperty(struct kgsl_device_private *dev_priv,
 				break;
 			}
 
-			mutex_lock(&device->mutex);
+			rt_mutex_lock(&device->mutex);
 
 			if (enable) {
 				device->pwrctrl.ctrl_flags = 0;
@@ -1865,7 +1865,7 @@ static int adreno_setproperty(struct kgsl_device_private *dev_priv,
 				kgsl_pwrscale_disable(device, true);
 			}
 
-			mutex_unlock(&device->mutex);
+			rt_mutex_unlock(&device->mutex);
 			status = 0;
 		}
 		break;
@@ -2140,7 +2140,7 @@ int adreno_idle(struct kgsl_device *device)
 	 * more commands to the hardware
 	 */
 
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 
 	/* Check if we are already idle before idling dispatcher */
 	if (adreno_isidle(device))
@@ -2546,7 +2546,7 @@ static void adreno_iommu_sync(struct kgsl_device *device, bool sync)
 	int ret;
 
 	if (sync == true) {
-		mutex_lock(&kgsl_mmu_sync);
+		rt_mutex_lock(&kgsl_mmu_sync);
 		desc.args[0] = true;
 		desc.arginfo = SCM_ARGS(1);
 		ret = scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_PWR, 0x8), &desc);
@@ -2557,7 +2557,7 @@ static void adreno_iommu_sync(struct kgsl_device *device, bool sync)
 		desc.args[0] = false;
 		desc.arginfo = SCM_ARGS(1);
 		scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_PWR, 0x8), &desc);
-		mutex_unlock(&kgsl_mmu_sync);
+		rt_mutex_unlock(&kgsl_mmu_sync);
 	}
 }
 

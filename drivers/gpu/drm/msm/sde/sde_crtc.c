@@ -90,7 +90,7 @@ static void sde_crtc_destroy(struct drm_crtc *crtc)
 	sde_fence_deinit(&sde_crtc->output_fence);
 
 	drm_crtc_cleanup(crtc);
-	mutex_destroy(&sde_crtc->crtc_lock);
+	rt_mutex_destroy(&sde_crtc->crtc_lock);
 	kfree(sde_crtc);
 }
 
@@ -632,7 +632,7 @@ void sde_crtc_complete_commit(struct drm_crtc *crtc,
 		sde_connector_complete_commit(cstate->connectors[i]);
 
 	if (sde_splash_get_lk_complete_status(&sde_kms->splash_info)) {
-		mutex_lock(&dev->mode_config.mutex);
+		rt_mutex_lock(&dev->mode_config.mutex);
 		drm_for_each_connector(conn, crtc->dev) {
 			if (conn->state->crtc != crtc)
 				continue;
@@ -644,7 +644,7 @@ void sde_crtc_complete_commit(struct drm_crtc *crtc,
 					c_conn->connector_type,
 					c_conn->display);
 		}
-		mutex_unlock(&dev->mode_config.mutex);
+		rt_mutex_unlock(&dev->mode_config.mutex);
 	}
 }
 
@@ -771,7 +771,7 @@ static void _sde_crtc_setup_mixers(struct drm_crtc *crtc)
 	sde_crtc->num_mixers = 0;
 	memset(sde_crtc->mixers, 0, sizeof(sde_crtc->mixers));
 
-	mutex_lock(&sde_crtc->crtc_lock);
+	rt_mutex_lock(&sde_crtc->crtc_lock);
 	/* Check for mixers on all encoders attached to this crtc */
 	list_for_each_entry(enc, &crtc->dev->mode_config.encoder_list, head) {
 		if (enc->crtc != crtc)
@@ -779,7 +779,7 @@ static void _sde_crtc_setup_mixers(struct drm_crtc *crtc)
 
 		_sde_crtc_setup_mixer_for_encoder(crtc, enc);
 	}
-	mutex_unlock(&sde_crtc->crtc_lock);
+	rt_mutex_unlock(&sde_crtc->crtc_lock);
 }
 
 static void sde_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -1078,7 +1078,7 @@ static void _sde_crtc_set_suspend(struct drm_crtc *crtc, bool enable)
 
 	SDE_DEBUG("crtc%d suspend = %d\n", crtc->base.id, enable);
 
-	mutex_lock(&sde_crtc->crtc_lock);
+	rt_mutex_lock(&sde_crtc->crtc_lock);
 
 	/*
 	 * Update CP on suspend/resume transitions
@@ -1100,7 +1100,7 @@ static void _sde_crtc_set_suspend(struct drm_crtc *crtc, bool enable)
 
 	sde_crtc->suspend = enable;
 
-	mutex_unlock(&sde_crtc->crtc_lock);
+	rt_mutex_unlock(&sde_crtc->crtc_lock);
 }
 
 /**
@@ -1205,7 +1205,7 @@ static void sde_crtc_disable(struct drm_crtc *crtc)
 	if (msm_is_suspend_state(crtc->dev))
 		_sde_crtc_set_suspend(crtc, true);
 
-	mutex_lock(&sde_crtc->crtc_lock);
+	rt_mutex_lock(&sde_crtc->crtc_lock);
 	SDE_EVT32(DRMID(crtc), sde_crtc->enabled, sde_crtc->suspend,
 			sde_crtc->vblank_requested);
 
@@ -1241,7 +1241,7 @@ static void sde_crtc_disable(struct drm_crtc *crtc)
 
 	memset(sde_crtc->mixers, 0, sizeof(sde_crtc->mixers));
 	sde_crtc->num_mixers = 0;
-	mutex_unlock(&sde_crtc->crtc_lock);
+	rt_mutex_unlock(&sde_crtc->crtc_lock);
 }
 
 static void sde_crtc_enable(struct drm_crtc *crtc)
@@ -1282,7 +1282,7 @@ static void sde_crtc_enable(struct drm_crtc *crtc)
 				sde_crtc_request_flip_cb, (void *)crtc);
 	}
 
-	mutex_lock(&sde_crtc->crtc_lock);
+	rt_mutex_lock(&sde_crtc->crtc_lock);
 	SDE_EVT32(DRMID(crtc), sde_crtc->enabled, sde_crtc->suspend,
 			sde_crtc->vblank_requested);
 	if (!sde_crtc->enabled && !sde_crtc->suspend &&
@@ -1293,7 +1293,7 @@ static void sde_crtc_enable(struct drm_crtc *crtc)
 				sde_crtc->name, ret);
 	}
 	sde_crtc->enabled = true;
-	mutex_unlock(&sde_crtc->crtc_lock);
+	rt_mutex_unlock(&sde_crtc->crtc_lock);
 
 	for (i = 0; i < sde_crtc->num_mixers; i++) {
 		lm = mixer[i].hw_lm;
@@ -1537,7 +1537,7 @@ int sde_crtc_vblank(struct drm_crtc *crtc, bool en)
 	}
 	sde_crtc = to_sde_crtc(crtc);
 
-	mutex_lock(&sde_crtc->crtc_lock);
+	rt_mutex_lock(&sde_crtc->crtc_lock);
 	SDE_EVT32(DRMID(&sde_crtc->base), en, sde_crtc->enabled,
 			sde_crtc->suspend, sde_crtc->vblank_requested);
 	if (sde_crtc->enabled && !sde_crtc->suspend) {
@@ -1548,7 +1548,7 @@ int sde_crtc_vblank(struct drm_crtc *crtc, bool en)
 	}
 
 	sde_crtc->vblank_requested = en;
-	mutex_unlock(&sde_crtc->crtc_lock);
+	rt_mutex_unlock(&sde_crtc->crtc_lock);
 
 	return 0;
 }
@@ -1778,7 +1778,7 @@ static int _sde_debugfs_status_show(struct seq_file *s, void *data)
 	sde_crtc = s->private;
 	crtc = &sde_crtc->base;
 
-	mutex_lock(&sde_crtc->crtc_lock);
+	rt_mutex_lock(&sde_crtc->crtc_lock);
 	mode = &crtc->state->adjusted_mode;
 	out_width = sde_crtc_mixer_width(sde_crtc, mode);
 
@@ -1865,7 +1865,7 @@ static int _sde_debugfs_status_show(struct seq_file *s, void *data)
 
 	seq_printf(s, "vblank_enable:%d\n", sde_crtc->vblank_requested);
 
-	mutex_unlock(&sde_crtc->crtc_lock);
+	rt_mutex_unlock(&sde_crtc->crtc_lock);
 
 	return 0;
 }
@@ -1995,7 +1995,7 @@ struct drm_crtc *sde_crtc_init(struct drm_device *dev,
 	crtc = &sde_crtc->base;
 	crtc->dev = dev;
 
-	mutex_init(&sde_crtc->crtc_lock);
+	rt_mutex_init(&sde_crtc->crtc_lock);
 	spin_lock_init(&sde_crtc->spin_lock);
 	atomic_set(&sde_crtc->frame_pending, 0);
 

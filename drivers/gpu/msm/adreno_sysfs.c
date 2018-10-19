@@ -56,7 +56,7 @@ static int _ft_pagefault_policy_store(struct adreno_device *adreno_dev,
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	int ret = 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	val &= KGSL_FT_PAGEFAULT_MASK;
 
 	if (test_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv))
@@ -66,7 +66,7 @@ static int _ft_pagefault_policy_store(struct adreno_device *adreno_dev,
 	if (ret == 0)
 		adreno_dev->ft_pf_policy = val;
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return 0;
 }
@@ -84,7 +84,7 @@ static int _ft_fast_hang_detect_store(struct adreno_device *adreno_dev,
 	if (!test_bit(ADRENO_DEVICE_SOFT_FAULT_DETECT, &adreno_dev->priv))
 		return 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	if (val) {
 		if (!kgsl_active_count_get(device)) {
@@ -94,7 +94,7 @@ static int _ft_fast_hang_detect_store(struct adreno_device *adreno_dev,
 	} else
 		adreno_fault_detect_stop(adreno_dev);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return 0;
 }
@@ -125,7 +125,7 @@ static int _ft_hang_intr_status_store(struct adreno_device *adreno_dev,
 	if (val == test_bit(ADRENO_DEVICE_HANG_INTR, &adreno_dev->priv))
 		return 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	change_bit(ADRENO_DEVICE_HANG_INTR, &adreno_dev->priv);
 
 	if (test_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv)) {
@@ -136,7 +136,7 @@ static int _ft_hang_intr_status_store(struct adreno_device *adreno_dev,
 		change_bit(ADRENO_DEVICE_HANG_INTR, &adreno_dev->priv);
 	}
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return ret;
 }
 
@@ -153,14 +153,14 @@ static int _pwrctrl_store(struct adreno_device *adreno_dev,
 	if (val == test_bit(flag, &adreno_dev->pwrctrl_flag))
 		return 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	/* Power down the GPU before changing the state */
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_SUSPEND);
 	change_bit(flag, &adreno_dev->pwrctrl_flag);
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_SLUMBER);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return 0;
 }
@@ -173,14 +173,14 @@ static int _preemption_store(struct adreno_device *adreno_dev,
 	if (test_bit(ADRENO_DEVICE_PREEMPTION, &adreno_dev->priv) == val)
 			return 0;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_SUSPEND);
 	change_bit(ADRENO_DEVICE_PREEMPTION, &adreno_dev->priv);
 	adreno_dev->cur_rb = &(adreno_dev->ringbuffers[0]);
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_SLUMBER);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return 0;
 }
@@ -385,13 +385,13 @@ static ssize_t ppd_enable_store(struct kgsl_device *device,
 	if (ppd_on == test_bit(ADRENO_PPD_CTRL, &adreno_dev->pwrctrl_flag))
 		return count;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_SUSPEND);
 	change_bit(ADRENO_PPD_CTRL, &adreno_dev->pwrctrl_flag);
 	kgsl_pwrctrl_change_state(device, KGSL_STATE_SLUMBER);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return count;
 }
 

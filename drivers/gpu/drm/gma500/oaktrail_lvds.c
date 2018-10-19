@@ -360,7 +360,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	 */
 
 	edid = NULL;
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	i2c_adap = i2c_get_adapter(dev_priv->ops->i2c_bus);
 	if (i2c_adap)
 		edid = drm_get_edid(connector, i2c_adap);
@@ -407,13 +407,13 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	}
 
 out:
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	drm_connector_register(connector);
 	return;
 
 failed_find:
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	dev_dbg(dev->dev, "No LVDS modes found, disabling.\n");
 	if (gma_encoder->ddc_bus) {

@@ -40,7 +40,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	struct scatterlist *src, *dst;
 	int ret, i;
 
-	ret = i915_mutex_lock_interruptible(obj->base.dev);
+	ret = i915_rt_mutex_lock_interruptible(obj->base.dev);
 	if (ret)
 		goto err;
 
@@ -74,7 +74,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 		goto err_free_sg;
 	}
 
-	mutex_unlock(&obj->base.dev->struct_mutex);
+	rt_mutex_unlock(&obj->base.dev->struct_mutex);
 	return st;
 
 err_free_sg:
@@ -84,7 +84,7 @@ err_free:
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
 err_unlock:
-	mutex_unlock(&obj->base.dev->struct_mutex);
+	rt_mutex_unlock(&obj->base.dev->struct_mutex);
 err:
 	return ERR_PTR(ret);
 }
@@ -95,7 +95,7 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(attachment->dmabuf);
 
-	mutex_lock(&obj->base.dev->struct_mutex);
+	rt_mutex_lock(&obj->base.dev->struct_mutex);
 
 	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
 	sg_free_table(sg);
@@ -103,7 +103,7 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 
 	i915_gem_object_unpin_pages(obj);
 
-	mutex_unlock(&obj->base.dev->struct_mutex);
+	rt_mutex_unlock(&obj->base.dev->struct_mutex);
 }
 
 static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
@@ -114,7 +114,7 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 	struct page **pages;
 	int ret, i;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -147,13 +147,13 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 
 	obj->vmapping_count = 1;
 out_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return obj->dma_buf_vmapping;
 
 err_unpin:
 	i915_gem_object_unpin_pages(obj);
 err:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ERR_PTR(ret);
 }
 
@@ -162,14 +162,14 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (--obj->vmapping_count == 0) {
 		vunmap(obj->dma_buf_vmapping);
 		obj->dma_buf_vmapping = NULL;
 
 		i915_gem_object_unpin_pages(obj);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 static void *i915_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf, unsigned long page_num)
@@ -203,12 +203,12 @@ static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size
 	int ret;
 	bool write = (direction == DMA_BIDIRECTIONAL || direction == DMA_TO_DEVICE);
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, write);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 

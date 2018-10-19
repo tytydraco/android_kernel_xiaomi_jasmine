@@ -127,7 +127,7 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	kfd->init_complete = false;
 	kfd->kfd2kgd = f2g;
 
-	mutex_init(&kfd->doorbell_mutex);
+	rt_mutex_init(&kfd->doorbell_mutex);
 	memset(&kfd->doorbell_available_index, 0,
 		sizeof(kfd->doorbell_available_index));
 
@@ -424,7 +424,7 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 	pr_debug("kfd: gtt_sa_num_of_chunks = %d, gtt_sa_bitmap = %p\n",
 			kfd->gtt_sa_num_of_chunks, kfd->gtt_sa_bitmap);
 
-	mutex_init(&kfd->gtt_sa_lock);
+	rt_mutex_init(&kfd->gtt_sa_lock);
 
 	return 0;
 
@@ -432,7 +432,7 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 
 static void kfd_gtt_sa_fini(struct kfd_dev *kfd)
 {
-	mutex_destroy(&kfd->gtt_sa_lock);
+	rt_mutex_destroy(&kfd->gtt_sa_lock);
 	kfree(kfd->gtt_sa_bitmap);
 }
 
@@ -471,7 +471,7 @@ int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
 
 	start_search = 0;
 
-	mutex_lock(&kfd->gtt_sa_lock);
+	rt_mutex_lock(&kfd->gtt_sa_lock);
 
 kfd_gtt_restart_search:
 	/* Find the first chunk that is free */
@@ -547,12 +547,12 @@ kfd_gtt_restart_search:
 		set_bit(found, kfd->gtt_sa_bitmap);
 
 kfd_gtt_out:
-	mutex_unlock(&kfd->gtt_sa_lock);
+	rt_mutex_unlock(&kfd->gtt_sa_lock);
 	return 0;
 
 kfd_gtt_no_free_chunk:
 	pr_debug("kfd: allocation failed with mem_obj = %p\n", mem_obj);
-	mutex_unlock(&kfd->gtt_sa_lock);
+	rt_mutex_unlock(&kfd->gtt_sa_lock);
 	kfree(mem_obj);
 	return -ENOMEM;
 }
@@ -570,7 +570,7 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 	pr_debug("kfd: free mem_obj = %p, range_start = %d, range_end = %d\n",
 			mem_obj, mem_obj->range_start, mem_obj->range_end);
 
-	mutex_lock(&kfd->gtt_sa_lock);
+	rt_mutex_lock(&kfd->gtt_sa_lock);
 
 	/* Mark the chunks as free */
 	for (bit = mem_obj->range_start;
@@ -578,7 +578,7 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 		bit++)
 		clear_bit(bit, kfd->gtt_sa_bitmap);
 
-	mutex_unlock(&kfd->gtt_sa_lock);
+	rt_mutex_unlock(&kfd->gtt_sa_lock);
 
 	kfree(mem_obj);
 	return 0;

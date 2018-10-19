@@ -334,7 +334,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 	}
 	list->map = map;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_add(&list->head, &dev->maplist);
 
 	/* Assign a 32-bit handle */
@@ -348,12 +348,12 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			iounmap(map->handle);
 		kfree(map);
 		kfree(list);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
 	list->user_token = list->hash.key << PAGE_SHIFT;
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	if (!(map->flags & _DRM_DRIVER))
 		list->master = dev->primary->master;
@@ -486,9 +486,9 @@ int drm_legacy_rmmap(struct drm_device *dev, struct drm_local_map *map)
 {
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	ret = drm_legacy_rmmap_locked(dev, map);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -517,7 +517,7 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_map_list *r_list;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(r_list, &dev->maplist, head) {
 		if (r_list->map &&
 		    r_list->user_token == (unsigned long)request->handle &&
@@ -531,19 +531,19 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 	 * find anything.
 	 */
 	if (list_empty(&dev->maplist) || !map) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
 	/* Register and framebuffer maps are permanent */
 	if ((map->type == _DRM_REGISTERS) || (map->type == _DRM_FRAME_BUFFER)) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
 
 	ret = drm_legacy_rmmap_locked(dev, map);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -660,23 +660,23 @@ int drm_legacy_addbufs_agp(struct drm_device *dev,
 	atomic_inc(&dev->buf_alloc);
 	spin_unlock(&dev->buf_lock);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
 	if (entry->buf_count) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;	/* May only call once for each order */
 	}
 
 	if (count < 0 || count > 4096) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -EINVAL;
 	}
 
 	entry->buflist = kzalloc(count * sizeof(*entry->buflist), GFP_KERNEL);
 	if (!entry->buflist) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -707,7 +707,7 @@ int drm_legacy_addbufs_agp(struct drm_device *dev,
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
 			drm_cleanup_buf_error(dev, entry);
-			mutex_unlock(&dev->struct_mutex);
+			rt_mutex_unlock(&dev->struct_mutex);
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
@@ -727,7 +727,7 @@ int drm_legacy_addbufs_agp(struct drm_device *dev,
 	if (!temp_buflist) {
 		/* Free the entry because it isn't valid */
 		drm_cleanup_buf_error(dev, entry);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -745,7 +745,7 @@ int drm_legacy_addbufs_agp(struct drm_device *dev,
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
 	DRM_DEBUG("entry->buf_count : %d\n", entry->buf_count);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	request->count = entry->buf_count;
 	request->size = size;
@@ -810,23 +810,23 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	atomic_inc(&dev->buf_alloc);
 	spin_unlock(&dev->buf_lock);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
 	if (entry->buf_count) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;	/* May only call once for each order */
 	}
 
 	if (count < 0 || count > 4096) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -EINVAL;
 	}
 
 	entry->buflist = kzalloc(count * sizeof(*entry->buflist), GFP_KERNEL);
 	if (!entry->buflist) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -834,7 +834,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	entry->seglist = kzalloc(count * sizeof(*entry->seglist), GFP_KERNEL);
 	if (!entry->seglist) {
 		kfree(entry->buflist);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -847,7 +847,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	if (!temp_pagelist) {
 		kfree(entry->buflist);
 		kfree(entry->seglist);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -871,7 +871,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 			entry->seg_count = count;
 			drm_cleanup_buf_error(dev, entry);
 			kfree(temp_pagelist);
-			mutex_unlock(&dev->struct_mutex);
+			rt_mutex_unlock(&dev->struct_mutex);
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
@@ -908,7 +908,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 				entry->seg_count = count;
 				drm_cleanup_buf_error(dev, entry);
 				kfree(temp_pagelist);
-				mutex_unlock(&dev->struct_mutex);
+				rt_mutex_unlock(&dev->struct_mutex);
 				atomic_dec(&dev->buf_alloc);
 				return -ENOMEM;
 			}
@@ -926,7 +926,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 		/* Free the entry because it isn't valid */
 		drm_cleanup_buf_error(dev, entry);
 		kfree(temp_pagelist);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -949,7 +949,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	dma->page_count += entry->seg_count << page_order;
 	dma->byte_count += PAGE_SIZE * (entry->seg_count << page_order);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	request->count = entry->buf_count;
 	request->size = size;
@@ -1021,16 +1021,16 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 	atomic_inc(&dev->buf_alloc);
 	spin_unlock(&dev->buf_lock);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	entry = &dma->bufs[order];
 	if (entry->buf_count) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;	/* May only call once for each order */
 	}
 
 	if (count < 0 || count > 4096) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -EINVAL;
 	}
@@ -1038,7 +1038,7 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 	entry->buflist = kzalloc(count * sizeof(*entry->buflist),
 				GFP_KERNEL);
 	if (!entry->buflist) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -1070,7 +1070,7 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
 			drm_cleanup_buf_error(dev, entry);
-			mutex_unlock(&dev->struct_mutex);
+			rt_mutex_unlock(&dev->struct_mutex);
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
@@ -1090,7 +1090,7 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 	if (!temp_buflist) {
 		/* Free the entry because it isn't valid */
 		drm_cleanup_buf_error(dev, entry);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		atomic_dec(&dev->buf_alloc);
 		return -ENOMEM;
 	}
@@ -1108,7 +1108,7 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 	DRM_DEBUG("dma->buf_count : %d\n", dma->buf_count);
 	DRM_DEBUG("entry->buf_count : %d\n", entry->buf_count);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	request->count = entry->buf_count;
 	request->size = size;

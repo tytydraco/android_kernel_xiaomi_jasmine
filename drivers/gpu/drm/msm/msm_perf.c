@@ -35,7 +35,7 @@ struct msm_perf_state {
 
 	bool open;
 	int cnt;
-	struct mutex read_lock;
+	struct rt_mutex read_lock;
 
 	char buf[256];
 	int buftot, bufpos;
@@ -134,7 +134,7 @@ static ssize_t perf_read(struct file *file, char __user *buf,
 	struct msm_perf_state *perf = file->private_data;
 	int n = 0, ret;
 
-	mutex_lock(&perf->read_lock);
+	rt_mutex_lock(&perf->read_lock);
 
 	if (perf->bufpos >= perf->buftot) {
 		ret = refill_buf(perf);
@@ -151,7 +151,7 @@ static ssize_t perf_read(struct file *file, char __user *buf,
 	*ppos += n;
 
 out:
-	mutex_unlock(&perf->read_lock);
+	rt_mutex_unlock(&perf->read_lock);
 	if (ret)
 		return ret;
 	return n;
@@ -165,7 +165,7 @@ static int perf_open(struct inode *inode, struct file *file)
 	struct msm_gpu *gpu = priv->gpu;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	if (perf->open || !gpu) {
 		ret = -EBUSY;
@@ -181,7 +181,7 @@ static int perf_open(struct inode *inode, struct file *file)
 	perf->next_jiffies = jiffies + SAMPLE_TIME;
 
 out:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -218,7 +218,7 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 
 	perf->dev = minor->dev;
 
-	mutex_init(&perf->read_lock);
+	rt_mutex_init(&perf->read_lock);
 	priv->perf = perf;
 
 	perf->node = kzalloc(sizeof(*perf->node), GFP_KERNEL);
@@ -237,9 +237,9 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	perf->node->dent  = perf->ent;
 	perf->node->info_ent = NULL;
 
-	mutex_lock(&minor->debugfs_lock);
+	rt_mutex_lock(&minor->debugfs_lock);
 	list_add(&perf->node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
+	rt_mutex_unlock(&minor->debugfs_lock);
 
 	return 0;
 
@@ -261,13 +261,13 @@ void msm_perf_debugfs_cleanup(struct drm_minor *minor)
 	debugfs_remove(perf->ent);
 
 	if (perf->node) {
-		mutex_lock(&minor->debugfs_lock);
+		rt_mutex_lock(&minor->debugfs_lock);
 		list_del(&perf->node->list);
-		mutex_unlock(&minor->debugfs_lock);
+		rt_mutex_unlock(&minor->debugfs_lock);
 		kfree(perf->node);
 	}
 
-	mutex_destroy(&perf->read_lock);
+	rt_mutex_destroy(&perf->read_lock);
 
 	kfree(perf);
 }

@@ -141,10 +141,10 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 {
 	int r;
 
-	mutex_lock(&rdev->ring_lock);
+	rt_mutex_lock(&rdev->ring_lock);
 	r = radeon_ring_alloc(rdev, ring, ndw);
 	if (r) {
-		mutex_unlock(&rdev->ring_lock);
+		rt_mutex_unlock(&rdev->ring_lock);
 		return r;
 	}
 	return 0;
@@ -196,7 +196,7 @@ void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *r
 			       bool hdp_flush)
 {
 	radeon_ring_commit(rdev, ring, hdp_flush);
-	mutex_unlock(&rdev->ring_lock);
+	rt_mutex_unlock(&rdev->ring_lock);
 }
 
 /**
@@ -221,7 +221,7 @@ void radeon_ring_undo(struct radeon_ring *ring)
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	radeon_ring_undo(ring);
-	mutex_unlock(&rdev->ring_lock);
+	rt_mutex_unlock(&rdev->ring_lock);
 }
 
 /**
@@ -280,17 +280,17 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	unsigned size, ptr, i;
 
 	/* just in case lock the ring */
-	mutex_lock(&rdev->ring_lock);
+	rt_mutex_lock(&rdev->ring_lock);
 	*data = NULL;
 
 	if (ring->ring_obj == NULL) {
-		mutex_unlock(&rdev->ring_lock);
+		rt_mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
 
 	/* it doesn't make sense to save anything if all fences are signaled */
 	if (!radeon_fence_count_emitted(rdev, ring->idx)) {
-		mutex_unlock(&rdev->ring_lock);
+		rt_mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
 
@@ -301,7 +301,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 		ptr = le32_to_cpu(*ring->next_rptr_cpu_addr);
 	else {
 		/* no way to read back the next rptr */
-		mutex_unlock(&rdev->ring_lock);
+		rt_mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
 
@@ -309,14 +309,14 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	size -= ptr;
 	size &= ring->ptr_mask;
 	if (size == 0) {
-		mutex_unlock(&rdev->ring_lock);
+		rt_mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
 
 	/* and then save the content of the ring */
 	*data = drm_malloc_ab(size, sizeof(uint32_t));
 	if (!*data) {
-		mutex_unlock(&rdev->ring_lock);
+		rt_mutex_unlock(&rdev->ring_lock);
 		return 0;
 	}
 	for (i = 0; i < size; ++i) {
@@ -324,7 +324,7 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 		ptr &= ring->ptr_mask;
 	}
 
-	mutex_unlock(&rdev->ring_lock);
+	rt_mutex_unlock(&rdev->ring_lock);
 	return size;
 }
 
@@ -434,12 +434,12 @@ void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
 	int r;
 	struct radeon_bo *ring_obj;
 
-	mutex_lock(&rdev->ring_lock);
+	rt_mutex_lock(&rdev->ring_lock);
 	ring_obj = ring->ring_obj;
 	ring->ready = false;
 	ring->ring = NULL;
 	ring->ring_obj = NULL;
-	mutex_unlock(&rdev->ring_lock);
+	rt_mutex_unlock(&rdev->ring_lock);
 
 	if (ring_obj) {
 		r = radeon_bo_reserve(ring_obj, false);

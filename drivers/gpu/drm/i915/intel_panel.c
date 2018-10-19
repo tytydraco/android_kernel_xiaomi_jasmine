@@ -558,14 +558,14 @@ static u32 intel_panel_get_backlight(struct intel_connector *connector)
 	struct intel_panel *panel = &connector->panel;
 	u32 val = 0;
 
-	mutex_lock(&dev_priv->backlight_lock);
+	rt_mutex_lock(&dev_priv->backlight_lock);
 
 	if (panel->backlight.enabled) {
 		val = panel->backlight.get(connector);
 		val = intel_panel_compute_brightness(connector, val);
 	}
 
-	mutex_unlock(&dev_priv->backlight_lock);
+	rt_mutex_unlock(&dev_priv->backlight_lock);
 
 	DRM_DEBUG_DRIVER("get backlight PWM = %d\n", val);
 	return val;
@@ -671,7 +671,7 @@ static void intel_panel_set_backlight(struct intel_connector *connector,
 	if (!panel->backlight.present)
 		return;
 
-	mutex_lock(&dev_priv->backlight_lock);
+	rt_mutex_lock(&dev_priv->backlight_lock);
 
 	WARN_ON(panel->backlight.max == 0);
 
@@ -681,7 +681,7 @@ static void intel_panel_set_backlight(struct intel_connector *connector,
 	if (panel->backlight.enabled)
 		intel_panel_actually_set_backlight(connector, hw_level);
 
-	mutex_unlock(&dev_priv->backlight_lock);
+	rt_mutex_unlock(&dev_priv->backlight_lock);
 }
 
 /* set backlight brightness to level in range [0..max], assuming hw min is
@@ -705,7 +705,7 @@ void intel_panel_set_backlight_acpi(struct intel_connector *connector,
 	if (!panel->backlight.present || pipe == INVALID_PIPE)
 		return;
 
-	mutex_lock(&dev_priv->backlight_lock);
+	rt_mutex_lock(&dev_priv->backlight_lock);
 
 	WARN_ON(panel->backlight.max == 0);
 
@@ -721,7 +721,7 @@ void intel_panel_set_backlight_acpi(struct intel_connector *connector,
 	if (panel->backlight.enabled)
 		intel_panel_actually_set_backlight(connector, hw_level);
 
-	mutex_unlock(&dev_priv->backlight_lock);
+	rt_mutex_unlock(&dev_priv->backlight_lock);
 }
 
 static void lpt_disable_backlight(struct intel_connector *connector)
@@ -848,14 +848,14 @@ void intel_panel_disable_backlight(struct intel_connector *connector)
 		return;
 	}
 
-	mutex_lock(&dev_priv->backlight_lock);
+	rt_mutex_lock(&dev_priv->backlight_lock);
 
 	if (panel->backlight.device)
 		panel->backlight.device->props.power = FB_BLANK_POWERDOWN;
 	panel->backlight.enabled = false;
 	panel->backlight.disable(connector);
 
-	mutex_unlock(&dev_priv->backlight_lock);
+	rt_mutex_unlock(&dev_priv->backlight_lock);
 }
 
 static void lpt_enable_backlight(struct intel_connector *connector)
@@ -1112,7 +1112,7 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 
 	DRM_DEBUG_KMS("pipe %c\n", pipe_name(pipe));
 
-	mutex_lock(&dev_priv->backlight_lock);
+	rt_mutex_lock(&dev_priv->backlight_lock);
 
 	WARN_ON(panel->backlight.max == 0);
 
@@ -1130,7 +1130,7 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 	if (panel->backlight.device)
 		panel->backlight.device->props.power = FB_BLANK_UNBLANK;
 
-	mutex_unlock(&dev_priv->backlight_lock);
+	rt_mutex_unlock(&dev_priv->backlight_lock);
 }
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
@@ -1703,9 +1703,9 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 		return -ENODEV;
 
 	/* set level and max in panel struct */
-	mutex_lock(&dev_priv->backlight_lock);
+	rt_mutex_lock(&dev_priv->backlight_lock);
 	ret = panel->backlight.setup(intel_connector, pipe);
-	mutex_unlock(&dev_priv->backlight_lock);
+	rt_mutex_unlock(&dev_priv->backlight_lock);
 
 	if (ret) {
 		DRM_DEBUG_KMS("failed to setup backlight for connector %s\n",

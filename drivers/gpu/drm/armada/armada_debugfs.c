@@ -21,9 +21,9 @@ static int armada_debugfs_gem_linear_show(struct seq_file *m, void *data)
 	struct armada_private *priv = dev->dev_private;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	ret = drm_mm_dump_table(m, &priv->linear);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -122,9 +122,9 @@ static int drm_add_fake_info_node(struct drm_minor *minor, struct dentry *ent,
 	node->dent = ent;
 	node->info_ent = (void *) key;
 
-	mutex_lock(&minor->debugfs_lock);
+	rt_mutex_lock(&minor->debugfs_lock);
 	list_add(&node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
+	rt_mutex_unlock(&minor->debugfs_lock);
 
 	return 0;
 }

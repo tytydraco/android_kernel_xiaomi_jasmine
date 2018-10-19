@@ -584,7 +584,7 @@ void sde_core_perf_destroy(struct sde_core_perf *perf)
 	sde_debugfs_core_perf_destroy(perf);
 	perf->max_core_clk_rate = 0;
 	perf->core_clk = NULL;
-	mutex_destroy(&perf->perf_lock);
+	rt_mutex_destroy(&perf->perf_lock);
 	perf->clk_name = NULL;
 	perf->phandle = NULL;
 	perf->catalog = NULL;
@@ -610,7 +610,7 @@ int sde_core_perf_init(struct sde_core_perf *perf,
 	perf->phandle = phandle;
 	perf->pclient = pclient;
 	perf->clk_name = clk_name;
-	mutex_init(&perf->perf_lock);
+	rt_mutex_init(&perf->perf_lock);
 
 	perf->core_clk = sde_power_clk_get_clk(phandle, clk_name);
 	if (!perf->core_clk) {

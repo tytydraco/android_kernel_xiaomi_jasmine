@@ -111,7 +111,7 @@ struct vga_switcheroo_client {
 /*
  * protects access to struct vgasr_priv
  */
-static DEFINE_MUTEX(vgasr_mutex);
+static DEFINE_RT_MUTEX(vgasr_mutex);
 
 /**
  * struct vgasr_priv - vga_switcheroo private data
@@ -197,9 +197,9 @@ static void vga_switcheroo_enable(void)
  */
 int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler)
 {
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	if (vgasr_priv.handler) {
-		mutex_unlock(&vgasr_mutex);
+		rt_mutex_unlock(&vgasr_mutex);
 		return -EINVAL;
 	}
 
@@ -208,7 +208,7 @@ int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler
 		pr_info("enabled\n");
 		vga_switcheroo_enable();
 	}
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(vga_switcheroo_register_handler);
@@ -220,14 +220,14 @@ EXPORT_SYMBOL(vga_switcheroo_register_handler);
  */
 void vga_switcheroo_unregister_handler(void)
 {
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	vgasr_priv.handler = NULL;
 	if (vgasr_priv.active) {
 		pr_info("disabled\n");
 		vga_switcheroo_debugfs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_unregister_handler);
 
@@ -249,7 +249,7 @@ static int register_client(struct pci_dev *pdev,
 	client->active = active;
 	client->driver_power_control = driver_power_control;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	list_add_tail(&client->list, &vgasr_priv.clients);
 	if (client_is_vga(client))
 		vgasr_priv.registered_clients++;
@@ -258,7 +258,7 @@ static int register_client(struct pci_dev *pdev,
 		pr_info("enabled\n");
 		vga_switcheroo_enable();
 	}
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	return 0;
 }
 
@@ -352,13 +352,13 @@ enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *pdev)
 	struct vga_switcheroo_client *client;
 	enum vga_switcheroo_state ret;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (!client)
 		ret = VGA_SWITCHEROO_NOT_FOUND;
 	else
 		ret = client->pwr_state;
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(vga_switcheroo_get_client_state);
@@ -373,7 +373,7 @@ void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 {
 	struct vga_switcheroo_client *client;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (client) {
 		if (client_is_vga(client))
@@ -386,7 +386,7 @@ void vga_switcheroo_unregister_client(struct pci_dev *pdev)
 		vga_switcheroo_debugfs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_unregister_client);
 
@@ -403,11 +403,11 @@ void vga_switcheroo_client_fb_set(struct pci_dev *pdev,
 {
 	struct vga_switcheroo_client *client;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (client)
 		client->fb_info = info;
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_client_fb_set);
 
@@ -452,7 +452,7 @@ static int vga_switcheroo_show(struct seq_file *m, void *v)
 	struct vga_switcheroo_client *client;
 	int i = 0;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		seq_printf(m, "%d:%s%s:%c:%s%s:%s\n", i,
 			   client_id(client) == VGA_SWITCHEROO_DIS ? "DIS" :
@@ -464,7 +464,7 @@ static int vga_switcheroo_show(struct seq_file *m, void *v)
 			   pci_name(client->pdev));
 		i++;
 	}
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	return 0;
 }
 
@@ -594,7 +594,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	if (copy_from_user(usercmd, ubuf, cnt))
 		return -EFAULT;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 
 	if (!vgasr_priv.active) {
 		cnt = -EINVAL;
@@ -696,7 +696,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	}
 
 out:
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	return cnt;
 }
 
@@ -761,7 +761,7 @@ int vga_switcheroo_process_delayed_switch(void)
 	int ret;
 	int err = -EINVAL;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	if (!vgasr_priv.delayed_switch_active)
 		goto err;
 
@@ -780,7 +780,7 @@ int vga_switcheroo_process_delayed_switch(void)
 	vgasr_priv.delayed_switch_active = false;
 	err = 0;
 err:
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	return err;
 }
 EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
@@ -852,16 +852,16 @@ void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev,
 {
 	struct vga_switcheroo_client *client;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	client = find_client_from_pci(&vgasr_priv.clients, pdev);
 	if (!client || !client->driver_power_control) {
-		mutex_unlock(&vgasr_mutex);
+		rt_mutex_unlock(&vgasr_mutex);
 		return;
 	}
 
 	client->pwr_state = dynamic;
 	set_audio_state(client->id, dynamic);
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_set_dynamic_switch);
 
@@ -874,11 +874,11 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 	ret = dev->bus->pm->runtime_suspend(dev);
 	if (ret)
 		return ret;
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	if (vgasr_priv.handler->switchto)
 		vgasr_priv.handler->switchto(VGA_SWITCHEROO_IGD);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_OFF);
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	return 0;
 }
 
@@ -887,9 +887,9 @@ static int vga_switcheroo_runtime_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
 
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_ON);
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 	ret = dev->bus->pm->runtime_resume(dev);
 	if (ret)
 		return ret;
@@ -941,7 +941,7 @@ static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 
 	/* we need to check if we have to switch back on the video
 	   device so the audio device can come back */
-	mutex_lock(&vgasr_mutex);
+	rt_mutex_lock(&vgasr_mutex);
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
 		if (PCI_SLOT(client->pdev->devfn) == PCI_SLOT(pdev->devfn) &&
 		    client_is_vga(client)) {
@@ -949,7 +949,7 @@ static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
 			break;
 		}
 	}
-	mutex_unlock(&vgasr_mutex);
+	rt_mutex_unlock(&vgasr_mutex);
 
 	if (video_dev) {
 		ret = pm_runtime_get_sync(video_dev);

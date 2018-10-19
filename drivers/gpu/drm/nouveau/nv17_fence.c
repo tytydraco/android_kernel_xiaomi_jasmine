@@ -39,7 +39,7 @@ nv17_fence_sync(struct nouveau_fence *fence,
 	u32 value;
 	int ret;
 
-	if (!mutex_trylock(&cli->mutex))
+	if (!rt_mutex_trylock(&cli->mutex))
 		return -EBUSY;
 
 	spin_lock(&priv->lock);
@@ -66,7 +66,7 @@ nv17_fence_sync(struct nouveau_fence *fence,
 		FIRE_RING (chan);
 	}
 
-	mutex_unlock(&cli->mutex);
+	rt_mutex_unlock(&cli->mutex);
 	return 0;
 }
 

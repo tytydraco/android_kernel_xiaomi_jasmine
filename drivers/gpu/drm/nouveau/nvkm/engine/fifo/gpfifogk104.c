@@ -41,7 +41,7 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 	struct nvkm_client *client = chan->base.object.client;
 	int ret = 0;
 
-	mutex_lock(&subdev->mutex);
+	rt_mutex_lock(&subdev->mutex);
 	nvkm_wr32(device, 0x002634, chan->base.chid);
 	if (nvkm_msec(device, 2000,
 		if (!(nvkm_rd32(device, 0x002634) & 0x00100000))
@@ -51,7 +51,7 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 			   chan->base.chid, client->name);
 		ret = -ETIMEDOUT;
 	}
-	mutex_unlock(&subdev->mutex);
+	rt_mutex_unlock(&subdev->mutex);
 	return ret;
 }
 

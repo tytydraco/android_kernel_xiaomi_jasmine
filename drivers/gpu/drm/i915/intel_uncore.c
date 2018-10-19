@@ -1170,11 +1170,11 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_MT_ACK);
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		fw_domains_get_with_thread_status(dev_priv, FORCEWAKE_ALL);
 		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
 		fw_domains_put_with_fifo(dev_priv, FORCEWAKE_ALL);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 		if (!(ecobus & FORCEWAKE_MT_ENABLE)) {
 			DRM_INFO("No MT forcewake available on Ivybridge, this can result in issues\n");
@@ -1345,13 +1345,13 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	ctx = i915_gem_context_get(file->driver_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);
 	}
 	hs = &ctx->hang_stats;
@@ -1364,7 +1364,7 @@ int i915_get_reset_stats_ioctl(struct drm_device *dev,
 	args->batch_active = hs->batch_active;
 	args->batch_pending = hs->batch_pending;
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }

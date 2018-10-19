@@ -115,7 +115,7 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	int idx, i, j, r;
 
-	mutex_lock(&adev->grbm_idx_mutex);
+	rt_mutex_lock(&adev->grbm_idx_mutex);
 	for (idx = 0; idx < 2; ++idx) {
 
 		if (adev->vce.harvest_config & (1 << idx))
@@ -176,13 +176,13 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 
 		if (r) {
 			DRM_ERROR("VCE not responding, giving up!!!\n");
-			mutex_unlock(&adev->grbm_idx_mutex);
+			rt_mutex_unlock(&adev->grbm_idx_mutex);
 			return r;
 		}
 	}
 
 	WREG32_P(mmGRBM_GFX_INDEX, 0, ~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
-	mutex_unlock(&adev->grbm_idx_mutex);
+	rt_mutex_unlock(&adev->grbm_idx_mutex);
 
 	ring = &adev->vce.ring[0];
 	WREG32(mmVCE_RB_RPTR, ring->wptr);

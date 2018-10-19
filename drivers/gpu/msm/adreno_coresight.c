@@ -39,7 +39,7 @@ ssize_t adreno_coresight_show_register(struct device *dev,
 	 * otherwise report 0
 	 */
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (test_bit(ADRENO_DEVICE_CORESIGHT, &adreno_dev->priv)) {
 
 		/*
@@ -58,7 +58,7 @@ ssize_t adreno_coresight_show_register(struct device *dev,
 
 		val = cattr->reg->value;
 	}
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return snprintf(buf, PAGE_SIZE, "0x%X\n", val);
 }
@@ -84,7 +84,7 @@ ssize_t adreno_coresight_store_register(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	/* Ignore writes while coresight is off */
 	if (!test_bit(ADRENO_DEVICE_CORESIGHT, &adreno_dev->priv))
@@ -103,7 +103,7 @@ ssize_t adreno_coresight_store_register(struct device *dev,
 	}
 
 out:
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	return size;
 }
 
@@ -139,7 +139,7 @@ static void adreno_coresight_disable(struct coresight_device *csdev)
 	if (coresight == NULL)
 		return;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	if (!kgsl_active_count_get(device)) {
 		for (i = 0; i < coresight->count; i++)
@@ -151,7 +151,7 @@ static void adreno_coresight_disable(struct coresight_device *csdev)
 
 	clear_bit(ADRENO_DEVICE_CORESIGHT, &adreno_dev->priv);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 /**
@@ -235,7 +235,7 @@ static int adreno_coresight_enable(struct coresight_device *csdev)
 	if (coresight == NULL)
 		return -ENODEV;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (!test_and_set_bit(ADRENO_DEVICE_CORESIGHT, &adreno_dev->priv)) {
 		int i;
 
@@ -254,7 +254,7 @@ static int adreno_coresight_enable(struct coresight_device *csdev)
 		}
 	}
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	return ret;
 }

@@ -29,7 +29,7 @@
 
 #include <subdev/bios.h>
 
-static DEFINE_MUTEX(nv_devices_mutex);
+static DEFINE_RT_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
 
 static struct nvkm_device *
@@ -47,9 +47,9 @@ struct nvkm_device *
 nvkm_device_find(u64 handle)
 {
 	struct nvkm_device *device;
-	mutex_lock(&nv_devices_mutex);
+	rt_mutex_lock(&nv_devices_mutex);
 	device = nvkm_device_find_locked(handle);
-	mutex_unlock(&nv_devices_mutex);
+	rt_mutex_unlock(&nv_devices_mutex);
 	return device;
 }
 
@@ -58,12 +58,12 @@ nvkm_device_list(u64 *name, int size)
 {
 	struct nvkm_device *device;
 	int nr = 0;
-	mutex_lock(&nv_devices_mutex);
+	rt_mutex_lock(&nv_devices_mutex);
 	list_for_each_entry(device, &nv_devices, head) {
 		if (nr++ < size)
 			name[nr - 1] = device->handle;
 	}
-	mutex_unlock(&nv_devices_mutex);
+	rt_mutex_unlock(&nv_devices_mutex);
 	return nr;
 }
 
@@ -2271,7 +2271,7 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	struct nvkm_device *device = *pdevice;
 	int i;
 	if (device) {
-		mutex_lock(&nv_devices_mutex);
+		rt_mutex_lock(&nv_devices_mutex);
 		device->disable_mask = 0;
 		for (i = NVKM_SUBDEV_NR - 1; i >= 0; i--) {
 			struct nvkm_subdev *subdev =
@@ -2287,7 +2287,7 @@ nvkm_device_del(struct nvkm_device **pdevice)
 
 		if (device->func->dtor)
 			*pdevice = device->func->dtor(device);
-		mutex_unlock(&nv_devices_mutex);
+		rt_mutex_unlock(&nv_devices_mutex);
 
 		kfree(*pdevice);
 		*pdevice = NULL;
@@ -2309,7 +2309,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	int ret = -EEXIST;
 	int i;
 
-	mutex_lock(&nv_devices_mutex);
+	rt_mutex_lock(&nv_devices_mutex);
 	if (nvkm_device_find_locked(handle))
 		goto done;
 
@@ -2498,7 +2498,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		}
 	}
 
-	mutex_init(&device->mutex);
+	rt_mutex_init(&device->mutex);
 
 	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
 #define _(s,m) case s:                                                         \
@@ -2567,6 +2567,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 
 	ret = 0;
 done:
-	mutex_unlock(&nv_devices_mutex);
+	rt_mutex_unlock(&nv_devices_mutex);
 	return ret;
 }

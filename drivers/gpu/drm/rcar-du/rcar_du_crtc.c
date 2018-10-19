@@ -258,7 +258,7 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	 * association if needed by enabled planes. Planes being disabled will
 	 * keep their current association.
 	 */
-	mutex_lock(&rcrtc->group->lock);
+	rt_mutex_lock(&rcrtc->group->lock);
 
 	dptsr_planes = rcrtc->index % 2 ? rcrtc->group->dptsr_planes | hwplanes
 		     : rcrtc->group->dptsr_planes & ~hwplanes;
@@ -272,7 +272,7 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 			rcar_du_group_restart(rcrtc->group);
 	}
 
-	mutex_unlock(&rcrtc->group->lock);
+	rt_mutex_unlock(&rcrtc->group->lock);
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR,
 			    dspr);

@@ -555,9 +555,9 @@ static int sendcmd(struct adreno_device *adreno_dev,
 	unsigned long nsecs = 0;
 	int ret;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	if (adreno_gpu_halt(adreno_dev) != 0) {
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 		return -EBUSY;
 	}
 
@@ -571,7 +571,7 @@ static int sendcmd(struct adreno_device *adreno_dev,
 		if (ret) {
 			dispatcher->inflight--;
 			dispatch_q->inflight--;
-			mutex_unlock(&device->mutex);
+			rt_mutex_unlock(&device->mutex);
 			return ret;
 		}
 
@@ -628,7 +628,7 @@ static int sendcmd(struct adreno_device *adreno_dev,
 		dispatcher->inflight--;
 		dispatch_q->inflight--;
 
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 
 		/*
 		 * Don't log a message in case of:
@@ -653,7 +653,7 @@ static int sendcmd(struct adreno_device *adreno_dev,
 		time.ticks, (unsigned long) secs, nsecs / 1000, drawctxt->rb,
 		adreno_get_rptr(drawctxt->rb));
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	cmdobj->submit_ticks = time.ticks;
 
@@ -1007,13 +1007,13 @@ static void adreno_dispatcher_issuecmds(struct adreno_device *adreno_dev)
 	spin_unlock(&device->submit_lock);
 
 	/* If the dispatcher is busy then schedule the work for later */
-	if (!mutex_trylock(&dispatcher->mutex)) {
+	if (!rt_mutex_trylock(&dispatcher->mutex)) {
 		_decrement_submit_now(device);
 		goto done;
 	}
 
 	_adreno_dispatcher_issuecmds(adreno_dev);
-	mutex_unlock(&dispatcher->mutex);
+	rt_mutex_unlock(&dispatcher->mutex);
 	_decrement_submit_now(device);
 	return;
 done:
@@ -1648,10 +1648,10 @@ static void remove_invalidated_cmdobjs(struct kgsl_device *device,
 			kgsl_context_invalid(drawobj->context)) {
 			replay[i] = NULL;
 
-			mutex_lock(&device->mutex);
+			rt_mutex_lock(&device->mutex);
 			kgsl_cancel_events_timestamp(device,
 				&drawobj->context->events, drawobj->timestamp);
-			mutex_unlock(&device->mutex);
+			rt_mutex_unlock(&device->mutex);
 
 			kgsl_drawobj_destroy(drawobj);
 		}
@@ -2097,9 +2097,9 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 	 */
 	if (!(fault & ADRENO_IOMMU_PAGE_FAULT) && adreno_is_a5xx(adreno_dev)) {
 		unsigned int val;
-		mutex_lock(&device->mutex);
+		rt_mutex_lock(&device->mutex);
 		adreno_readreg(adreno_dev, ADRENO_REG_RBBM_STATUS3, &val);
-		mutex_unlock(&device->mutex);
+		rt_mutex_unlock(&device->mutex);
 		if (val & BIT(24))
 			return 0;
 	}
@@ -2114,7 +2114,7 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 	if (adreno_is_preemption_enabled(adreno_dev))
 		del_timer_sync(&adreno_dev->preempt.timer);
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	/* hang opcode */
 	kgsl_cffdump_hang(device);
@@ -2198,7 +2198,7 @@ static int dispatcher_do_fault(struct adreno_device *adreno_dev)
 	}
 
 	ret = adreno_reset(device, fault);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 	/* if any other fault got in until reset then ignore */
 	atomic_set(&dispatcher->fault, 0);
 
@@ -2402,11 +2402,11 @@ static void _dispatcher_update_timers(struct adreno_device *adreno_dev)
 	struct adreno_dispatcher *dispatcher = &adreno_dev->dispatcher;
 
 	/* Kick the idle timer */
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	kgsl_pwrscale_update(device);
 	mod_timer(&device->idle_timer,
 		jiffies + device->pwrctrl.interval_timeout);
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	/* Check to see if we need to update the command timer */
 	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_NONE)) {
@@ -2424,7 +2424,7 @@ static void _dispatcher_power_down(struct adreno_device *adreno_dev)
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	struct adreno_dispatcher *dispatcher = &adreno_dev->dispatcher;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	if (test_and_clear_bit(ADRENO_DISPATCHER_ACTIVE, &dispatcher->priv))
 		complete_all(&dispatcher->idle_gate);
@@ -2436,7 +2436,7 @@ static void _dispatcher_power_down(struct adreno_device *adreno_dev)
 		clear_bit(ADRENO_DISPATCHER_POWER, &dispatcher->priv);
 	}
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 static void adreno_dispatcher_work(struct kthread_work *work)
@@ -2450,7 +2450,7 @@ static void adreno_dispatcher_work(struct kthread_work *work)
 	int count = 0;
 	unsigned int i = 0;
 
-	mutex_lock(&dispatcher->mutex);
+	rt_mutex_lock(&dispatcher->mutex);
 
 	/*
 	 * As long as there are inflight commands, process retired comamnds from
@@ -2491,7 +2491,7 @@ static void adreno_dispatcher_work(struct kthread_work *work)
 	else
 		_dispatcher_power_down(adreno_dev);
 
-	mutex_unlock(&dispatcher->mutex);
+	rt_mutex_unlock(&dispatcher->mutex);
 }
 
 void adreno_dispatcher_schedule(struct kgsl_device *device)
@@ -2619,7 +2619,7 @@ void adreno_dispatcher_close(struct adreno_device *adreno_dev)
 	int i;
 	struct adreno_ringbuffer *rb;
 
-	mutex_lock(&dispatcher->mutex);
+	rt_mutex_lock(&dispatcher->mutex);
 	del_timer_sync(&dispatcher->timer);
 	del_timer_sync(&dispatcher->fault_timer);
 
@@ -2634,7 +2634,7 @@ void adreno_dispatcher_close(struct adreno_device *adreno_dev)
 		}
 	}
 
-	mutex_unlock(&dispatcher->mutex);
+	rt_mutex_unlock(&dispatcher->mutex);
 
 	kobject_put(&dispatcher->kobj);
 }
@@ -2787,7 +2787,7 @@ int adreno_dispatcher_init(struct adreno_device *adreno_dev)
 
 	memset(dispatcher, 0, sizeof(*dispatcher));
 
-	mutex_init(&dispatcher->mutex);
+	rt_mutex_init(&dispatcher->mutex);
 
 	setup_timer(&dispatcher->timer, adreno_dispatcher_timer,
 		(unsigned long) adreno_dev);
@@ -2823,7 +2823,7 @@ int adreno_dispatcher_idle(struct adreno_device *adreno_dev)
 	struct adreno_dispatcher *dispatcher = &adreno_dev->dispatcher;
 	int ret;
 
-	BUG_ON(!mutex_is_locked(&device->mutex));
+	BUG_ON(!rt_mutex_is_locked(&device->mutex));
 	if (!test_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv))
 		return 0;
 
@@ -2831,13 +2831,13 @@ int adreno_dispatcher_idle(struct adreno_device *adreno_dev)
 	 * Ensure that this function is not called when dispatcher
 	 * mutex is held and device is started
 	 */
-	if (mutex_is_locked(&dispatcher->mutex) &&
+	if (rt_mutex_is_locked(&dispatcher->mutex) &&
 		dispatcher->mutex.owner == current)
 		BUG_ON(1);
 
 	adreno_get_gpu_halt(adreno_dev);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 
 	ret = wait_for_completion_timeout(&dispatcher->idle_gate,
 			msecs_to_jiffies(ADRENO_IDLE_TIMEOUT));
@@ -2850,7 +2850,7 @@ int adreno_dispatcher_idle(struct adreno_device *adreno_dev)
 		ret = 0;
 	}
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 	adreno_put_gpu_halt(adreno_dev);
 	/*
 	 * requeue dispatcher work to resubmit pending commands

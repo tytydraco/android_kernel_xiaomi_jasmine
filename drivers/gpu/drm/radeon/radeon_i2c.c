@@ -94,7 +94,7 @@ static int pre_xfer(struct i2c_adapter *i2c_adap)
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t temp;
 
-	mutex_lock(&i2c->mutex);
+	rt_mutex_lock(&i2c->mutex);
 
 	/* RV410 appears to have a bug where the hw i2c in reset
 	 * holds the i2c port in a bad state - switch hw i2c away before
@@ -112,7 +112,7 @@ static int pre_xfer(struct i2c_adapter *i2c_adap)
 			else
 				reg = RADEON_GPIO_CRT2_DDC;
 
-			mutex_lock(&rdev->dc_hw_i2c_mutex);
+			rt_mutex_lock(&rdev->dc_hw_i2c_mutex);
 			if (rec->a_clk_reg == reg) {
 				WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
 							       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC1)));
@@ -120,7 +120,7 @@ static int pre_xfer(struct i2c_adapter *i2c_adap)
 				WREG32(RADEON_DVI_I2C_CNTL_0, (RADEON_I2C_SOFT_RST |
 							       R200_DVI_I2C_PIN_SEL(R200_SEL_DDC3)));
 			}
-			mutex_unlock(&rdev->dc_hw_i2c_mutex);
+			rt_mutex_unlock(&rdev->dc_hw_i2c_mutex);
 		}
 	}
 
@@ -173,7 +173,7 @@ static void post_xfer(struct i2c_adapter *i2c_adap)
 	WREG32(rec->mask_data_reg, temp);
 	temp = RREG32(rec->mask_data_reg);
 
-	mutex_unlock(&i2c->mutex);
+	rt_mutex_unlock(&i2c->mutex);
 }
 
 static int get_clock(void *i2c_priv)
@@ -335,9 +335,9 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	u32 i2c_cntl_0, i2c_cntl_1, i2c_data;
 	u32 tmp, reg;
 
-	mutex_lock(&rdev->dc_hw_i2c_mutex);
+	rt_mutex_lock(&rdev->dc_hw_i2c_mutex);
 	/* take the pm lock since we need a constant sclk */
-	mutex_lock(&rdev->pm.mutex);
+	rt_mutex_lock(&rdev->pm.mutex);
 
 	prescale = radeon_get_i2c_prescale(rdev);
 
@@ -567,8 +567,8 @@ done:
 		WREG32(RADEON_BIOS_6_SCRATCH, tmp);
 	}
 
-	mutex_unlock(&rdev->pm.mutex);
-	mutex_unlock(&rdev->dc_hw_i2c_mutex);
+	rt_mutex_unlock(&rdev->pm.mutex);
+	rt_mutex_unlock(&rdev->dc_hw_i2c_mutex);
 
 	return ret;
 }
@@ -588,9 +588,9 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	u32 tmp, reg;
 	u32 saved1, saved2;
 
-	mutex_lock(&rdev->dc_hw_i2c_mutex);
+	rt_mutex_lock(&rdev->dc_hw_i2c_mutex);
 	/* take the pm lock since we need a constant sclk */
-	mutex_lock(&rdev->pm.mutex);
+	rt_mutex_lock(&rdev->pm.mutex);
 
 	prescale = radeon_get_i2c_prescale(rdev);
 
@@ -803,8 +803,8 @@ done:
 	tmp &= ~ATOM_S6_HW_I2C_BUSY_STATE;
 	WREG32(RADEON_BIOS_6_SCRATCH, tmp);
 
-	mutex_unlock(&rdev->pm.mutex);
-	mutex_unlock(&rdev->dc_hw_i2c_mutex);
+	rt_mutex_unlock(&rdev->pm.mutex);
+	rt_mutex_unlock(&rdev->dc_hw_i2c_mutex);
 
 	return ret;
 }
@@ -817,7 +817,7 @@ static int radeon_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	int ret = 0;
 
-	mutex_lock(&i2c->mutex);
+	rt_mutex_lock(&i2c->mutex);
 
 	switch (rdev->family) {
 	case CHIP_R100:
@@ -885,7 +885,7 @@ static int radeon_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 		break;
 	}
 
-	mutex_unlock(&i2c->mutex);
+	rt_mutex_unlock(&i2c->mutex);
 
 	return ret;
 }
@@ -927,7 +927,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 	i2c->adapter.dev.parent = &dev->pdev->dev;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
-	mutex_init(&i2c->mutex);
+	rt_mutex_init(&i2c->mutex);
 	if (rec->mm_i2c ||
 	    (rec->hw_capable &&
 	     radeon_hw_i2c &&

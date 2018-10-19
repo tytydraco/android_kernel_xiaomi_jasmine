@@ -68,7 +68,7 @@ struct nvkm_device {
 	const char *dbgopt;
 
 	struct list_head head;
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	int refcount;
 
 	void __iomem *pri;

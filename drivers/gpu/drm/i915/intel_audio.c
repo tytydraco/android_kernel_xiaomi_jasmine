@@ -254,7 +254,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("Disable audio codec on pipe %c\n", pipe_name(pipe));
 
-	mutex_lock(&dev_priv->av_mutex);
+	rt_mutex_lock(&dev_priv->av_mutex);
 
 	/* Disable timestamps */
 	tmp = I915_READ(HSW_AUD_CFG(pipe));
@@ -272,7 +272,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 	tmp &= ~AUDIO_OUTPUT_ENABLE(pipe);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
-	mutex_unlock(&dev_priv->av_mutex);
+	rt_mutex_unlock(&dev_priv->av_mutex);
 }
 
 static void hsw_audio_codec_enable(struct drm_connector *connector,
@@ -294,7 +294,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	DRM_DEBUG_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
 		      pipe_name(pipe), drm_eld_size(eld));
 
-	mutex_lock(&dev_priv->av_mutex);
+	rt_mutex_lock(&dev_priv->av_mutex);
 
 	/* Enable audio presence detect, invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
@@ -352,7 +352,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
 
-	mutex_unlock(&dev_priv->av_mutex);
+	rt_mutex_unlock(&dev_priv->av_mutex);
 }
 
 static void ilk_audio_codec_disable(struct intel_encoder *encoder)
@@ -648,7 +648,7 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 		!IS_HASWELL(dev_priv))
 		return 0;
 
-	mutex_lock(&dev_priv->av_mutex);
+	rt_mutex_lock(&dev_priv->av_mutex);
 	/* 1. get the pipe */
 	for_each_intel_encoder(drm_dev, intel_encoder) {
 		if (intel_encoder->type != INTEL_OUTPUT_HDMI)
@@ -667,7 +667,7 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 
 	if (pipe == INVALID_PIPE) {
 		DRM_DEBUG_KMS("no pipe for the port %c\n", port_name(port));
-		mutex_unlock(&dev_priv->av_mutex);
+		rt_mutex_unlock(&dev_priv->av_mutex);
 		return -ENODEV;
 	}
 	DRM_DEBUG_KMS("pipe %c connects port %c\n",
@@ -682,7 +682,7 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 		tmp = I915_READ(HSW_AUD_CFG(pipe));
 		tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 		I915_WRITE(HSW_AUD_CFG(pipe), tmp);
-		mutex_unlock(&dev_priv->av_mutex);
+		rt_mutex_unlock(&dev_priv->av_mutex);
 		return 0;
 	}
 
@@ -693,7 +693,7 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 		tmp = I915_READ(HSW_AUD_CFG(pipe));
 		tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 		I915_WRITE(HSW_AUD_CFG(pipe), tmp);
-		mutex_unlock(&dev_priv->av_mutex);
+		rt_mutex_unlock(&dev_priv->av_mutex);
 		return 0;
 	}
 
@@ -702,7 +702,7 @@ static int i915_audio_component_sync_audio_rate(struct device *dev,
 	tmp = audio_config_setup_n_reg(n, tmp);
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
 
-	mutex_unlock(&dev_priv->av_mutex);
+	rt_mutex_unlock(&dev_priv->av_mutex);
 	return 0;
 }
 

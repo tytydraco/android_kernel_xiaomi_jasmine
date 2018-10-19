@@ -308,7 +308,7 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	int ret;
 	size_t size;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	/* Make it mmapable */
 	size = omap_gem_mmap_size(obj);
@@ -324,9 +324,9 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
 {
 	uint64_t offset;
-	mutex_lock(&obj->dev->struct_mutex);
+	rt_mutex_lock(&obj->dev->struct_mutex);
 	offset = mmap_offset(obj);
-	mutex_unlock(&obj->dev->struct_mutex);
+	rt_mutex_unlock(&obj->dev->struct_mutex);
 	return offset;
 }
 
@@ -513,7 +513,7 @@ int omap_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	 * something from beneath our feet
 	 */
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	/* if a shmem backed object, make sure we have pages attached now */
 	ret = get_pages(obj, &pages);
@@ -533,7 +533,7 @@ int omap_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 
 fail:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	switch (ret) {
 	case 0:
 	case -ERESTARTSYS:
@@ -671,7 +671,7 @@ int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll)
 
 	omap_obj->roll = roll;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	rt_mutex_lock(&obj->dev->struct_mutex);
 
 	/* if we aren't mapped yet, we don't need to do anything */
 	if (omap_obj->block) {
@@ -685,7 +685,7 @@ int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll)
 	}
 
 fail:
-	mutex_unlock(&obj->dev->struct_mutex);
+	rt_mutex_unlock(&obj->dev->struct_mutex);
 
 	return ret;
 }
@@ -743,7 +743,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = 0;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	rt_mutex_lock(&obj->dev->struct_mutex);
 
 	if (remap && is_shmem(obj) && priv->has_dmm) {
 		if (omap_obj->paddr_cnt == 0) {
@@ -800,7 +800,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 	}
 
 fail:
-	mutex_unlock(&obj->dev->struct_mutex);
+	rt_mutex_unlock(&obj->dev->struct_mutex);
 
 	return ret;
 }
@@ -813,7 +813,7 @@ void omap_gem_put_paddr(struct drm_gem_object *obj)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	rt_mutex_lock(&obj->dev->struct_mutex);
 	if (omap_obj->paddr_cnt > 0) {
 		omap_obj->paddr_cnt--;
 		if (omap_obj->paddr_cnt == 0) {
@@ -832,7 +832,7 @@ void omap_gem_put_paddr(struct drm_gem_object *obj)
 		}
 	}
 
-	mutex_unlock(&obj->dev->struct_mutex);
+	rt_mutex_unlock(&obj->dev->struct_mutex);
 }
 
 /* Get rotated scanout address (only valid if already pinned), at the
@@ -845,13 +845,13 @@ int omap_gem_rotated_paddr(struct drm_gem_object *obj, uint32_t orient,
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = -EINVAL;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	rt_mutex_lock(&obj->dev->struct_mutex);
 	if ((omap_obj->paddr_cnt > 0) && omap_obj->block &&
 			(omap_obj->flags & OMAP_BO_TILED)) {
 		*paddr = tiler_tsptr(omap_obj->block, orient, x, y);
 		ret = 0;
 	}
-	mutex_unlock(&obj->dev->struct_mutex);
+	rt_mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
 }
 
@@ -908,9 +908,9 @@ int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
 		*pages = omap_obj->pages;
 		return 0;
 	}
-	mutex_lock(&obj->dev->struct_mutex);
+	rt_mutex_lock(&obj->dev->struct_mutex);
 	ret = get_pages(obj, pages);
-	mutex_unlock(&obj->dev->struct_mutex);
+	rt_mutex_unlock(&obj->dev->struct_mutex);
 	return ret;
 }
 
@@ -931,7 +931,7 @@ int omap_gem_put_pages(struct drm_gem_object *obj)
 void *omap_gem_vaddr(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&obj->dev->struct_mutex));
 	if (!omap_obj->vaddr) {
 		struct page **pages;
 		int ret = get_pages(obj, &pages);
@@ -1276,7 +1276,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	evict(obj);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	spin_lock(&priv->list_lock);
 	list_del(&omap_obj->mm_list);

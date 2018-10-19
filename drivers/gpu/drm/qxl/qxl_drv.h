@@ -122,7 +122,7 @@ struct qxl_bo {
 #define to_qxl_bo(tobj) container_of((tobj), struct qxl_bo, tbo)
 
 struct qxl_gem {
-	struct mutex		mutex;
+	struct rt_mutex		mutex;
 	struct list_head	objects;
 };
 
@@ -288,7 +288,7 @@ struct qxl_device {
 	struct idr	release_idr;
 	uint32_t	release_seqno;
 	spinlock_t release_idr_lock;
-	struct mutex	async_io_mutex;
+	struct rt_mutex	async_io_mutex;
 	unsigned int last_sent_io_cmd;
 
 	/* interrupt handling */
@@ -306,18 +306,18 @@ struct qxl_device {
 	struct qxl_debugfs	debugfs[QXL_DEBUGFS_MAX_COMPONENTS];
 	unsigned		debugfs_count;
 
-	struct mutex		update_area_mutex;
+	struct rt_mutex		update_area_mutex;
 
 	struct idr	surf_id_idr;
 	spinlock_t surf_id_idr_lock;
 	int last_alloced_surf_id;
 
-	struct mutex surf_evict_mutex;
+	struct rt_mutex surf_evict_mutex;
 	struct io_mapping *vram_mapping;
 	struct io_mapping *surface_mapping;
 
 	/* */
-	struct mutex release_mutex;
+	struct rt_mutex release_mutex;
 	struct qxl_bo *current_release_bo[3];
 	int current_release_bo_offset[3];
 

@@ -517,9 +517,9 @@ nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
 	if (unlikely(mem == NULL))
 		return;
 
-	mutex_lock(&ram->fb->subdev.mutex);
+	rt_mutex_lock(&ram->fb->subdev.mutex);
 	__nv50_ram_put(ram, mem);
-	mutex_unlock(&ram->fb->subdev.mutex);
+	rt_mutex_unlock(&ram->fb->subdev.mutex);
 
 	kfree(mem);
 }
@@ -545,7 +545,7 @@ nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 	if (!mem)
 		return -ENOMEM;
 
-	mutex_lock(&ram->fb->subdev.mutex);
+	rt_mutex_lock(&ram->fb->subdev.mutex);
 	if (comp) {
 		if (align == (1 << (16 - NVKM_RAM_MM_SHIFT))) {
 			int n = (max >> 4) * comp;
@@ -570,7 +570,7 @@ nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 		else
 			ret = nvkm_mm_head(heap, 0, type, max, min, align, &r);
 		if (ret) {
-			mutex_unlock(&ram->fb->subdev.mutex);
+			rt_mutex_unlock(&ram->fb->subdev.mutex);
 			ram->func->put(ram, &mem);
 			return ret;
 		}
@@ -578,7 +578,7 @@ nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
 		list_add_tail(&r->rl_entry, &mem->regions);
 		max -= r->length;
 	} while (max);
-	mutex_unlock(&ram->fb->subdev.mutex);
+	rt_mutex_unlock(&ram->fb->subdev.mutex);
 
 	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
 	mem->offset = (u64)r->offset << NVKM_RAM_MM_SHIFT;

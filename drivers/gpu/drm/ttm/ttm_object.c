@@ -577,7 +577,7 @@ static void ttm_prime_refcount_release(struct ttm_base_object **p_base)
 	*p_base = NULL;
 	prime = container_of(base, struct ttm_prime_object, base);
 	BUG_ON(prime->dma_buf != NULL);
-	mutex_destroy(&prime->mutex);
+	rt_mutex_destroy(&prime->mutex);
 	if (prime->refcount_release)
 		prime->refcount_release(&base);
 }
@@ -601,10 +601,10 @@ static void ttm_prime_dmabuf_release(struct dma_buf *dma_buf)
 
 	if (tdev->dmabuf_release)
 		tdev->dmabuf_release(dma_buf);
-	mutex_lock(&prime->mutex);
+	rt_mutex_lock(&prime->mutex);
 	if (prime->dma_buf == dma_buf)
 		prime->dma_buf = NULL;
-	mutex_unlock(&prime->mutex);
+	rt_mutex_unlock(&prime->mutex);
 	ttm_mem_global_free(tdev->mem_glob, tdev->dma_buf_size);
 	ttm_base_object_unref(&base);
 }
@@ -679,7 +679,7 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 		goto out_unref;
 	}
 
-	ret = mutex_lock_interruptible(&prime->mutex);
+	ret = rt_mutex_lock_interruptible(&prime->mutex);
 	if (unlikely(ret != 0)) {
 		ret = -ERESTARTSYS;
 		goto out_unref;
@@ -700,7 +700,7 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 		ret = ttm_mem_global_alloc(tdev->mem_glob, tdev->dma_buf_size,
 					   false, true);
 		if (unlikely(ret != 0)) {
-			mutex_unlock(&prime->mutex);
+			rt_mutex_unlock(&prime->mutex);
 			goto out_unref;
 		}
 
@@ -709,7 +709,7 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 			ret = PTR_ERR(dma_buf);
 			ttm_mem_global_free(tdev->mem_glob,
 					    tdev->dma_buf_size);
-			mutex_unlock(&prime->mutex);
+			rt_mutex_unlock(&prime->mutex);
 			goto out_unref;
 		}
 
@@ -719,7 +719,7 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 		base = NULL;
 		prime->dma_buf = dma_buf;
 	}
-	mutex_unlock(&prime->mutex);
+	rt_mutex_unlock(&prime->mutex);
 
 	ret = dma_buf_fd(dma_buf, flags);
 	if (ret >= 0) {
@@ -756,7 +756,7 @@ int ttm_prime_object_init(struct ttm_object_file *tfile, size_t size,
 			  void (*ref_obj_release) (struct ttm_base_object *,
 						   enum ttm_ref_type ref_type))
 {
-	mutex_init(&prime->mutex);
+	rt_mutex_init(&prime->mutex);
 	prime->size = PAGE_ALIGN(size);
 	prime->real_type = type;
 	prime->dma_buf = NULL;

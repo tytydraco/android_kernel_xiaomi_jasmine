@@ -380,7 +380,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 		return;
 	}
 
-	mutex_lock(&dev_priv->psr.lock);
+	rt_mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.enabled) {
 		DRM_DEBUG_KMS("PSR already in use\n");
 		goto unlock;
@@ -429,7 +429,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 
 	dev_priv->psr.enabled = intel_dp;
 unlock:
-	mutex_unlock(&dev_priv->psr.lock);
+	rt_mutex_unlock(&dev_priv->psr.lock);
 }
 
 static void vlv_psr_disable(struct intel_dp *intel_dp)
@@ -492,9 +492,9 @@ void intel_psr_disable(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	mutex_lock(&dev_priv->psr.lock);
+	rt_mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
-		mutex_unlock(&dev_priv->psr.lock);
+		rt_mutex_unlock(&dev_priv->psr.lock);
 		return;
 	}
 
@@ -504,7 +504,7 @@ void intel_psr_disable(struct intel_dp *intel_dp)
 		vlv_psr_disable(intel_dp);
 
 	dev_priv->psr.enabled = NULL;
-	mutex_unlock(&dev_priv->psr.lock);
+	rt_mutex_unlock(&dev_priv->psr.lock);
 
 	cancel_delayed_work_sync(&dev_priv->psr.work);
 }
@@ -535,7 +535,7 @@ static void intel_psr_work(struct work_struct *work)
 			return;
 		}
 	}
-	mutex_lock(&dev_priv->psr.lock);
+	rt_mutex_lock(&dev_priv->psr.lock);
 	intel_dp = dev_priv->psr.enabled;
 
 	if (!intel_dp)
@@ -551,7 +551,7 @@ static void intel_psr_work(struct work_struct *work)
 
 	intel_psr_activate(intel_dp);
 unlock:
-	mutex_unlock(&dev_priv->psr.lock);
+	rt_mutex_unlock(&dev_priv->psr.lock);
 }
 
 static void intel_psr_exit(struct drm_device *dev)
@@ -623,9 +623,9 @@ void intel_psr_single_frame_update(struct drm_device *dev,
 	if (!IS_VALLEYVIEW(dev))
 		return;
 
-	mutex_lock(&dev_priv->psr.lock);
+	rt_mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
-		mutex_unlock(&dev_priv->psr.lock);
+		rt_mutex_unlock(&dev_priv->psr.lock);
 		return;
 	}
 
@@ -641,7 +641,7 @@ void intel_psr_single_frame_update(struct drm_device *dev,
 		 */
 		I915_WRITE(VLV_PSRCTL(pipe), val | VLV_EDP_PSR_SINGLE_FRAME_UPDATE);
 	}
-	mutex_unlock(&dev_priv->psr.lock);
+	rt_mutex_unlock(&dev_priv->psr.lock);
 }
 
 /**
@@ -663,9 +663,9 @@ void intel_psr_invalidate(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
-	mutex_lock(&dev_priv->psr.lock);
+	rt_mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
-		mutex_unlock(&dev_priv->psr.lock);
+		rt_mutex_unlock(&dev_priv->psr.lock);
 		return;
 	}
 
@@ -678,7 +678,7 @@ void intel_psr_invalidate(struct drm_device *dev,
 	if (frontbuffer_bits)
 		intel_psr_exit(dev);
 
-	mutex_unlock(&dev_priv->psr.lock);
+	rt_mutex_unlock(&dev_priv->psr.lock);
 }
 
 /**
@@ -702,9 +702,9 @@ void intel_psr_flush(struct drm_device *dev,
 	enum pipe pipe;
 	int delay_ms = HAS_DDI(dev) ? 100 : 500;
 
-	mutex_lock(&dev_priv->psr.lock);
+	rt_mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
-		mutex_unlock(&dev_priv->psr.lock);
+		rt_mutex_unlock(&dev_priv->psr.lock);
 		return;
 	}
 
@@ -737,7 +737,7 @@ void intel_psr_flush(struct drm_device *dev,
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		schedule_delayed_work(&dev_priv->psr.work,
 				      msecs_to_jiffies(delay_ms));
-	mutex_unlock(&dev_priv->psr.lock);
+	rt_mutex_unlock(&dev_priv->psr.lock);
 }
 
 /**
@@ -752,5 +752,5 @@ void intel_psr_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	INIT_DELAYED_WORK(&dev_priv->psr.work, intel_psr_work);
-	mutex_init(&dev_priv->psr.lock);
+	rt_mutex_init(&dev_priv->psr.lock);
 }

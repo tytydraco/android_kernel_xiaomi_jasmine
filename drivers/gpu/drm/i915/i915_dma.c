@@ -446,10 +446,10 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	return 0;
 
 cleanup_gem:
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 cleanup_irq:
 	intel_guc_ucode_fini(dev);
 	drm_irq_uninstall(dev);
@@ -887,14 +887,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
-	mutex_init(&dev_priv->backlight_lock);
+	rt_mutex_init(&dev_priv->backlight_lock);
 	spin_lock_init(&dev_priv->uncore.lock);
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	spin_lock_init(&dev_priv->mmio_flip_lock);
-	mutex_init(&dev_priv->sb_lock);
-	mutex_init(&dev_priv->modeset_restore_lock);
-	mutex_init(&dev_priv->csr_lock);
-	mutex_init(&dev_priv->av_mutex);
+	rt_mutex_init(&dev_priv->sb_lock);
+	rt_mutex_init(&dev_priv->modeset_restore_lock);
+	rt_mutex_init(&dev_priv->csr_lock);
+	rt_mutex_init(&dev_priv->av_mutex);
 
 	intel_pm_setup(dev);
 
@@ -1190,10 +1190,10 @@ int i915_driver_unload(struct drm_device *dev)
 	flush_workqueue(dev_priv->wq);
 
 	intel_guc_ucode_fini(dev);
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	intel_fbc_cleanup_cfb(dev_priv);
 	i915_gem_cleanup_stolen(dev);
 
@@ -1252,10 +1252,10 @@ void i915_driver_lastclose(struct drm_device *dev)
 
 void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
 {
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	i915_gem_context_close(dev, file);
 	i915_gem_release(dev, file);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_modeset_preclose(dev, file);
 }

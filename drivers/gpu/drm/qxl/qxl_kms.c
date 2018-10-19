@@ -127,10 +127,10 @@ static int qxl_device_init(struct qxl_device *qdev,
 	qdev->pdev = pdev;
 	qdev->flags = flags;
 
-	mutex_init(&qdev->gem.mutex);
-	mutex_init(&qdev->update_area_mutex);
-	mutex_init(&qdev->release_mutex);
-	mutex_init(&qdev->surf_evict_mutex);
+	rt_mutex_init(&qdev->gem.mutex);
+	rt_mutex_init(&qdev->update_area_mutex);
+	rt_mutex_init(&qdev->release_mutex);
+	rt_mutex_init(&qdev->surf_evict_mutex);
 	INIT_LIST_HEAD(&qdev->gem.objects);
 
 	qdev->rom_base = pci_resource_start(pdev, 2);
@@ -228,7 +228,7 @@ static int qxl_device_init(struct qxl_device *qdev,
 	idr_init(&qdev->surf_id_idr);
 	spin_lock_init(&qdev->surf_id_idr_lock);
 
-	mutex_init(&qdev->async_io_mutex);
+	rt_mutex_init(&qdev->async_io_mutex);
 
 	/* reset the device into a known state - no memslots, no primary
 	 * created, no surfaces. */

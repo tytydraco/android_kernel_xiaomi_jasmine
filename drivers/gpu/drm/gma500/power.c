@@ -35,7 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
 
-static struct mutex power_mutex;	/* Serialize power ops */
+static struct rt_mutex power_mutex;	/* Serialize power ops */
 static spinlock_t power_ctrl_lock;	/* Serialize power claim */
 
 /**
@@ -56,7 +56,7 @@ void gma_power_init(struct drm_device *dev)
 	dev_priv->display_count = 0;	/* Currently no users */
 	dev_priv->suspended = false;	/* And not suspended */
 	spin_lock_init(&power_ctrl_lock);
-	mutex_init(&power_mutex);
+	rt_mutex_init(&power_mutex);
 
 	if (dev_priv->ops->init_pm)
 		dev_priv->ops->init_pm(dev);
@@ -191,10 +191,10 @@ int gma_power_suspend(struct device *_dev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	mutex_lock(&power_mutex);
+	rt_mutex_lock(&power_mutex);
 	if (!dev_priv->suspended) {
 		if (dev_priv->display_count) {
-			mutex_unlock(&power_mutex);
+			rt_mutex_unlock(&power_mutex);
 			dev_err(dev->dev, "GPU hardware busy, cannot suspend\n");
 			return -EBUSY;
 		}
@@ -202,7 +202,7 @@ int gma_power_suspend(struct device *_dev)
 		gma_suspend_display(dev);
 		gma_suspend_pci(pdev);
 	}
-	mutex_unlock(&power_mutex);
+	rt_mutex_unlock(&power_mutex);
 	return 0;
 }
 
@@ -217,12 +217,12 @@ int gma_power_resume(struct device *_dev)
 	struct pci_dev *pdev = container_of(_dev, struct pci_dev, dev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	mutex_lock(&power_mutex);
+	rt_mutex_lock(&power_mutex);
 	gma_resume_pci(pdev);
 	gma_resume_display(pdev);
 	psb_irq_preinstall(dev);
 	psb_irq_postinstall(dev);
-	mutex_unlock(&power_mutex);
+	rt_mutex_unlock(&power_mutex);
 	return 0;
 }
 

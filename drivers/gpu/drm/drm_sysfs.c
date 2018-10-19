@@ -170,7 +170,7 @@ static ssize_t status_store(struct device *device,
 	enum drm_connector_status old_status;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	ret = rt_mutex_lock_interruptible(&dev->mode_config.mutex);
 	if (ret)
 		return ret;
 
@@ -210,7 +210,7 @@ static ssize_t status_store(struct device *device,
 					      0);
 	}
 
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	return ret ? ret : count;
 }

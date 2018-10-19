@@ -94,9 +94,9 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 		}
 
 		/* Contention */
-		mutex_unlock(&drm_global_mutex);
+		rt_mutex_unlock(&drm_global_mutex);
 		schedule();
-		mutex_lock(&drm_global_mutex);
+		rt_mutex_lock(&drm_global_mutex);
 		if (signal_pending(current)) {
 			ret = -EINTR;
 			break;

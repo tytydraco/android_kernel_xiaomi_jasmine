@@ -183,7 +183,7 @@ static void radeon_set_filp_rights(struct drm_device *dev,
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	mutex_lock(&rdev->gem.mutex);
+	rt_mutex_lock(&rdev->gem.mutex);
 	if (*value == 1) {
 		/* wants rights */
 		if (!*owner)
@@ -194,7 +194,7 @@ static void radeon_set_filp_rights(struct drm_device *dev,
 			*owner = NULL;
 	}
 	*value = *owner == applier ? 1 : 0;
-	mutex_unlock(&rdev->gem.mutex);
+	rt_mutex_unlock(&rdev->gem.mutex);
 }
 
 /*
@@ -730,12 +730,12 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	mutex_lock(&rdev->gem.mutex);
+	rt_mutex_lock(&rdev->gem.mutex);
 	if (rdev->hyperz_filp == file_priv)
 		rdev->hyperz_filp = NULL;
 	if (rdev->cmask_filp == file_priv)
 		rdev->cmask_filp = NULL;
-	mutex_unlock(&rdev->gem.mutex);
+	rt_mutex_unlock(&rdev->gem.mutex);
 
 	radeon_uvd_free_handles(rdev, file_priv);
 	radeon_vce_free_handles(rdev, file_priv);

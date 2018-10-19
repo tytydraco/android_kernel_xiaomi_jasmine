@@ -206,7 +206,7 @@ struct sde_connector {
 
 	char name[SDE_CONNECTOR_NAME_SIZE];
 
-	struct mutex lock;
+	struct rt_mutex lock;
 	struct sde_fence retire_fence;
 	struct sde_connector_ops ops;
 	int dpms_mode;

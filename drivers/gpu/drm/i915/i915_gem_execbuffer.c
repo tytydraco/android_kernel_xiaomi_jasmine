@@ -550,10 +550,10 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	int ret = 0;
 
 	/* This is the fast path and we cannot handle a pagefault whilst
-	 * holding the struct mutex lest the user pass in the relocations
+	 * holding the struct rt_mutex lest the user pass in the relocations
 	 * contained within a mmaped bo. For in such a case we, the page
 	 * fault handler would call i915_gem_fault() and we would try to
-	 * acquire the struct mutex again. Obviously this is bad and so
+	 * acquire the struct rt_mutex again. Obviously this is bad and so
 	 * lockdep complains vehemently.
 	 */
 	pagefault_disable();
@@ -810,7 +810,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		drm_gem_object_unreference(&vma->obj->base);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	total = 0;
 	for (i = 0; i < count; i++)
@@ -821,7 +821,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	if (reloc == NULL || reloc_offset == NULL) {
 		drm_free_large(reloc);
 		drm_free_large(reloc_offset);
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		return -ENOMEM;
 	}
 
@@ -836,7 +836,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		if (copy_from_user(reloc+total, user_relocs,
 				   exec[i].relocation_count * sizeof(*reloc))) {
 			ret = -EFAULT;
-			mutex_lock(&dev->struct_mutex);
+			rt_mutex_lock(&dev->struct_mutex);
 			goto err;
 		}
 
@@ -854,7 +854,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 					   &invalid_offset,
 					   sizeof(invalid_offset))) {
 				ret = -EFAULT;
-				mutex_lock(&dev->struct_mutex);
+				rt_mutex_lock(&dev->struct_mutex);
 				goto err;
 			}
 		}
@@ -863,9 +863,9 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		total += exec[i].relocation_count;
 	}
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret) {
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		goto err;
 	}
 
@@ -1287,7 +1287,7 @@ static int gen8_dispatch_bsd_ring(struct drm_device *dev,
 		/* If no, use the ping-pong mechanism to select one ring */
 		int ring_id;
 
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		if (dev_priv->mm.bsd_ring_dispatch_index == 0) {
 			ring_id = VCS;
 			dev_priv->mm.bsd_ring_dispatch_index = 1;
@@ -1296,7 +1296,7 @@ static int gen8_dispatch_bsd_ring(struct drm_device *dev,
 			dev_priv->mm.bsd_ring_dispatch_index = 0;
 		}
 		file_priv->bsd_ring = &dev_priv->ring[ring_id];
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return ring_id;
 	}
 }
@@ -1424,15 +1424,15 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	intel_runtime_pm_get(dev_priv);
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
-		goto pre_mutex_err;
+		goto pre_rt_mutex_err;
 
 	ctx = i915_gem_validate_context(dev, file, ring, ctx_id);
 	if (IS_ERR(ctx)) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		ret = PTR_ERR(ctx);
-		goto pre_mutex_err;
+		goto pre_rt_mutex_err;
 	}
 
 	i915_gem_context_reference(ctx);
@@ -1447,9 +1447,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	eb = eb_create(args);
 	if (eb == NULL) {
 		i915_gem_context_unreference(ctx);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		ret = -ENOMEM;
-		goto pre_mutex_err;
+		goto pre_rt_mutex_err;
 	}
 
 	/* Look up object handles */
@@ -1473,7 +1473,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, args, file, ring,
 								eb, exec, ctx);
-			BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+			BUG_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 		}
 		if (ret)
 			goto err;
@@ -1594,9 +1594,9 @@ err:
 	if (ret && params->request)
 		i915_gem_request_cancel(params->request);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
-pre_mutex_err:
+pre_rt_mutex_err:
 	/* intel_gpu_busy should also get a ref, so it will free when the device
 	 * is really idle. */
 	intel_runtime_pm_put(dev_priv);

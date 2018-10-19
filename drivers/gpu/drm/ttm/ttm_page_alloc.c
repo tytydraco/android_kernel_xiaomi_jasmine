@@ -394,7 +394,7 @@ out:
 static unsigned long
 ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
-	static DEFINE_MUTEX(lock);
+	static DEFINE_RT_MUTEX(lock);
 	static unsigned start_pool;
 	unsigned i;
 	unsigned pool_offset;
@@ -402,7 +402,7 @@ ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	int shrink_pages = sc->nr_to_scan;
 	unsigned long freed = 0;
 
-	if (!mutex_trylock(&lock))
+	if (!rt_mutex_trylock(&lock))
 		return SHRINK_STOP;
 	pool_offset = ++start_pool % NUM_POOLS;
 	/* select start pool in round robin fashion */
@@ -415,7 +415,7 @@ ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		shrink_pages = ttm_page_pool_free(pool, nr_free, true);
 		freed += nr_free - shrink_pages;
 	}
-	mutex_unlock(&lock);
+	rt_mutex_unlock(&lock);
 	return freed;
 }
 

@@ -117,7 +117,7 @@ static void drm_master_destroy(struct kref *kref)
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (dev->driver->master_destroy)
 		dev->driver->master_destroy(dev, master);
 
@@ -127,7 +127,7 @@ static void drm_master_destroy(struct kref *kref)
 			r_list = NULL;
 		}
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	idr_destroy(&master->magic_map);
 	kfree(master->unique);
@@ -146,7 +146,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 {
 	int ret = 0;
 
-	mutex_lock(&dev->master_mutex);
+	rt_mutex_lock(&dev->master_mutex);
 	if (file_priv->is_master)
 		goto out_unlock;
 
@@ -176,7 +176,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	}
 
 out_unlock:
-	mutex_unlock(&dev->master_mutex);
+	rt_mutex_unlock(&dev->master_mutex);
 	return ret;
 }
 
@@ -185,7 +185,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 {
 	int ret = -EINVAL;
 
-	mutex_lock(&dev->master_mutex);
+	rt_mutex_lock(&dev->master_mutex);
 	if (!file_priv->is_master)
 		goto out_unlock;
 
@@ -199,7 +199,7 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	file_priv->is_master = 0;
 
 out_unlock:
-	mutex_unlock(&dev->master_mutex);
+	rt_mutex_unlock(&dev->master_mutex);
 	return ret;
 }
 
@@ -467,14 +467,14 @@ void drm_unplug_dev(struct drm_device *dev)
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 
-	mutex_lock(&drm_global_mutex);
+	rt_mutex_lock(&drm_global_mutex);
 
 	drm_device_set_unplugged(dev);
 
 	if (dev->open_count == 0) {
 		drm_put_dev(dev);
 	}
-	mutex_unlock(&drm_global_mutex);
+	rt_mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_unplug_dev);
 
@@ -591,9 +591,9 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 
 	spin_lock_init(&dev->buf_lock);
 	spin_lock_init(&dev->event_lock);
-	mutex_init(&dev->struct_mutex);
-	mutex_init(&dev->ctxlist_mutex);
-	mutex_init(&dev->master_mutex);
+	rt_mutex_init(&dev->struct_mutex);
+	rt_mutex_init(&dev->ctxlist_mutex);
+	rt_mutex_init(&dev->master_mutex);
 
 	dev->anon_inode = drm_fs_inode_new();
 	if (IS_ERR(dev->anon_inode)) {
@@ -644,7 +644,7 @@ err_minors:
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 	drm_fs_inode_free(dev->anon_inode);
 err_free:
-	mutex_destroy(&dev->master_mutex);
+	rt_mutex_destroy(&dev->master_mutex);
 	kfree(dev);
 	return NULL;
 }
@@ -665,7 +665,7 @@ static void drm_dev_release(struct kref *ref)
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
-	mutex_destroy(&dev->master_mutex);
+	rt_mutex_destroy(&dev->master_mutex);
 	kfree(dev->unique);
 	kfree(dev);
 }
@@ -727,7 +727,7 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 {
 	int ret;
 
-	mutex_lock(&drm_global_mutex);
+	rt_mutex_lock(&drm_global_mutex);
 
 	ret = drm_minor_register(dev, DRM_MINOR_CONTROL);
 	if (ret)
@@ -755,7 +755,7 @@ err_minors:
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 out_unlock:
-	mutex_unlock(&drm_global_mutex);
+	rt_mutex_unlock(&drm_global_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_dev_register);
@@ -847,7 +847,7 @@ static int drm_stub_open(struct inode *inode, struct file *filp)
 
 	DRM_DEBUG("\n");
 
-	mutex_lock(&drm_global_mutex);
+	rt_mutex_lock(&drm_global_mutex);
 	minor = drm_minor_acquire(iminor(inode));
 	if (IS_ERR(minor)) {
 		err = PTR_ERR(minor);
@@ -869,7 +869,7 @@ static int drm_stub_open(struct inode *inode, struct file *filp)
 out_release:
 	drm_minor_release(minor);
 out_unlock:
-	mutex_unlock(&drm_global_mutex);
+	rt_mutex_unlock(&drm_global_mutex);
 	return err;
 }
 

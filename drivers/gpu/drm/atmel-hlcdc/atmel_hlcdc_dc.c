@@ -584,7 +584,7 @@ static int atmel_hlcdc_dc_connector_plug_all(struct drm_device *dev)
 	struct drm_connector *connector, *failed;
 	int ret;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		ret = drm_connector_register(connector);
 		if (ret) {
@@ -592,7 +592,7 @@ static int atmel_hlcdc_dc_connector_plug_all(struct drm_device *dev)
 			goto err;
 		}
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 
 err:
@@ -602,16 +602,16 @@ err:
 
 		drm_connector_unregister(connector);
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
 }
 
 static void atmel_hlcdc_dc_connector_unplug_all(struct drm_device *dev)
 {
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_connector_unplug_all(dev);
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void atmel_hlcdc_dc_preclose(struct drm_device *dev,

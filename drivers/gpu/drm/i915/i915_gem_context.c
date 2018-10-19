@@ -266,7 +266,7 @@ i915_gem_create_context(struct drm_device *dev,
 	struct intel_context *ctx;
 	int ret = 0;
 
-	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	BUG_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	ctx = __create_hw_context(dev, file_priv);
 	if (IS_ERR(ctx))
@@ -477,9 +477,9 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 
 	idr_init(&file_priv->context_idr);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	ctx = i915_gem_create_context(dev, file_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	if (IS_ERR(ctx)) {
 		idr_destroy(&file_priv->context_idr);
@@ -826,7 +826,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
 	WARN_ON(i915.enable_execlists);
-	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->dev->struct_mutex));
 
 	if (req->ctx->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */
 		if (req->ctx != ring->last_context) {
@@ -857,12 +857,12 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (!contexts_enabled(dev))
 		return -ENODEV;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
 	ctx = i915_gem_create_context(dev, file_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
@@ -883,19 +883,19 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE)
 		return -ENOENT;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
 	ctx = i915_gem_context_get(file_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);
 	}
 
 	idr_remove(&ctx->file_priv->context_idr, ctx->user_handle);
 	i915_gem_context_unreference(ctx);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG_DRIVER("HW context %d destroyed\n", args->ctx_id);
 	return 0;
@@ -909,13 +909,13 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	struct intel_context *ctx;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
 	ctx = i915_gem_context_get(file_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);
 	}
 
@@ -931,7 +931,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		break;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -944,13 +944,13 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 	struct intel_context *ctx;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_rt_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
 
 	ctx = i915_gem_context_get(file_priv, args->ctx_id);
 	if (IS_ERR(ctx)) {
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return PTR_ERR(ctx);
 	}
 
@@ -976,7 +976,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		break;
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }

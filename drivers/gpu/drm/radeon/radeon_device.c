@@ -1010,8 +1010,8 @@ int radeon_atombios_init(struct radeon_device *rdev)
 		return -ENOMEM;
 	}
 
-	mutex_init(&rdev->mode_info.atom_context->mutex);
-	mutex_init(&rdev->mode_info.atom_context->scratch_mutex);
+	rt_mutex_init(&rdev->mode_info.atom_context->mutex);
+	rt_mutex_init(&rdev->mode_info.atom_context->scratch_mutex);
 	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
 	atom_allocate_fb_scratch(rdev->mode_info.atom_context);
 	return 0;
@@ -1331,18 +1331,18 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
-	mutex_init(&rdev->ring_lock);
-	mutex_init(&rdev->dc_hw_i2c_mutex);
+	rt_mutex_init(&rdev->ring_lock);
+	rt_mutex_init(&rdev->dc_hw_i2c_mutex);
 	atomic_set(&rdev->ih.lock, 0);
-	mutex_init(&rdev->gem.mutex);
-	mutex_init(&rdev->pm.mutex);
-	mutex_init(&rdev->gpu_clock_mutex);
-	mutex_init(&rdev->srbm_mutex);
-	mutex_init(&rdev->grbm_idx_mutex);
+	rt_mutex_init(&rdev->gem.mutex);
+	rt_mutex_init(&rdev->pm.mutex);
+	rt_mutex_init(&rdev->gpu_clock_mutex);
+	rt_mutex_init(&rdev->srbm_mutex);
+	rt_mutex_init(&rdev->grbm_idx_mutex);
 	init_rwsem(&rdev->pm.mclk_lock);
 	init_rwsem(&rdev->exclusive_lock);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
-	mutex_init(&rdev->mn_lock);
+	rt_mutex_init(&rdev->mn_lock);
 	hash_init(rdev->mn_hash);
 	r = radeon_gem_init(rdev);
 	if (r)
@@ -1504,10 +1504,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	    (rdev->pm.pm_method == PM_METHOD_DPM) &&
 	    (rdev->family == CHIP_TURKS) &&
 	    (rdev->flags & RADEON_IS_MOBILITY)) {
-		mutex_lock(&rdev->pm.mutex);
+		rt_mutex_lock(&rdev->pm.mutex);
 		radeon_dpm_disable(rdev);
 		radeon_dpm_enable(rdev);
-		mutex_unlock(&rdev->pm.mutex);
+		rt_mutex_unlock(&rdev->pm.mutex);
 	}
 
 	if ((radeon_testing & 1)) {

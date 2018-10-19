@@ -172,7 +172,7 @@ static struct sde_dbg_base {
 	struct list_head reg_base_list;
 	struct dentry *root;
 	struct device *dev;
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	struct sde_dbg_power_ctrl power_ctrl;
 
 	struct sde_dbg_reg_base *req_dump_blks[SDE_DBG_BASE_MAX];
@@ -1458,7 +1458,7 @@ static void _sde_dump_array(struct sde_dbg_reg_base *blk_arr[],
 {
 	int i;
 
-	mutex_lock(&sde_dbg_base.mutex);
+	rt_mutex_lock(&sde_dbg_base.mutex);
 
 	for (i = 0; i < len; i++) {
 		if (blk_arr[i] != NULL)
@@ -1478,7 +1478,7 @@ static void _sde_dump_array(struct sde_dbg_reg_base *blk_arr[],
 	if (do_panic && sde_dbg_base.panic_on_err)
 		panic(name);
 
-	mutex_unlock(&sde_dbg_base.mutex);
+	rt_mutex_unlock(&sde_dbg_base.mutex);
 }
 
 /**
@@ -1808,7 +1808,7 @@ int sde_dbg_init(struct dentry *debugfs_root, struct device *dev,
 {
 	int i;
 
-	mutex_init(&sde_dbg_base.mutex);
+	rt_mutex_init(&sde_dbg_base.mutex);
 	INIT_LIST_HEAD(&sde_dbg_base.reg_base_list);
 	sde_dbg_base.dev = dev;
 	sde_dbg_base.power_ctrl = *power_ctrl;
@@ -1866,7 +1866,7 @@ void sde_dbg_destroy(void)
 	sde_dbg_base_evtlog = NULL;
 	sde_evtlog_destroy(sde_dbg_base.evtlog);
 	sde_dbg_base.evtlog = NULL;
-	mutex_destroy(&sde_dbg_base.mutex);
+	rt_mutex_destroy(&sde_dbg_base.mutex);
 }
 
 /**
@@ -1886,13 +1886,13 @@ static int sde_dbg_reg_base_release(struct inode *inode, struct file *file)
 	if (!dbg)
 		return -ENODEV;
 
-	mutex_lock(&sde_dbg_base.mutex);
+	rt_mutex_lock(&sde_dbg_base.mutex);
 	if (dbg && dbg->buf) {
 		kfree(dbg->buf);
 		dbg->buf_len = 0;
 		dbg->buf = NULL;
 	}
-	mutex_unlock(&sde_dbg_base.mutex);
+	rt_mutex_unlock(&sde_dbg_base.mutex);
 
 	return 0;
 }
@@ -1932,7 +1932,7 @@ static ssize_t sde_dbg_reg_base_offset_write(struct file *file,
 	if (sscanf(buf, "%5x %x", &off, &cnt) != 2)
 		return -EFAULT;
 
-	mutex_lock(&sde_dbg_base.mutex);
+	rt_mutex_lock(&sde_dbg_base.mutex);
 	if (off > dbg->max_offset) {
 		rc = -EINVAL;
 		goto exit;
@@ -1958,7 +1958,7 @@ static ssize_t sde_dbg_reg_base_offset_write(struct file *file,
 	dbg->cnt = cnt;
 
 exit:
-	mutex_unlock(&sde_dbg_base.mutex);
+	rt_mutex_unlock(&sde_dbg_base.mutex);
 	pr_debug("offset=%x cnt=%x\n", off, cnt);
 
 	return rc;
@@ -1991,25 +1991,25 @@ static ssize_t sde_dbg_reg_base_offset_read(struct file *file,
 	if (*ppos)
 		return 0;	/* the end */
 
-	mutex_lock(&sde_dbg_base.mutex);
+	rt_mutex_lock(&sde_dbg_base.mutex);
 	if (dbg->off % sizeof(u32)) {
-		mutex_unlock(&sde_dbg_base.mutex);
+		rt_mutex_unlock(&sde_dbg_base.mutex);
 		return -EFAULT;
 	}
 
 	len = snprintf(buf, sizeof(buf), "0x%08zx %zx\n", dbg->off, dbg->cnt);
 	if (len < 0 || len >= sizeof(buf)) {
-		mutex_unlock(&sde_dbg_base.mutex);
+		rt_mutex_unlock(&sde_dbg_base.mutex);
 		return 0;
 	}
 
 	if ((count < sizeof(buf)) || copy_to_user(buff, buf, len)) {
-		mutex_unlock(&sde_dbg_base.mutex);
+		rt_mutex_unlock(&sde_dbg_base.mutex);
 		return -EFAULT;
 	}
 
 	*ppos += len;	/* increase offset */
-	mutex_unlock(&sde_dbg_base.mutex);
+	rt_mutex_unlock(&sde_dbg_base.mutex);
 
 	return len;
 }
@@ -2049,9 +2049,9 @@ static ssize_t sde_dbg_reg_base_reg_write(struct file *file,
 	if (cnt < 2)
 		return -EFAULT;
 
-	mutex_lock(&sde_dbg_base.mutex);
+	rt_mutex_lock(&sde_dbg_base.mutex);
 	if (off >= dbg->max_offset) {
-		mutex_unlock(&sde_dbg_base.mutex);
+		rt_mutex_unlock(&sde_dbg_base.mutex);
 		return -EFAULT;
 	}
 
@@ -2061,7 +2061,7 @@ static ssize_t sde_dbg_reg_base_reg_write(struct file *file,
 
 	_sde_dbg_enable_power(false);
 
-	mutex_unlock(&sde_dbg_base.mutex);
+	rt_mutex_unlock(&sde_dbg_base.mutex);
 
 	pr_debug("addr=%zx data=%x\n", off, data);
 
@@ -2093,7 +2093,7 @@ static ssize_t sde_dbg_reg_base_reg_read(struct file *file,
 	if (!ppos)
 		return -EINVAL;
 
-	mutex_lock(&sde_dbg_base.mutex);
+	rt_mutex_lock(&sde_dbg_base.mutex);
 	if (!dbg->buf) {
 		char *hwbuf, *hwbuf_cur;
 		char dump_buf[64];
@@ -2109,14 +2109,14 @@ static ssize_t sde_dbg_reg_base_reg_read(struct file *file,
 		dbg->buf = kzalloc(dbg->buf_len, GFP_KERNEL);
 
 		if (!dbg->buf) {
-			mutex_unlock(&sde_dbg_base.mutex);
+			rt_mutex_unlock(&sde_dbg_base.mutex);
 			return -ENOMEM;
 		}
 
 		hwbuf = kzalloc(dbg->buf_len, GFP_KERNEL);
 		if (!hwbuf) {
 			kfree(dbg->buf);
-			mutex_unlock(&sde_dbg_base.mutex);
+			rt_mutex_unlock(&sde_dbg_base.mutex);
 			return -ENOMEM;
 		}
 		hwbuf_cur = hwbuf;
@@ -2152,19 +2152,19 @@ static ssize_t sde_dbg_reg_base_reg_read(struct file *file,
 	}
 
 	if (*ppos >= dbg->buf_len) {
-		mutex_unlock(&sde_dbg_base.mutex);
+		rt_mutex_unlock(&sde_dbg_base.mutex);
 		return 0; /* done reading */
 	}
 
 	len = min(count, dbg->buf_len - (size_t) *ppos);
 	if (copy_to_user(user_buf, dbg->buf + *ppos, len)) {
-		mutex_unlock(&sde_dbg_base.mutex);
+		rt_mutex_unlock(&sde_dbg_base.mutex);
 		pr_err("failed to copy to user\n");
 		return -EFAULT;
 	}
 
 	*ppos += len; /* increase offset */
-	mutex_unlock(&sde_dbg_base.mutex);
+	rt_mutex_unlock(&sde_dbg_base.mutex);
 
 	return len;
 }

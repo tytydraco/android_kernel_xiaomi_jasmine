@@ -240,7 +240,7 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 
 static void band_gap_reset(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 
 	vlv_flisdsi_write(dev_priv, 0x08, 0x0001);
 	vlv_flisdsi_write(dev_priv, 0x0F, 0x0005);
@@ -249,7 +249,7 @@ static void band_gap_reset(struct drm_i915_private *dev_priv)
 	vlv_flisdsi_write(dev_priv, 0x0F, 0x0000);
 	vlv_flisdsi_write(dev_priv, 0x08, 0x0000);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 }
 
 static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
@@ -330,11 +330,11 @@ static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	mutex_lock(&dev_priv->sb_lock);
+	rt_mutex_lock(&dev_priv->sb_lock);
 	/* program rcomp for compliance, reduce from 50 ohms to 45 ohms
 	 * needed everytime after power gate */
 	vlv_flisdsi_write(dev_priv, 0x04, 0x0004);
-	mutex_unlock(&dev_priv->sb_lock);
+	rt_mutex_unlock(&dev_priv->sb_lock);
 
 	/* bandgap reset is needed after everytime we do power gate */
 	band_gap_reset(dev_priv);
@@ -1232,7 +1232,7 @@ void intel_dsi_init(struct drm_device *dev)
 
 	drm_panel_attach(intel_dsi->panel, connector);
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_panel_get_modes(intel_dsi->panel);
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
@@ -1240,7 +1240,7 @@ void intel_dsi_init(struct drm_device *dev)
 			break;
 		}
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	if (!fixed_mode) {
 		DRM_DEBUG_KMS("no fixed mode\n");

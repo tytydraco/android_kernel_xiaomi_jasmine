@@ -90,7 +90,7 @@ struct vop {
 	int connector_out_mode;
 
 	/* mutex vsync_ work */
-	struct mutex vsync_mutex;
+	struct rt_mutex vsync_mutex;
 	bool vsync_work_pending;
 	struct completion dsp_hold_completion;
 
@@ -916,12 +916,12 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	 * Only when we discover that this update has completed, can we
 	 * unreference any previous framebuffers.
 	 */
-	mutex_lock(&vop->vsync_mutex);
+	rt_mutex_lock(&vop->vsync_mutex);
 	if (fb != vop_win_last_pending_fb(vop_win)) {
 		ret = drm_vblank_get(plane->dev, vop->pipe);
 		if (ret) {
 			DRM_ERROR("failed to get vblank, %d\n", ret);
-			mutex_unlock(&vop->vsync_mutex);
+			rt_mutex_unlock(&vop->vsync_mutex);
 			return ret;
 		}
 
@@ -930,13 +930,13 @@ static int vop_update_plane_event(struct drm_plane *plane,
 		ret = vop_win_queue_fb(vop_win, fb, yrgb_mst, event);
 		if (ret) {
 			drm_vblank_put(plane->dev, vop->pipe);
-			mutex_unlock(&vop->vsync_mutex);
+			rt_mutex_unlock(&vop->vsync_mutex);
 			return ret;
 		}
 
 		vop->vsync_work_pending = true;
 	}
-	mutex_unlock(&vop->vsync_mutex);
+	rt_mutex_unlock(&vop->vsync_mutex);
 
 	spin_lock(&vop->reg_lock);
 
@@ -1029,17 +1029,17 @@ static int vop_disable_plane(struct drm_plane *plane)
 		return ret;
 	}
 
-	mutex_lock(&vop->vsync_mutex);
+	rt_mutex_lock(&vop->vsync_mutex);
 
 	ret = vop_win_queue_fb(vop_win, NULL, 0, NULL);
 	if (ret) {
 		drm_vblank_put(plane->dev, vop->pipe);
-		mutex_unlock(&vop->vsync_mutex);
+		rt_mutex_unlock(&vop->vsync_mutex);
 		return ret;
 	}
 
 	vop->vsync_work_pending = true;
-	mutex_unlock(&vop->vsync_mutex);
+	rt_mutex_unlock(&vop->vsync_mutex);
 
 	spin_lock(&vop->reg_lock);
 	VOP_WIN_SET(vop, win, enable, 0);
@@ -1386,7 +1386,7 @@ static irqreturn_t vop_isr_thread(int irq, void *data)
 	const struct vop_data *vop_data = vop->data;
 	unsigned int i;
 
-	mutex_lock(&vop->vsync_mutex);
+	rt_mutex_lock(&vop->vsync_mutex);
 
 	if (!vop->vsync_work_pending)
 		goto done;
@@ -1402,7 +1402,7 @@ static irqreturn_t vop_isr_thread(int irq, void *data)
 	}
 
 done:
-	mutex_unlock(&vop->vsync_mutex);
+	rt_mutex_unlock(&vop->vsync_mutex);
 
 	return IRQ_HANDLED;
 }
@@ -1723,7 +1723,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	spin_lock_init(&vop->reg_lock);
 	spin_lock_init(&vop->irq_lock);
 
-	mutex_init(&vop->vsync_mutex);
+	rt_mutex_init(&vop->vsync_mutex);
 
 	ret = devm_request_threaded_irq(dev, vop->irq, vop_isr, vop_isr_thread,
 					IRQF_SHARED, dev_name(dev), vop);

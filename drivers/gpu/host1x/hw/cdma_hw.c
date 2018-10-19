@@ -161,14 +161,14 @@ static void cdma_stop(struct host1x_cdma *cdma)
 {
 	struct host1x_channel *ch = cdma_to_channel(cdma);
 
-	mutex_lock(&cdma->lock);
+	rt_mutex_lock(&cdma->lock);
 	if (cdma->running) {
 		host1x_cdma_wait_locked(cdma, CDMA_EVENT_SYNC_QUEUE_EMPTY);
 		host1x_ch_writel(ch, HOST1X_CHANNEL_DMACTRL_DMASTOP,
 				 HOST1X_CHANNEL_DMACTRL);
 		cdma->running = false;
 	}
-	mutex_unlock(&cdma->lock);
+	rt_mutex_unlock(&cdma->lock);
 }
 
 /*
@@ -246,12 +246,12 @@ static void cdma_timeout_handler(struct work_struct *work)
 
 	host1x_debug_dump(cdma_to_host1x(cdma));
 
-	mutex_lock(&cdma->lock);
+	rt_mutex_lock(&cdma->lock);
 
 	if (!cdma->timeout.client) {
 		dev_dbg(host1x->dev,
 			"cdma_timeout: expired, but has no clientid\n");
-		mutex_unlock(&cdma->lock);
+		rt_mutex_unlock(&cdma->lock);
 		return;
 	}
 
@@ -273,7 +273,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 		cmdproc_stop = prev_cmdproc & ~(BIT(ch->id));
 		host1x_sync_writel(host1x, cmdproc_stop,
 				   HOST1X_SYNC_CMDPROC_STOP);
-		mutex_unlock(&cdma->lock);
+		rt_mutex_unlock(&cdma->lock);
 		return;
 	}
 
@@ -285,7 +285,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 	host1x_hw_cdma_freeze(host1x, cdma);
 
 	host1x_cdma_update_sync_queue(cdma, ch->dev);
-	mutex_unlock(&cdma->lock);
+	rt_mutex_unlock(&cdma->lock);
 }
 
 /*

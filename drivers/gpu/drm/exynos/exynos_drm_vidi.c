@@ -49,7 +49,7 @@ struct vidi_context {
 	bool				suspended;
 	bool				direct_vblank;
 	struct work_struct		work;
-	struct mutex			lock;
+	struct rt_mutex			lock;
 	int				pipe;
 };
 
@@ -140,7 +140,7 @@ static void vidi_enable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
-	mutex_lock(&ctx->lock);
+	rt_mutex_lock(&ctx->lock);
 
 	ctx->suspended = false;
 
@@ -148,18 +148,18 @@ static void vidi_enable(struct exynos_drm_crtc *crtc)
 	if (test_and_clear_bit(0, &ctx->irq_flags))
 		vidi_enable_vblank(ctx->crtc);
 
-	mutex_unlock(&ctx->lock);
+	rt_mutex_unlock(&ctx->lock);
 }
 
 static void vidi_disable(struct exynos_drm_crtc *crtc)
 {
 	struct vidi_context *ctx = crtc->ctx;
 
-	mutex_lock(&ctx->lock);
+	rt_mutex_lock(&ctx->lock);
 
 	ctx->suspended = true;
 
-	mutex_unlock(&ctx->lock);
+	rt_mutex_unlock(&ctx->lock);
 }
 
 static int vidi_ctx_initialize(struct vidi_context *ctx,
@@ -193,16 +193,16 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 	/* refresh rate is about 50Hz. */
 	usleep_range(16000, 20000);
 
-	mutex_lock(&ctx->lock);
+	rt_mutex_lock(&ctx->lock);
 
 	if (ctx->direct_vblank) {
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 		ctx->direct_vblank = false;
-		mutex_unlock(&ctx->lock);
+		rt_mutex_unlock(&ctx->lock);
 		return;
 	}
 
-	mutex_unlock(&ctx->lock);
+	rt_mutex_unlock(&ctx->lock);
 
 	for (win = 0 ; win < WINDOWS_NR ; win++) {
 		struct exynos_drm_plane *plane = &ctx->planes[win];
@@ -220,11 +220,11 @@ static int vidi_show_connection(struct device *dev,
 	struct vidi_context *ctx = dev_get_drvdata(dev);
 	int rc;
 
-	mutex_lock(&ctx->lock);
+	rt_mutex_lock(&ctx->lock);
 
 	rc = sprintf(buf, "%d\n", ctx->connected);
 
-	mutex_unlock(&ctx->lock);
+	rt_mutex_unlock(&ctx->lock);
 
 	return rc;
 }
@@ -510,7 +510,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
 
-	mutex_init(&ctx->lock);
+	rt_mutex_init(&ctx->lock);
 
 	platform_set_drvdata(pdev, ctx);
 

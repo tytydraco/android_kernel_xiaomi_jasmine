@@ -41,7 +41,7 @@ struct vmw_fb_par {
 
 	void *vmalloc;
 
-	struct mutex bo_mutex;
+	struct rt_mutex bo_mutex;
 	struct vmw_dma_buffer *vmw_bo;
 	struct ttm_bo_kmap_obj map;
 	void *bo_ptr;
@@ -182,7 +182,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	if (vmw_priv->suspended)
 		return;
 
-	mutex_lock(&par->bo_mutex);
+	rt_mutex_lock(&par->bo_mutex);
 	cur_fb = par->set_fb;
 	if (!cur_fb)
 		goto out_unlock;
@@ -242,7 +242,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 		vmw_fifo_flush(vmw_priv, false);
 	}
 out_unlock:
-	mutex_unlock(&par->bo_mutex);
+	rt_mutex_unlock(&par->bo_mutex);
 }
 
 static void vmw_fb_dirty_mark(struct vmw_fb_par *par,
@@ -288,13 +288,13 @@ static int vmw_fb_pan_display(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	mutex_lock(&par->bo_mutex);
+	rt_mutex_lock(&par->bo_mutex);
 	par->fb_x = var->xoffset;
 	par->fb_y = var->yoffset;
 	if (par->set_fb)
 		vmw_fb_dirty_mark(par, par->fb_x, par->fb_y, par->set_fb->width,
 				  par->set_fb->height);
-	mutex_unlock(&par->bo_mutex);
+	rt_mutex_unlock(&par->bo_mutex);
 
 	return 0;
 }
@@ -558,7 +558,7 @@ static int vmw_fb_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	mutex_lock(&par->bo_mutex);
+	rt_mutex_lock(&par->bo_mutex);
 	drm_modeset_lock_all(vmw_priv->dev);
 	ret = vmw_fb_kms_framebuffer(info);
 	if (ret)
@@ -618,7 +618,7 @@ out_unlock:
 	par->set_mode = mode;
 
 	drm_modeset_unlock_all(vmw_priv->dev);
-	mutex_unlock(&par->bo_mutex);
+	rt_mutex_unlock(&par->bo_mutex);
 
 	return ret;
 }
@@ -753,7 +753,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	par->dirty.y1 = par->dirty.y2 = 0;
 	par->dirty.active = true;
 	spin_lock_init(&par->dirty.lock);
-	mutex_init(&par->bo_mutex);
+	rt_mutex_init(&par->bo_mutex);
 	info->fbdefio = &vmw_defio;
 	fb_deferred_io_init(info);
 
@@ -820,11 +820,11 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 	flush_delayed_work(&info->deferred_work);
 	flush_delayed_work(&par->local_work);
 
-	mutex_lock(&par->bo_mutex);
+	rt_mutex_lock(&par->bo_mutex);
 	drm_modeset_lock_all(vmw_priv->dev);
 	(void) vmw_fb_kms_detach(par, true, false);
 	drm_modeset_unlock_all(vmw_priv->dev);
-	mutex_unlock(&par->bo_mutex);
+	rt_mutex_unlock(&par->bo_mutex);
 
 	return 0;
 }

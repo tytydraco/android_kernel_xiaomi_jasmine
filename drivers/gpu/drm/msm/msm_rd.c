@@ -95,7 +95,7 @@ struct msm_rd_state {
 	 * end up w/ cmds logged in different order than they
 	 * were executed).  And read_lock synchronizes the reads
 	 */
-	struct mutex read_lock;
+	struct rt_mutex read_lock;
 
 	wait_queue_head_t fifo_event;
 	struct circ_buf fifo;
@@ -141,7 +141,7 @@ static ssize_t rd_read(struct file *file, char __user *buf,
 	const char *fptr = &fifo->buf[fifo->tail];
 	int n = 0, ret = 0;
 
-	mutex_lock(&rd->read_lock);
+	rt_mutex_lock(&rd->read_lock);
 
 	ret = wait_event_interruptible(rd->fifo_event,
 			circ_count(&rd->fifo) > 0);
@@ -159,7 +159,7 @@ static ssize_t rd_read(struct file *file, char __user *buf,
 	wake_up_all(&rd->fifo_event);
 
 out:
-	mutex_unlock(&rd->read_lock);
+	rt_mutex_unlock(&rd->read_lock);
 	if (ret)
 		return ret;
 	return n;
@@ -175,7 +175,7 @@ static int rd_open(struct inode *inode, struct file *file)
 	uint32_t gpu_id;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	if (rd->open || !gpu) {
 		ret = -EBUSY;
@@ -194,7 +194,7 @@ static int rd_open(struct inode *inode, struct file *file)
 	rd_write_section(rd, RD_GPU_ID, &gpu_id, sizeof(gpu_id));
 
 out:
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -230,7 +230,7 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 	rd->dev = minor->dev;
 	rd->fifo.buf = rd->buf;
 
-	mutex_init(&rd->read_lock);
+	rt_mutex_init(&rd->read_lock);
 	priv->rd = rd;
 
 	init_waitqueue_head(&rd->fifo_event);
@@ -251,9 +251,9 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 	rd->node->dent  = rd->ent;
 	rd->node->info_ent = NULL;
 
-	mutex_lock(&minor->debugfs_lock);
+	rt_mutex_lock(&minor->debugfs_lock);
 	list_add(&rd->node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
+	rt_mutex_unlock(&minor->debugfs_lock);
 
 	return 0;
 
@@ -275,13 +275,13 @@ void msm_rd_debugfs_cleanup(struct drm_minor *minor)
 	debugfs_remove(rd->ent);
 
 	if (rd->node) {
-		mutex_lock(&minor->debugfs_lock);
+		rt_mutex_lock(&minor->debugfs_lock);
 		list_del(&rd->node->list);
-		mutex_unlock(&minor->debugfs_lock);
+		rt_mutex_unlock(&minor->debugfs_lock);
 		kfree(rd->node);
 	}
 
-	mutex_destroy(&rd->read_lock);
+	rt_mutex_destroy(&rd->read_lock);
 
 	kfree(rd);
 }
@@ -331,7 +331,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 	/* writing into fifo is serialized by caller, and
 	 * rd->read_lock is used to serialize the reads
 	 */
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	n = snprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
 			TASK_COMM_LEN, current->comm, task_pid_nr(current),

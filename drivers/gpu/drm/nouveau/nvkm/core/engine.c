@@ -32,10 +32,10 @@ nvkm_engine_unref(struct nvkm_engine **pengine)
 {
 	struct nvkm_engine *engine = *pengine;
 	if (engine) {
-		mutex_lock(&engine->subdev.mutex);
+		rt_mutex_lock(&engine->subdev.mutex);
 		if (--engine->usecount == 0)
 			nvkm_subdev_fini(&engine->subdev, false);
-		mutex_unlock(&engine->subdev.mutex);
+		rt_mutex_unlock(&engine->subdev.mutex);
 		*pengine = NULL;
 	}
 }
@@ -44,16 +44,16 @@ struct nvkm_engine *
 nvkm_engine_ref(struct nvkm_engine *engine)
 {
 	if (engine) {
-		mutex_lock(&engine->subdev.mutex);
+		rt_mutex_lock(&engine->subdev.mutex);
 		if (++engine->usecount == 1) {
 			int ret = nvkm_subdev_init(&engine->subdev);
 			if (ret) {
 				engine->usecount--;
-				mutex_unlock(&engine->subdev.mutex);
+				rt_mutex_unlock(&engine->subdev.mutex);
 				return ERR_PTR(ret);
 			}
 		}
-		mutex_unlock(&engine->subdev.mutex);
+		rt_mutex_unlock(&engine->subdev.mutex);
 	}
 	return engine;
 }

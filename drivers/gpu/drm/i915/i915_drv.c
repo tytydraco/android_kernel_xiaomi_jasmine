@@ -622,9 +622,9 @@ static int i915_drm_suspend(struct drm_device *dev)
 	int error;
 
 	/* ignore lid events during suspend */
-	mutex_lock(&dev_priv->modeset_restore_lock);
+	rt_mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_SUSPENDED;
-	mutex_unlock(&dev_priv->modeset_restore_lock);
+	rt_mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
@@ -745,9 +745,9 @@ static int i915_drm_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	i915_gem_restore_gtt_mappings(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
@@ -765,12 +765,12 @@ static int i915_drm_resume(struct drm_device *dev)
 	 */
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (i915_gem_init_hw(dev)) {
 		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
 			atomic_or(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_guc_resume(dev);
 
@@ -801,9 +801,9 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
 
-	mutex_lock(&dev_priv->modeset_restore_lock);
+	rt_mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_DONE;
-	mutex_unlock(&dev_priv->modeset_restore_lock);
+	rt_mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	intel_opregion_notify_adapter(dev, PCI_D0);
 
@@ -889,7 +889,7 @@ int i915_reset(struct drm_device *dev)
 
 	intel_reset_gt_powersave(dev);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	i915_gem_reset(dev);
 
@@ -913,7 +913,7 @@ int i915_reset(struct drm_device *dev)
 
 	if (ret) {
 		DRM_ERROR("Failed to reset chip: %i\n", ret);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
@@ -941,7 +941,7 @@ int i915_reset(struct drm_device *dev)
 
 	dev_priv->gpu_error.reload_in_reset = false;
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("Failed hw init on reset %d\n", ret);
 		return ret;
@@ -1490,7 +1490,7 @@ static int intel_runtime_suspend(struct device *device)
 	 * RPM resume will be followed by its RPM suspend counterpart. Still
 	 * for consistency return -EAGAIN, which will reschedule this suspend.
 	 */
-	if (!mutex_trylock(&dev->struct_mutex)) {
+	if (!rt_mutex_trylock(&dev->struct_mutex)) {
 		DRM_DEBUG_KMS("device lock contention, deffering suspend\n");
 		/*
 		 * Bump the expiration timestamp, otherwise the suspend won't
@@ -1505,7 +1505,7 @@ static int intel_runtime_suspend(struct device *device)
 	 * an RPM reference.
 	 */
 	i915_gem_release_all_mmaps(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	intel_guc_suspend(dev);
 

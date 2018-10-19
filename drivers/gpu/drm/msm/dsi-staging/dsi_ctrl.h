@@ -204,7 +204,7 @@ struct dsi_ctrl {
 	u32 index;
 	const char *name;
 	u32 refcount;
-	struct mutex ctrl_lock;
+	struct rt_mutex ctrl_lock;
 	struct drm_device *drm_dev;
 
 	enum dsi_ctrl_version version;

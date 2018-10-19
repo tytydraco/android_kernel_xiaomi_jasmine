@@ -1082,7 +1082,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	if ((pm_iir & dev_priv->pm_rps_events) == 0 && !client_boost)
 		return;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	pm_iir |= vlv_wa_c0_ei(dev_priv, pm_iir);
 
@@ -1134,7 +1134,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	intel_set_rps(dev_priv->dev, new_delay);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 
@@ -1157,10 +1157,10 @@ static void ivybridge_parity_work(struct work_struct *work)
 	uint8_t slice = 0;
 
 	/* We must turn off DOP level clock gating to access the L3 registers.
-	 * In order to prevent a get/put style interface, acquire struct mutex
+	 * In order to prevent a get/put style interface, acquire struct rt_mutex
 	 * any time we access those registers.
 	 */
-	mutex_lock(&dev_priv->dev->struct_mutex);
+	rt_mutex_lock(&dev_priv->dev->struct_mutex);
 
 	/* If we've screwed up tracking, just let the interrupt fire again */
 	if (WARN_ON(!dev_priv->l3_parity.which_slice))
@@ -1216,7 +1216,7 @@ out:
 	gen5_enable_gt_irq(dev_priv, GT_PARITY_ERROR(dev_priv->dev));
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	rt_mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
 static void ivybridge_parity_error_irq_handler(struct drm_device *dev, u32 iir)

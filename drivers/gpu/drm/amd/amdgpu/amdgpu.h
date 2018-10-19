@@ -496,7 +496,7 @@ struct amdgpu_bo_va_mapping {
 
 /* bo virtual addresses in a specific vm */
 struct amdgpu_bo_va {
-	struct mutex		        mutex;
+	struct rt_mutex		        mutex;
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
 	struct fence		        *last_pt_update;
@@ -619,7 +619,7 @@ struct amdgpu_sa_bo {
  * GEM objects.
  */
 struct amdgpu_gem {
-	struct mutex		mutex;
+	struct rt_mutex		mutex;
 	struct list_head	objects;
 };
 
@@ -847,7 +847,7 @@ struct amdgpu_ring {
 	struct amd_gpu_scheduler 	sched;
 
 	spinlock_t              fence_lock;
-	struct mutex		*ring_lock;
+	struct rt_mutex		*ring_lock;
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
@@ -1041,7 +1041,7 @@ struct amdgpu_ctx {
 
 struct amdgpu_ctx_mgr {
 	struct amdgpu_device	*adev;
-	struct mutex		lock;
+	struct rt_mutex		lock;
 	/* protected by lock */
 	struct idr		ctx_handles;
 };
@@ -1070,7 +1070,7 @@ void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
 
 struct amdgpu_fpriv {
 	struct amdgpu_vm	vm;
-	struct mutex		bo_list_lock;
+	struct rt_mutex		bo_list_lock;
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
 };
@@ -1080,7 +1080,7 @@ struct amdgpu_fpriv {
  */
 
 struct amdgpu_bo_list {
-	struct mutex lock;
+	struct rt_mutex lock;
 	struct amdgpu_bo *gds_obj;
 	struct amdgpu_bo *gws_obj;
 	struct amdgpu_bo *oa_obj;
@@ -1170,7 +1170,7 @@ struct amdgpu_gca_config {
 };
 
 struct amdgpu_gfx {
-	struct mutex			gpu_clock_mutex;
+	struct rt_mutex			gpu_clock_mutex;
 	struct amdgpu_gca_config	config;
 	struct amdgpu_rlc		rlc;
 	struct amdgpu_mec		mec;
@@ -1639,7 +1639,7 @@ struct amdgpu_dpm {
 };
 
 struct amdgpu_pm {
-	struct mutex		mutex;
+	struct rt_mutex		mutex;
 	u32                     current_sclk;
 	u32                     current_mclk;
 	u32                     default_sclk;
@@ -1979,9 +1979,9 @@ struct amdgpu_device {
 #endif
 	struct amdgpu_atif		atif;
 	struct amdgpu_atcs		atcs;
-	struct mutex			srbm_mutex;
+	struct rt_mutex			srbm_mutex;
 	/* GRBM index mutex. Protects concurrent access to GRBM index */
-	struct mutex                    grbm_idx_mutex;
+	struct rt_mutex                    grbm_idx_mutex;
 	struct dev_pm_domain		vga_pm_domain;
 	bool				have_disp_power_ref;
 
@@ -2051,7 +2051,7 @@ struct amdgpu_device {
 
 	/* rings */
 	unsigned			fence_context;
-	struct mutex			ring_lock;
+	struct rt_mutex			ring_lock;
 	unsigned			num_rings;
 	struct amdgpu_ring		*rings[AMDGPU_MAX_RINGS];
 	bool				ib_pool_ready;
@@ -2090,7 +2090,7 @@ struct amdgpu_device {
 	const struct amdgpu_ip_block_version *ip_blocks;
 	int				num_ip_blocks;
 	struct amdgpu_ip_block_status	*ip_block_status;
-	struct mutex	mn_lock;
+	struct rt_mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);
 
 	/* tracking pinned memory */

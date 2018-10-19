@@ -67,7 +67,7 @@
 
 struct hdmi_i2c_dev {
 	struct i2c_adapter *adap;
-	struct mutex i2c_lock;
+	struct rt_mutex i2c_lock;
 	struct completion complete;
 	int status;
 	struct i2c_msg *msg;
@@ -129,7 +129,7 @@ static int oaktrail_hdmi_i2c_access(struct i2c_adapter *adap,
 	struct hdmi_i2c_dev *i2c_dev = hdmi_dev->i2c_dev;
 	int i;
 
-	mutex_lock(&i2c_dev->i2c_lock);
+	rt_mutex_lock(&i2c_dev->i2c_lock);
 
 	/* Enable i2c unit */
 	HDMI_WRITE(HDMI_ICRH, 0x00008760);
@@ -149,7 +149,7 @@ static int oaktrail_hdmi_i2c_access(struct i2c_adapter *adap,
 	/* Disable irq */
 	hdmi_i2c_irq_disable(hdmi_dev);
 
-	mutex_unlock(&i2c_dev->i2c_lock);
+	rt_mutex_unlock(&i2c_dev->i2c_lock);
 
 	return i;
 }
@@ -288,7 +288,7 @@ int oaktrail_hdmi_i2c_init(struct pci_dev *dev)
 	i2c_dev->adap = &oaktrail_hdmi_i2c_adapter;
 	i2c_dev->status = I2C_STAT_INIT;
 	init_completion(&i2c_dev->complete);
-	mutex_init(&i2c_dev->i2c_lock);
+	rt_mutex_init(&i2c_dev->i2c_lock);
 	i2c_set_adapdata(&oaktrail_hdmi_i2c_adapter, hdmi_dev);
 	hdmi_dev->i2c_dev = i2c_dev;
 

@@ -3040,21 +3040,21 @@ static int kv_dpm_sw_init(void *handle)
 		return 0;
 
 	INIT_WORK(&adev->pm.dpm.thermal.work, amdgpu_dpm_thermal_work_handler);
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	ret = kv_dpm_init(adev);
 	if (ret)
 		goto dpm_failed;
 	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
 	if (amdgpu_dpm == 1)
 		amdgpu_pm_print_power_states(adev);
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	DRM_INFO("amdgpu: dpm initialized\n");
 
 	return 0;
 
 dpm_failed:
 	kv_dpm_fini(adev);
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 	DRM_ERROR("amdgpu: dpm initialization failed\n");
 	return ret;
 }
@@ -3063,10 +3063,10 @@ static int kv_dpm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	amdgpu_pm_sysfs_fini(adev);
 	kv_dpm_fini(adev);
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	return 0;
 }
@@ -3076,14 +3076,14 @@ static int kv_dpm_hw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	mutex_lock(&adev->pm.mutex);
+	rt_mutex_lock(&adev->pm.mutex);
 	kv_dpm_setup_asic(adev);
 	ret = kv_dpm_enable(adev);
 	if (ret)
 		adev->pm.dpm_enabled = false;
 	else
 		adev->pm.dpm_enabled = true;
-	mutex_unlock(&adev->pm.mutex);
+	rt_mutex_unlock(&adev->pm.mutex);
 
 	return ret;
 }
@@ -3093,9 +3093,9 @@ static int kv_dpm_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pm.dpm_enabled) {
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 		kv_dpm_disable(adev);
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 	}
 
 	return 0;
@@ -3106,12 +3106,12 @@ static int kv_dpm_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pm.dpm_enabled) {
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 		/* disable dpm */
 		kv_dpm_disable(adev);
 		/* reset the power state */
 		adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 	}
 	return 0;
 }
@@ -3123,14 +3123,14 @@ static int kv_dpm_resume(void *handle)
 
 	if (adev->pm.dpm_enabled) {
 		/* asic init will reset to the boot state */
-		mutex_lock(&adev->pm.mutex);
+		rt_mutex_lock(&adev->pm.mutex);
 		kv_dpm_setup_asic(adev);
 		ret = kv_dpm_enable(adev);
 		if (ret)
 			adev->pm.dpm_enabled = false;
 		else
 			adev->pm.dpm_enabled = true;
-		mutex_unlock(&adev->pm.mutex);
+		rt_mutex_unlock(&adev->pm.mutex);
 		if (adev->pm.dpm_enabled)
 			amdgpu_pm_compute_clocks(adev);
 	}

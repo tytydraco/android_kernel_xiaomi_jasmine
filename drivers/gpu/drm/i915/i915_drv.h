@@ -905,7 +905,7 @@ enum fb_op_origin {
 struct i915_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
 	 * it's the outer lock when overlapping with stolen_lock. */
-	struct mutex lock;
+	struct rt_mutex lock;
 	unsigned long uncompressed_size;
 	unsigned threshold;
 	unsigned int fb_id;
@@ -972,7 +972,7 @@ enum drrs_support_type {
 
 struct intel_dp;
 struct i915_drrs {
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	struct delayed_work work;
 	struct intel_dp *dp;
 	unsigned busy_frontbuffer_bits;
@@ -981,7 +981,7 @@ struct i915_drrs {
 };
 
 struct i915_psr {
-	struct mutex lock;
+	struct rt_mutex lock;
 	bool sink_support;
 	bool source_ok;
 	struct intel_dp *enabled;
@@ -1167,7 +1167,7 @@ struct intel_gen6_power_mgmt {
 	 * this lock may be held for long periods of time when
 	 * talking to hw - so only take it when talking to hw!
 	 */
-	struct mutex hw_lock;
+	struct rt_mutex hw_lock;
 };
 
 /* defined intel_pm.c */
@@ -1244,7 +1244,7 @@ struct i915_power_domains {
 	bool initializing;
 	int power_well_count;
 
-	struct mutex lock;
+	struct rt_mutex lock;
 	int domain_use_count[POWER_DOMAIN_NUM];
 	struct i915_power_well *power_wells;
 };
@@ -1261,7 +1261,7 @@ struct i915_gem_mm {
 	struct drm_mm stolen;
 	/** Protects the usage of the GTT stolen memory allocator. This is
 	 * always the inner lock when overlapping with struct_mutex. */
-	struct mutex stolen_lock;
+	struct rt_mutex stolen_lock;
 
 	/** List of all objects in gtt_space. Used to restore gtt
 	 * mappings on resume */
@@ -1658,7 +1658,7 @@ struct intel_pipe_crc {
 };
 
 struct i915_frontbuffer_tracking {
-	struct mutex lock;
+	struct rt_mutex lock;
 
 	/*
 	 * Tracking bits for delayed frontbuffer flushing du to gpu activity or
@@ -1719,13 +1719,13 @@ struct drm_i915_private {
 	struct intel_csr csr;
 
 	/* Display CSR-related protection */
-	struct mutex csr_lock;
+	struct rt_mutex csr_lock;
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PINS];
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */
-	struct mutex gmbus_mutex;
+	struct rt_mutex gmbus_mutex;
 
 	/**
 	 * Base address of the gmbus and gpio block.
@@ -1757,7 +1757,7 @@ struct drm_i915_private {
 	struct pm_qos_request pm_qos;
 
 	/* Sideband mailbox protection */
-	struct mutex sb_lock;
+	struct rt_mutex sb_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	union {
@@ -1781,13 +1781,13 @@ struct drm_i915_private {
 	struct intel_overlay *overlay;
 
 	/* backlight registers and fields in struct intel_panel */
-	struct mutex backlight_lock;
+	struct rt_mutex backlight_lock;
 
 	/* LVDS info */
 	bool no_aux_handshake;
 
 	/* protects panel power sequencer state */
-	struct mutex pps_mutex;
+	struct rt_mutex pps_mutex;
 
 	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -1818,14 +1818,14 @@ struct drm_i915_private {
 	unsigned long quirks;
 
 	enum modeset_restore modeset_restore;
-	struct mutex modeset_restore_lock;
+	struct rt_mutex modeset_restore_lock;
 
 	struct list_head vm_list; /* Global list of all address spaces */
 	struct i915_gtt gtt; /* VM representing the global address space */
 
 	struct i915_gem_mm mm;
 	DECLARE_HASHTABLE(mm_structs, 7);
-	struct mutex mm_lock;
+	struct rt_mutex mm_lock;
 
 	/* Kernel Modesetting */
 
@@ -1890,7 +1890,7 @@ struct drm_i915_private {
 	 * av_mutex - mutex for audio/video sync
 	 *
 	 */
-	struct mutex av_mutex;
+	struct rt_mutex av_mutex;
 
 	uint32_t hw_context_size;
 	struct list_head context_list;
@@ -2298,7 +2298,7 @@ i915_gem_request_reference(struct drm_i915_gem_request *req)
 static inline void
 i915_gem_request_unreference(struct drm_i915_gem_request *req)
 {
-	WARN_ON(!mutex_is_locked(&req->ring->dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&req->ring->dev->struct_mutex));
 	kref_put(&req->ref, i915_gem_request_free);
 }
 
@@ -2312,7 +2312,7 @@ i915_gem_request_unreference__unlocked(struct drm_i915_gem_request *req)
 
 	dev = req->ring->dev;
 	if (kref_put_mutex(&req->ref, i915_gem_request_free, &dev->struct_mutex))
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 }
 
 static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
@@ -2899,7 +2899,7 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 	obj->pages_pin_count--;
 }
 
-int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
+int __must_check i915_rt_mutex_lock_interruptible(struct drm_device *dev);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			 struct intel_engine_cs *to,
 			 struct drm_i915_gem_request **to_req);

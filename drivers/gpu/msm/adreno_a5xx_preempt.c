@@ -148,12 +148,12 @@ static void _a5xx_preemption_worker(struct work_struct *work)
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 
 	/* Need to take the mutex to make sure that the power stays on */
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_FAULTED))
 		_a5xx_preemption_fault(adreno_dev);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 static void _a5xx_preemption_timer(unsigned long data)
@@ -328,14 +328,14 @@ void a5xx_preemption_schedule(struct adreno_device *adreno_dev)
 	if (!adreno_is_preemption_enabled(adreno_dev))
 		return;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	if (adreno_in_preempt_state(adreno_dev, ADRENO_PREEMPT_COMPLETE))
 		_a5xx_preemption_done(adreno_dev);
 
 	a5xx_preemption_trigger(adreno_dev);
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 unsigned int a5xx_preemption_pre_ibsubmit(

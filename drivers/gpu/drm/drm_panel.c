@@ -27,7 +27,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_panel.h>
 
-static DEFINE_MUTEX(panel_lock);
+static DEFINE_RT_MUTEX(panel_lock);
 static LIST_HEAD(panel_list);
 
 void drm_panel_init(struct drm_panel *panel)
@@ -38,9 +38,9 @@ EXPORT_SYMBOL(drm_panel_init);
 
 int drm_panel_add(struct drm_panel *panel)
 {
-	mutex_lock(&panel_lock);
+	rt_mutex_lock(&panel_lock);
 	list_add_tail(&panel->list, &panel_list);
-	mutex_unlock(&panel_lock);
+	rt_mutex_unlock(&panel_lock);
 
 	return 0;
 }
@@ -48,9 +48,9 @@ EXPORT_SYMBOL(drm_panel_add);
 
 void drm_panel_remove(struct drm_panel *panel)
 {
-	mutex_lock(&panel_lock);
+	rt_mutex_lock(&panel_lock);
 	list_del_init(&panel->list);
-	mutex_unlock(&panel_lock);
+	rt_mutex_unlock(&panel_lock);
 }
 EXPORT_SYMBOL(drm_panel_remove);
 
@@ -80,16 +80,16 @@ struct drm_panel *of_drm_find_panel(struct device_node *np)
 {
 	struct drm_panel *panel;
 
-	mutex_lock(&panel_lock);
+	rt_mutex_lock(&panel_lock);
 
 	list_for_each_entry(panel, &panel_list, list) {
 		if (panel->dev->of_node == np) {
-			mutex_unlock(&panel_lock);
+			rt_mutex_unlock(&panel_lock);
 			return panel;
 		}
 	}
 
-	mutex_unlock(&panel_lock);
+	rt_mutex_unlock(&panel_lock);
 	return NULL;
 }
 EXPORT_SYMBOL(of_drm_find_panel);

@@ -114,7 +114,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	fifo->reserved_size = 0;
 	fifo->using_bounce_buffer = false;
 
-	mutex_init(&fifo->fifo_mutex);
+	rt_mutex_init(&fifo->fifo_mutex);
 	init_rwsem(&fifo->rwsem);
 
 	DRM_INFO("width %d\n", vmw_read(dev_priv, SVGA_REG_WIDTH));
@@ -305,7 +305,7 @@ static void *vmw_local_fifo_reserve(struct vmw_private *dev_priv,
 	uint32_t reserveable = fifo_state->capabilities & SVGA_FIFO_CAP_RESERVE;
 	int ret;
 
-	mutex_lock(&fifo_state->fifo_mutex);
+	rt_mutex_lock(&fifo_state->fifo_mutex);
 	max = vmw_mmio_read(fifo_mem + SVGA_FIFO_MAX);
 	min = vmw_mmio_read(fifo_mem + SVGA_FIFO_MIN);
 	next_cmd = vmw_mmio_read(fifo_mem + SVGA_FIFO_NEXT_CMD);
@@ -376,7 +376,7 @@ static void *vmw_local_fifo_reserve(struct vmw_private *dev_priv,
 	}
 out_err:
 	fifo_state->reserved_size = 0;
-	mutex_unlock(&fifo_state->fifo_mutex);
+	rt_mutex_unlock(&fifo_state->fifo_mutex);
 
 	return NULL;
 }
@@ -493,7 +493,7 @@ static void vmw_local_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
 	mb();
 	up_write(&fifo_state->rwsem);
 	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
-	mutex_unlock(&fifo_state->fifo_mutex);
+	rt_mutex_unlock(&fifo_state->fifo_mutex);
 }
 
 void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)

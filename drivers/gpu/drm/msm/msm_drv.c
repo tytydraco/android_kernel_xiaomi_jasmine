@@ -47,7 +47,7 @@ static void msm_drm_helper_hotplug_event(struct drm_device *dev)
 		return;
 	}
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 		/* Only handle HPD capable connectors. */
 		if (!(connector->polled & DRM_CONNECTOR_POLL_HPD))
@@ -69,7 +69,7 @@ static void msm_drm_helper_hotplug_event(struct drm_device *dev)
 		kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE,
 				envp);
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 	kfree(event_string);
 }
 
@@ -280,9 +280,9 @@ static int msm_unload(struct drm_device *dev)
 	}
 
 	if (gpu) {
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_suspend(gpu);
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 		gpu->funcs->destroy(gpu);
 	}
 
@@ -457,7 +457,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	init_kthread_work(&priv->vblank_ctrl.work, vblank_ctrl_worker);
 	spin_lock_init(&priv->vblank_ctrl.lock);
 	hash_init(priv->mn_hash);
-	mutex_init(&priv->mn_lock);
+	rt_mutex_init(&priv->mn_lock);
 
 	drm_mode_config_init(dev);
 
@@ -616,15 +616,15 @@ static void load_gpu(struct drm_device *dev)
 #else
 static void load_gpu(struct drm_device *dev)
 {
-	static DEFINE_MUTEX(init_lock);
+	static DEFINE_RT_MUTEX(init_lock);
 	struct msm_drm_private *priv = dev->dev_private;
 
-	mutex_lock(&init_lock);
+	rt_mutex_lock(&init_lock);
 
 	if (!priv->gpu)
 		priv->gpu = adreno_load_gpu(dev);
 
-	mutex_unlock(&init_lock);
+	rt_mutex_unlock(&init_lock);
 }
 #endif
 
@@ -963,7 +963,7 @@ static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
 		msm_framebuffer_describe(fbdev_fb, m);
 	}
 
-	mutex_lock(&dev->mode_config.fb_lock);
+	rt_mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
 		if (fb == fbdev_fb)
 			continue;
@@ -971,7 +971,7 @@ static int msm_fb_show(struct drm_device *dev, struct seq_file *m)
 		seq_printf(m, "user ");
 		msm_framebuffer_describe(fb, m);
 	}
-	mutex_unlock(&dev->mode_config.fb_lock);
+	rt_mutex_unlock(&dev->mode_config.fb_lock);
 
 	return 0;
 }
@@ -984,13 +984,13 @@ static int show_locked(struct seq_file *m, void *arg)
 			node->info_ent->data;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	ret = show(dev, m);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -1147,7 +1147,7 @@ int msm_queue_fence_cb(struct drm_device *dev,
 	int index = FENCE_RING(fence);
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	if (!list_empty(&cb->work.entry)) {
 		ret = -EINVAL;
 	} else if (fence > priv->completed_fence[index]) {
@@ -1156,7 +1156,7 @@ int msm_queue_fence_cb(struct drm_device *dev,
 	} else {
 		queue_work(priv->wq, &cb->work);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -1171,7 +1171,7 @@ void msm_update_fence(struct drm_device *dev, uint32_t fence)
 	if (index >= MSM_GPU_MAX_RINGS)
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	priv->completed_fence[index] = max(fence, priv->completed_fence[index]);
 
 	list_for_each_entry_safe(cb, tmp, &priv->fence_cbs, work.entry) {
@@ -1182,7 +1182,7 @@ void msm_update_fence(struct drm_device *dev, uint32_t fence)
 		}
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	wake_up_all(&priv->fence_event);
 }

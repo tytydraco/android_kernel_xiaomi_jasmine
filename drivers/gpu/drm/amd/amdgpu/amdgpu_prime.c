@@ -66,16 +66,16 @@ struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	struct amdgpu_bo *bo;
 	int ret;
 
-	ww_mutex_lock(&resv->lock, NULL);
+	ww_rt_mutex_lock(&resv->lock, NULL);
 	ret = amdgpu_bo_create(adev, attach->dmabuf->size, PAGE_SIZE, false,
 			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, &bo);
-	ww_mutex_unlock(&resv->lock);
+	ww_rt_mutex_unlock(&resv->lock);
 	if (ret)
 		return ERR_PTR(ret);
 
-	mutex_lock(&adev->gem.mutex);
+	rt_mutex_lock(&adev->gem.mutex);
 	list_add_tail(&bo->list, &adev->gem.objects);
-	mutex_unlock(&adev->gem.mutex);
+	rt_mutex_unlock(&adev->gem.mutex);
 
 	bo->prime_shared_count = 1;
 	return &bo->gem_base;

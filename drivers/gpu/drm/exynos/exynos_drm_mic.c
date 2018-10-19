@@ -91,7 +91,7 @@ enum {
 
 static char *clk_names[] = { "pclk_mic0", "sclk_rgb_vclk_to_mic0" };
 #define NUM_CLKS		ARRAY_SIZE(clk_names)
-static DEFINE_MUTEX(mic_mutex);
+static DEFINE_RT_MUTEX(mic_mutex);
 
 struct exynos_mic {
 	struct device *dev;
@@ -313,7 +313,7 @@ void mic_post_disable(struct drm_bridge *bridge)
 	struct exynos_mic *mic = bridge->driver_private;
 	int i;
 
-	mutex_lock(&mic_mutex);
+	rt_mutex_lock(&mic_mutex);
 	if (!mic->enabled)
 		goto already_disabled;
 
@@ -325,7 +325,7 @@ void mic_post_disable(struct drm_bridge *bridge)
 	mic->enabled = 0;
 
 already_disabled:
-	mutex_unlock(&mic_mutex);
+	rt_mutex_unlock(&mic_mutex);
 }
 
 void mic_pre_enable(struct drm_bridge *bridge)
@@ -333,7 +333,7 @@ void mic_pre_enable(struct drm_bridge *bridge)
 	struct exynos_mic *mic = bridge->driver_private;
 	int ret, i;
 
-	mutex_lock(&mic_mutex);
+	rt_mutex_lock(&mic_mutex);
 	if (mic->enabled)
 		goto already_enabled;
 
@@ -360,7 +360,7 @@ void mic_pre_enable(struct drm_bridge *bridge)
 	mic_set_output_timing(mic);
 	mic_set_reg_on(mic, 1);
 	mic->enabled = 1;
-	mutex_unlock(&mic_mutex);
+	rt_mutex_unlock(&mic_mutex);
 
 	return;
 
@@ -368,7 +368,7 @@ turn_off_clks:
 	while (--i > -1)
 		clk_disable_unprepare(mic->clks[i]);
 already_enabled:
-	mutex_unlock(&mic_mutex);
+	rt_mutex_unlock(&mic_mutex);
 }
 
 void mic_enable(struct drm_bridge *bridge) { }
@@ -378,7 +378,7 @@ void mic_destroy(struct drm_bridge *bridge)
 	struct exynos_mic *mic = bridge->driver_private;
 	int i;
 
-	mutex_lock(&mic_mutex);
+	rt_mutex_lock(&mic_mutex);
 	if (!mic->enabled)
 		goto already_disabled;
 
@@ -386,7 +386,7 @@ void mic_destroy(struct drm_bridge *bridge)
 		clk_disable_unprepare(mic->clks[i]);
 
 already_disabled:
-	mutex_unlock(&mic_mutex);
+	rt_mutex_unlock(&mic_mutex);
 }
 
 struct drm_bridge_funcs mic_bridge_funcs = {

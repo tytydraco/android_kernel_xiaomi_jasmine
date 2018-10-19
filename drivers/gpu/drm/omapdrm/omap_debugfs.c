@@ -32,14 +32,14 @@ static int gem_show(struct seq_file *m, void *arg)
 	struct omap_drm_private *priv = dev->dev_private;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	seq_printf(m, "All Objects:\n");
 	omap_gem_describe_objects(&priv->obj_list, m);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -61,7 +61,7 @@ static int fb_show(struct seq_file *m, void *arg)
 	seq_printf(m, "fbcon ");
 	omap_framebuffer_describe(priv->fbdev->fb, m);
 
-	mutex_lock(&dev->mode_config.fb_lock);
+	rt_mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
 		if (fb == priv->fbdev->fb)
 			continue;
@@ -69,7 +69,7 @@ static int fb_show(struct seq_file *m, void *arg)
 		seq_printf(m, "user ");
 		omap_framebuffer_describe(fb, m);
 	}
-	mutex_unlock(&dev->mode_config.fb_lock);
+	rt_mutex_unlock(&dev->mode_config.fb_lock);
 
 	return 0;
 }

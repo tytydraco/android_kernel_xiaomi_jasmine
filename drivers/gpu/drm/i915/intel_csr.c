@@ -225,9 +225,9 @@ enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv)
 {
 	enum csr_state state;
 
-	mutex_lock(&dev_priv->csr_lock);
+	rt_mutex_lock(&dev_priv->csr_lock);
 	state = dev_priv->csr.state;
-	mutex_unlock(&dev_priv->csr_lock);
+	rt_mutex_unlock(&dev_priv->csr_lock);
 
 	return state;
 }
@@ -242,9 +242,9 @@ enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv)
 void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
 			enum csr_state state)
 {
-	mutex_lock(&dev_priv->csr_lock);
+	rt_mutex_lock(&dev_priv->csr_lock);
 	dev_priv->csr.state = state;
-	mutex_unlock(&dev_priv->csr_lock);
+	rt_mutex_unlock(&dev_priv->csr_lock);
 }
 
 /**
@@ -275,7 +275,7 @@ void intel_csr_load_program(struct drm_device *dev)
 	if (I915_READ(CSR_PROGRAM(0)))
 		return;
 
-	mutex_lock(&dev_priv->csr_lock);
+	rt_mutex_lock(&dev_priv->csr_lock);
 	fw_size = dev_priv->csr.dmc_fw_size;
 	for (i = 0; i < fw_size; i++)
 		I915_WRITE(CSR_PROGRAM(i), payload[i]);
@@ -286,7 +286,7 @@ void intel_csr_load_program(struct drm_device *dev)
 	}
 
 	dev_priv->csr.state = FW_LOADED;
-	mutex_unlock(&dev_priv->csr_lock);
+	rt_mutex_unlock(&dev_priv->csr_lock);
 }
 
 static void finish_csr_load(const struct firmware *fw, void *context)

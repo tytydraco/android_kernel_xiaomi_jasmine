@@ -54,7 +54,7 @@ void msm_property_init(struct msm_property_info *info,
 		info->is_active = false;
 		info->state_size = state_size;
 		info->state_cache_size = 0;
-		mutex_init(&info->property_lock);
+		rt_mutex_init(&info->property_lock);
 
 		memset(property_data,
 				0,
@@ -79,7 +79,7 @@ void msm_property_destroy(struct msm_property_info *info)
 	while (info->state_cache_size > 0)
 		kfree(info->state_cache[--(info->state_cache_size)]);
 
-	mutex_destroy(&info->property_lock);
+	rt_mutex_destroy(&info->property_lock);
 }
 
 int msm_property_pop_dirty(struct msm_property_info *info)
@@ -92,7 +92,7 @@ int msm_property_pop_dirty(struct msm_property_info *info)
 		return -EINVAL;
 	}
 
-	mutex_lock(&info->property_lock);
+	rt_mutex_lock(&info->property_lock);
 	if (list_empty(&info->dirty_list)) {
 		rc = -EAGAIN;
 	} else {
@@ -102,7 +102,7 @@ int msm_property_pop_dirty(struct msm_property_info *info)
 			- info->property_data;
 		DRM_DEBUG_KMS("property %d dirty\n", rc);
 	}
-	mutex_unlock(&info->property_lock);
+	rt_mutex_unlock(&info->property_lock);
 
 	return rc;
 }
@@ -420,7 +420,7 @@ int msm_property_index(struct msm_property_info *info,
 		 * the order of most recent access, but that may be overkill
 		 * for now.
 		 */
-		mutex_lock(&info->property_lock);
+		rt_mutex_lock(&info->property_lock);
 		idx = info->recent_idx;
 		count = info->property_count;
 		while (count) {
@@ -437,7 +437,7 @@ int msm_property_index(struct msm_property_info *info,
 			if (--idx < 0)
 				idx = info->property_count - 1;
 		}
-		mutex_unlock(&info->property_lock);
+		rt_mutex_unlock(&info->property_lock);
 	}
 
 	return rc;
@@ -456,7 +456,7 @@ int msm_property_atomic_set(struct msm_property_info *info,
 		DRM_DEBUG("Invalid argument(s)\n");
 	} else {
 		/* extra handling for incoming properties */
-		mutex_lock(&info->property_lock);
+		rt_mutex_lock(&info->property_lock);
 		if ((property->flags & DRM_MODE_PROP_BLOB) &&
 			(property_idx < info->blob_count) &&
 			property_blobs) {
@@ -486,7 +486,7 @@ int msm_property_atomic_set(struct msm_property_info *info,
 
 			DBG("%s - %lld", property->name, val);
 		}
-		mutex_unlock(&info->property_lock);
+		rt_mutex_unlock(&info->property_lock);
 		rc = 0;
 	}
 
@@ -504,9 +504,9 @@ int msm_property_atomic_get(struct msm_property_info *info,
 	if (!info || (property_idx == -EINVAL) || !property_values || !val) {
 		DRM_DEBUG("Invalid argument(s)\n");
 	} else {
-		mutex_lock(&info->property_lock);
+		rt_mutex_lock(&info->property_lock);
 		*val = property_values[property_idx];
-		mutex_unlock(&info->property_lock);
+		rt_mutex_unlock(&info->property_lock);
 		rc = 0;
 	}
 
@@ -522,10 +522,10 @@ void *msm_property_alloc_state(struct msm_property_info *info)
 		return NULL;
 	}
 
-	mutex_lock(&info->property_lock);
+	rt_mutex_lock(&info->property_lock);
 	if (info->state_cache_size)
 		state = info->state_cache[--(info->state_cache_size)];
-	mutex_unlock(&info->property_lock);
+	rt_mutex_unlock(&info->property_lock);
 
 	if (!state && info->state_size)
 		state = kmalloc(info->state_size, GFP_KERNEL);
@@ -546,12 +546,12 @@ static void _msm_property_free_state(struct msm_property_info *info, void *st)
 	if (!info || !st)
 		return;
 
-	mutex_lock(&info->property_lock);
+	rt_mutex_lock(&info->property_lock);
 	if (info->state_cache_size < MSM_PROP_STATE_CACHE_SIZE)
 		info->state_cache[(info->state_cache_size)++] = st;
 	else
 		kfree(st);
-	mutex_unlock(&info->property_lock);
+	rt_mutex_unlock(&info->property_lock);
 }
 
 void msm_property_reset_state(struct msm_property_info *info, void *state,
@@ -708,7 +708,7 @@ int msm_property_set_property(struct msm_property_info *info,
 	} else {
 		struct drm_property *drm_prop;
 
-		mutex_lock(&info->property_lock);
+		rt_mutex_lock(&info->property_lock);
 
 		/* update cached value */
 		if (property_values)
@@ -719,7 +719,7 @@ int msm_property_set_property(struct msm_property_info *info,
 		if (drm_prop->flags & DRM_MODE_PROP_IMMUTABLE)
 			info->property_data[property_idx].default_value = val;
 
-		mutex_unlock(&info->property_lock);
+		rt_mutex_unlock(&info->property_lock);
 
 		/* update drm object */
 		rc = drm_object_property_set_value(info->base, drm_prop, val);

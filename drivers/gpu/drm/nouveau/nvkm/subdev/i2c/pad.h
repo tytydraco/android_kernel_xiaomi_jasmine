@@ -15,7 +15,7 @@ struct nvkm_i2c_pad {
 		NVKM_I2C_PAD_I2C,
 		NVKM_I2C_PAD_AUX,
 	} mode;
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	struct list_head head;
 };
 

@@ -61,7 +61,7 @@ struct sde_core_perf_tune {
 struct sde_core_perf {
 	struct drm_device *dev;
 	struct dentry *debugfs_root;
-	struct mutex perf_lock;
+	struct rt_mutex perf_lock;
 	struct sde_mdss_cfg *catalog;
 	struct sde_power_handle *phandle;
 	struct sde_power_client *pclient;

@@ -48,7 +48,7 @@ static int amdgpu_atombios_i2c_process_i2c_ch(struct amdgpu_i2c_chan *chan,
 
 	memset(&args, 0, sizeof(args));
 
-	mutex_lock(&chan->mutex);
+	rt_mutex_lock(&chan->mutex);
 
 	base = (unsigned char *)adev->mode_info.atom_context->scratch;
 
@@ -96,7 +96,7 @@ static int amdgpu_atombios_i2c_process_i2c_ch(struct amdgpu_i2c_chan *chan,
 		amdgpu_atombios_copy_swap(buf, base, num, false);
 
 done:
-	mutex_unlock(&chan->mutex);
+	rt_mutex_unlock(&chan->mutex);
 
 	return r;
 }

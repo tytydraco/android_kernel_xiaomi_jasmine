@@ -39,7 +39,7 @@
 
 static bool sharedmem_noretry_flag;
 
-static DEFINE_MUTEX(kernel_map_global_lock);
+static DEFINE_RT_MUTEX(kernel_map_global_lock);
 
 struct cp2_mem_chunks {
 	unsigned int chunk_list;
@@ -385,7 +385,7 @@ static int kgsl_page_alloc_vmfault(struct kgsl_memdesc *memdesc,
  */
 static void kgsl_page_alloc_unmap_kernel(struct kgsl_memdesc *memdesc)
 {
-	mutex_lock(&kernel_map_global_lock);
+	rt_mutex_lock(&kernel_map_global_lock);
 	if (!memdesc->hostptr) {
 		BUG_ON(memdesc->hostptr_count);
 		goto done;
@@ -398,7 +398,7 @@ static void kgsl_page_alloc_unmap_kernel(struct kgsl_memdesc *memdesc)
 	atomic_long_sub(memdesc->size, &kgsl_driver.stats.vmalloc);
 	memdesc->hostptr = NULL;
 done:
-	mutex_unlock(&kernel_map_global_lock);
+	rt_mutex_unlock(&kernel_map_global_lock);
 }
 
 static void kgsl_page_alloc_free(struct kgsl_memdesc *memdesc)
@@ -460,7 +460,7 @@ static int kgsl_page_alloc_map_kernel(struct kgsl_memdesc *memdesc)
 	if (memdesc->size > ULONG_MAX)
 		return -ENOMEM;
 
-	mutex_lock(&kernel_map_global_lock);
+	rt_mutex_lock(&kernel_map_global_lock);
 	if ((!memdesc->hostptr) && (memdesc->pages != NULL)) {
 		pgprot_t page_prot = pgprot_writecombine(PAGE_KERNEL);
 
@@ -476,7 +476,7 @@ static int kgsl_page_alloc_map_kernel(struct kgsl_memdesc *memdesc)
 	if (memdesc->hostptr)
 		memdesc->hostptr_count++;
 
-	mutex_unlock(&kernel_map_global_lock);
+	rt_mutex_unlock(&kernel_map_global_lock);
 
 	return ret;
 }

@@ -318,10 +318,10 @@ static int vmw_cotable_unbind(struct vmw_resource *res,
 	WARN_ON_ONCE(bo->mem.mem_type != VMW_PL_MOB);
 	lockdep_assert_held(&bo->resv->lock.base);
 
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	if (!vcotbl->scrubbed)
 		vmw_dx_context_scrub_cotables(vcotbl->ctx, readback);
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
 	vmw_fence_single_bo(bo, fence);
 	if (likely(fence != NULL))

@@ -178,7 +178,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 
 	count = min_t(size_t, GEN7_L3LOG_SIZE - offset, count);
 
-	ret = i915_mutex_lock_interruptible(drm_dev);
+	ret = i915_rt_mutex_lock_interruptible(drm_dev);
 	if (ret)
 		return ret;
 
@@ -189,7 +189,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	else
 		memset(buf, 0, count);
 
-	mutex_unlock(&drm_dev->struct_mutex);
+	rt_mutex_unlock(&drm_dev->struct_mutex);
 
 	return count;
 }
@@ -215,14 +215,14 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	ret = i915_mutex_lock_interruptible(drm_dev);
+	ret = i915_rt_mutex_lock_interruptible(drm_dev);
 	if (ret)
 		return ret;
 
 	if (!dev_priv->l3_parity.remap_info[slice]) {
 		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
 		if (!temp) {
-			mutex_unlock(&drm_dev->struct_mutex);
+			rt_mutex_unlock(&drm_dev->struct_mutex);
 			return -ENOMEM;
 		}
 	}
@@ -230,7 +230,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	ret = i915_gpu_idle(drm_dev);
 	if (ret) {
 		kfree(temp);
-		mutex_unlock(&drm_dev->struct_mutex);
+		rt_mutex_unlock(&drm_dev->struct_mutex);
 		return ret;
 	}
 
@@ -247,7 +247,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	list_for_each_entry(ctx, &dev_priv->context_list, link)
 		ctx->remap_slice |= (1<<slice);
 
-	mutex_unlock(&drm_dev->struct_mutex);
+	rt_mutex_unlock(&drm_dev->struct_mutex);
 
 	return count;
 }
@@ -282,7 +282,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 
 	intel_runtime_pm_get(dev_priv);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		u32 freq;
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
@@ -297,7 +297,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 			ret = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
 		ret = intel_gpu_freq(dev_priv, ret);
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -316,9 +316,9 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 	intel_runtime_pm_get(dev_priv);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	ret = intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -346,9 +346,9 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	ret = intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
@@ -369,14 +369,14 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
 
 	if (val < dev_priv->rps.min_freq ||
 	    val > dev_priv->rps.max_freq ||
 	    val < dev_priv->rps.min_freq_softlimit) {
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
@@ -395,7 +395,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	 * frequency request may be unchanged. */
 	intel_set_rps(dev, val);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return count;
 }
@@ -409,9 +409,9 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 	ret = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
@@ -432,14 +432,14 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	rt_mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
 
 	if (val < dev_priv->rps.min_freq ||
 	    val > dev_priv->rps.max_freq ||
 	    val > dev_priv->rps.max_freq_softlimit) {
-		mutex_unlock(&dev_priv->rps.hw_lock);
+		rt_mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
@@ -454,7 +454,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	 * frequency request may be unchanged. */
 	intel_set_rps(dev, val);
 
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	rt_mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return count;
 
@@ -562,12 +562,12 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = rt_mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	i915_destroy_error_state(dev);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return count;
 }

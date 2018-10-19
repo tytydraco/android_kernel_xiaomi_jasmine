@@ -336,7 +336,7 @@ static int create_other_event(struct kfd_process *p, struct kfd_event *ev)
 
 void kfd_event_init_process(struct kfd_process *p)
 {
-	mutex_init(&p->event_mutex);
+	rt_mutex_init(&p->event_mutex);
 	hash_init(p->events);
 	INIT_LIST_HEAD(&p->signal_event_pages);
 	p->next_nonsignal_event_id = KFD_FIRST_NONSIGNAL_EVENT_ID;
@@ -423,7 +423,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 
 	*event_page_offset = 0;
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	switch (event_type) {
 	case KFD_EVENT_TYPE_SIGNAL:
@@ -450,7 +450,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		kfree(ev);
 	}
 
-	mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->event_mutex);
 
 	return ret;
 }
@@ -461,7 +461,7 @@ int kfd_event_destroy(struct kfd_process *p, uint32_t event_id)
 	struct kfd_event *ev;
 	int ret = 0;
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	ev = lookup_event_by_id(p, event_id);
 
@@ -470,7 +470,7 @@ int kfd_event_destroy(struct kfd_process *p, uint32_t event_id)
 	else
 		ret = -EINVAL;
 
-	mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->event_mutex);
 	return ret;
 }
 
@@ -498,7 +498,7 @@ int kfd_set_event(struct kfd_process *p, uint32_t event_id)
 	int ret = 0;
 	struct kfd_event *ev;
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	ev = lookup_event_by_id(p, event_id);
 
@@ -507,7 +507,7 @@ int kfd_set_event(struct kfd_process *p, uint32_t event_id)
 	else
 		ret = -EINVAL;
 
-	mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->event_mutex);
 	return ret;
 }
 
@@ -522,7 +522,7 @@ int kfd_reset_event(struct kfd_process *p, uint32_t event_id)
 	int ret = 0;
 	struct kfd_event *ev;
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	ev = lookup_event_by_id(p, event_id);
 
@@ -531,7 +531,7 @@ int kfd_reset_event(struct kfd_process *p, uint32_t event_id)
 	else
 		ret = -EINVAL;
 
-	mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->event_mutex);
 	return ret;
 
 }
@@ -571,7 +571,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 	if (!p)
 		return; /* Presumably process exited. */
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	if (valid_id_bits >= INTERRUPT_DATA_BITS) {
 		/* Partial ID is a full ID. */
@@ -595,8 +595,8 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 				}
 	}
 
-	mutex_unlock(&p->event_mutex);
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->mutex);
 }
 
 static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
@@ -727,7 +727,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 	struct kfd_event_waiter *event_waiters = NULL;
 	long timeout = user_timeout_to_jiffies(user_timeout_ms);
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	event_waiters = alloc_event_waiters(num_events);
 	if (!event_waiters) {
@@ -750,7 +750,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 			goto fail;
 	}
 
-	mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->event_mutex);
 
 	while (true) {
 		if (fatal_signal_pending(current)) {
@@ -789,9 +789,9 @@ int kfd_wait_on_events(struct kfd_process *p,
 	}
 	__set_current_state(TASK_RUNNING);
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 	free_waiters(num_events, event_waiters);
-	mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->event_mutex);
 
 	return ret;
 
@@ -799,7 +799,7 @@ fail:
 	if (event_waiters)
 		free_waiters(num_events, event_waiters);
 
-	mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->event_mutex);
 
 	*wait_result = KFD_WAIT_ERROR;
 
@@ -939,14 +939,14 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 
 	up_read(&p->mm->mmap_sem);
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	/* Lookup events by type and signal them */
 	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
 			&memory_exception_data);
 
-	mutex_unlock(&p->event_mutex);
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->mutex);
 }
 
 void kfd_signal_hw_exception_event(unsigned int pasid)
@@ -961,11 +961,11 @@ void kfd_signal_hw_exception_event(unsigned int pasid)
 	if (!p)
 		return; /* Presumably process exited. */
 
-	mutex_lock(&p->event_mutex);
+	rt_mutex_lock(&p->event_mutex);
 
 	/* Lookup events by type and signal them */
 	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_HW_EXCEPTION, NULL);
 
-	mutex_unlock(&p->event_mutex);
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->event_mutex);
+	rt_mutex_unlock(&p->mutex);
 }

@@ -601,7 +601,7 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 			     __field(bool, blocking)
 			     ),
 
-	    /* NB: the blocking information is racy since mutex_is_locked
+	    /* NB: the blocking information is racy since rt_mutex_is_locked
 	     * doesn't check that the current thread holds the lock. The only
 	     * other option would be to pass the boolean information of whether
 	     * or not the class was blocking down through the stack which is
@@ -614,7 +614,7 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 			   __entry->ring = ring->id;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
 			   __entry->blocking =
-				     mutex_is_locked(&ring->dev->struct_mutex);
+				     rt_mutex_is_locked(&ring->dev->struct_mutex);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u, blocking=%s",

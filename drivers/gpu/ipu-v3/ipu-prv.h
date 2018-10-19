@@ -147,7 +147,7 @@ struct ipu_soc {
 	const struct ipu_devtype	*devtype;
 	enum ipuv3_type		ipu_type;
 	spinlock_t		lock;
-	struct mutex		channel_lock;
+	struct rt_mutex		channel_lock;
 
 	void __iomem		*cm_reg;
 	void __iomem		*idmac_reg;

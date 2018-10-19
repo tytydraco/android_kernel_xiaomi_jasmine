@@ -1267,7 +1267,7 @@ int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t * pa
 {
 	int r;
 
-	mutex_lock(&ctx->mutex);
+	rt_mutex_lock(&ctx->mutex);
 	/* reset data block */
 	ctx->data_block = 0;
 	/* reset reg block */
@@ -1280,7 +1280,7 @@ int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t * pa
 	ctx->divmul[0] = 0;
 	ctx->divmul[1] = 0;
 	r = amdgpu_atom_execute_table_locked(ctx, index, params);
-	mutex_unlock(&ctx->mutex);
+	rt_mutex_unlock(&ctx->mutex);
 	return r;
 }
 

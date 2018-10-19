@@ -1221,7 +1221,7 @@ int atom_execute_table_scratch_unlocked(struct atom_context *ctx, int index, uin
 {
 	int r;
 
-	mutex_lock(&ctx->mutex);
+	rt_mutex_lock(&ctx->mutex);
 	/* reset data block */
 	ctx->data_block = 0;
 	/* reset reg block */
@@ -1234,16 +1234,16 @@ int atom_execute_table_scratch_unlocked(struct atom_context *ctx, int index, uin
 	ctx->divmul[0] = 0;
 	ctx->divmul[1] = 0;
 	r = atom_execute_table_locked(ctx, index, params);
-	mutex_unlock(&ctx->mutex);
+	rt_mutex_unlock(&ctx->mutex);
 	return r;
 }
 
 int atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
 {
 	int r;
-	mutex_lock(&ctx->scratch_mutex);
+	rt_mutex_lock(&ctx->scratch_mutex);
 	r = atom_execute_table_scratch_unlocked(ctx, index, params);
-	mutex_unlock(&ctx->scratch_mutex);
+	rt_mutex_unlock(&ctx->scratch_mutex);
 	return r;
 }
 

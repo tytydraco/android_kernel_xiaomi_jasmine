@@ -46,7 +46,7 @@ struct mm_struct;
  */
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
 static DEFINE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
-static DEFINE_MUTEX(kfd_processes_mutex);
+static DEFINE_RT_MUTEX(kfd_processes_mutex);
 
 DEFINE_STATIC_SRCU(kfd_processes_srcu);
 
@@ -96,7 +96,7 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 	 * so there won't be a case where two threads of the same process
 	 * create two kfd_process structures
 	 */
-	mutex_lock(&kfd_processes_mutex);
+	rt_mutex_lock(&kfd_processes_mutex);
 
 	/* A prior open of /dev/kfd could have already created the process. */
 	process = find_process(thread);
@@ -106,7 +106,7 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 	if (!process)
 		process = create_process(thread);
 
-	mutex_unlock(&kfd_processes_mutex);
+	rt_mutex_unlock(&kfd_processes_mutex);
 
 	up_write(&thread->mm->mmap_sem);
 
@@ -168,7 +168,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 	pr_debug("Releasing process (pasid %d) in workqueue\n",
 			p->pasid);
 
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(&p->mutex);
 
 	list_for_each_entry_safe(pdd, temp, &p->per_device_data,
 							per_device_list) {
@@ -188,9 +188,9 @@ static void kfd_process_wq_release(struct work_struct *work)
 
 	kfd_pasid_free(p->pasid);
 
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 
-	mutex_destroy(&p->mutex);
+	rt_mutex_destroy(&p->mutex);
 
 	kfree(p->queues);
 
@@ -233,12 +233,12 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	p = container_of(mn, struct kfd_process, mmu_notifier);
 	BUG_ON(p->mm != mm);
 
-	mutex_lock(&kfd_processes_mutex);
+	rt_mutex_lock(&kfd_processes_mutex);
 	hash_del_rcu(&p->kfd_processes);
-	mutex_unlock(&kfd_processes_mutex);
+	rt_mutex_unlock(&kfd_processes_mutex);
 	synchronize_srcu(&kfd_processes_srcu);
 
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(&p->mutex);
 
 	/* In case our notifier is called before IOMMU notifier */
 	pqm_uninit(&p->pqm);
@@ -258,7 +258,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 		}
 	}
 
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 
 	/*
 	 * Because we drop mm_count inside kfd_process_destroy_delayed
@@ -293,7 +293,7 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (process->pasid == 0)
 		goto err_alloc_pasid;
 
-	mutex_init(&process->mutex);
+	rt_mutex_init(&process->mutex);
 
 	process->mm = thread->mm;
 
@@ -424,7 +424,7 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 
 			pr_debug("Unbinding process %d from IOMMU\n", pasid);
 
-			mutex_lock(&p->mutex);
+			rt_mutex_lock(&p->mutex);
 
 			if ((dev->dbgmgr) && (dev->dbgmgr->pasid == p->pasid))
 				kfd_dbgmgr_destroy(dev->dbgmgr);
@@ -434,7 +434,7 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 			pdd = kfd_get_process_device_data(dev, p);
 
 			if (!pdd) {
-				mutex_unlock(&p->mutex);
+				rt_mutex_unlock(&p->mutex);
 				return;
 			}
 
@@ -452,7 +452,7 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 			 */
 			pdd->bound = false;
 
-			mutex_unlock(&p->mutex);
+			rt_mutex_unlock(&p->mutex);
 
 			return;
 		}
@@ -490,7 +490,7 @@ struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
 
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		if (p->pasid == pasid) {
-			mutex_lock(&p->mutex);
+			rt_mutex_lock(&p->mutex);
 			break;
 		}
 	}

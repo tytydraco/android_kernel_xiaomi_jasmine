@@ -370,7 +370,7 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 
 
 	/* Add all resources bound to the context to the validation list */
-	mutex_lock(&dev_priv->binding_mutex);
+	rt_mutex_lock(&dev_priv->binding_mutex);
 	binding_list = vmw_context_binding_list(ctx);
 
 	list_for_each_entry(entry, binding_list, ctx_list) {
@@ -399,7 +399,7 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 						      true, NULL);
 	}
 
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 	return ret;
 }
 
@@ -3924,7 +3924,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (IS_ERR(kernel_commands))
 		return PTR_ERR(kernel_commands);
 
-	ret = mutex_lock_interruptible(&dev_priv->cmdbuf_mutex);
+	ret = rt_mutex_lock_interruptible(&dev_priv->cmdbuf_mutex);
 	if (ret) {
 		ret = -ERESTARTSYS;
 		goto out_free_header;
@@ -4011,7 +4011,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (unlikely(ret != 0))
 		goto out_err;
 
-	ret = mutex_lock_interruptible(&dev_priv->binding_mutex);
+	ret = rt_mutex_lock_interruptible(&dev_priv->binding_mutex);
 	if (unlikely(ret != 0)) {
 		ret = -ERESTARTSYS;
 		goto out_err;
@@ -4031,7 +4031,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 						sw_context);
 		header = NULL;
 	}
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 	if (ret)
 		goto out_err;
 
@@ -4071,7 +4071,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 	list_splice_init(&sw_context->resource_list, &resource_list);
 	vmw_cmdbuf_res_commit(&sw_context->staged_cmd_res);
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 
 	/*
 	 * Unreference resources outside of the cmdbuf_mutex to
@@ -4082,7 +4082,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	return 0;
 
 out_unlock_binding:
-	mutex_unlock(&dev_priv->binding_mutex);
+	rt_mutex_unlock(&dev_priv->binding_mutex);
 out_err:
 	ttm_eu_backoff_reservation(&ticket, &sw_context->validate_nodes);
 out_err_nores:
@@ -4098,7 +4098,7 @@ out_unlock:
 	error_resource = sw_context->error_resource;
 	sw_context->error_resource = NULL;
 	vmw_cmdbuf_res_revert(&sw_context->staged_cmd_res);
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 
 	/*
 	 * Unreference resources outside of the cmdbuf_mutex to
@@ -4250,10 +4250,10 @@ out_no_reserve:
  */
 void vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv)
 {
-	mutex_lock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_lock(&dev_priv->cmdbuf_mutex);
 	if (dev_priv->query_cid_valid)
 		__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&dev_priv->cmdbuf_mutex);
 }
 
 int vmw_execbuf_ioctl(struct drm_device *dev, unsigned long data,

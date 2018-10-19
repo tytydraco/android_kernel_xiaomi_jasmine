@@ -84,7 +84,7 @@ struct msm_gem_object {
 	 * an IOMMU.  Also used for stolen/splashscreen buffer.
 	 */
 	struct drm_mm_node *vram_node;
-	struct mutex lock; /* Protects resources associated with bo */
+	struct rt_mutex lock; /* Protects resources associated with bo */
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 

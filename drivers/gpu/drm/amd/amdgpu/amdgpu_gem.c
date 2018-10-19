@@ -85,9 +85,9 @@ retry:
 	*obj = &robj->gem_base;
 	robj->pid = task_pid_nr(current);
 
-	mutex_lock(&adev->gem.mutex);
+	rt_mutex_lock(&adev->gem.mutex);
 	list_add_tail(&robj->list, &adev->gem.objects);
-	mutex_unlock(&adev->gem.mutex);
+	rt_mutex_unlock(&adev->gem.mutex);
 
 	return 0;
 }
@@ -699,7 +699,7 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 	struct amdgpu_bo *rbo;
 	unsigned i = 0;
 
-	mutex_lock(&adev->gem.mutex);
+	rt_mutex_lock(&adev->gem.mutex);
 	list_for_each_entry(rbo, &adev->gem.objects, list) {
 		unsigned domain;
 		const char *placement;
@@ -722,7 +722,7 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
 			   placement, (unsigned long)rbo->pid);
 		i++;
 	}
-	mutex_unlock(&adev->gem.mutex);
+	rt_mutex_unlock(&adev->gem.mutex);
 	return 0;
 }
 

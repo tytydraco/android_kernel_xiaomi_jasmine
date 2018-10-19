@@ -27,7 +27,7 @@
 int host1x_channel_list_init(struct host1x *host)
 {
 	INIT_LIST_HEAD(&host->chlist.list);
-	mutex_init(&host->chlist_mutex);
+	rt_mutex_init(&host->chlist_mutex);
 
 	if (host->info->nb_channels > BITS_PER_LONG) {
 		WARN(1, "host1x hardware has more channels than supported by the driver\n");
@@ -49,7 +49,7 @@ struct host1x_channel *host1x_channel_get(struct host1x_channel *channel)
 {
 	int err = 0;
 
-	mutex_lock(&channel->reflock);
+	rt_mutex_lock(&channel->reflock);
 
 	if (channel->refcount == 0)
 		err = host1x_cdma_init(&channel->cdma);
@@ -57,7 +57,7 @@ struct host1x_channel *host1x_channel_get(struct host1x_channel *channel)
 	if (!err)
 		channel->refcount++;
 
-	mutex_unlock(&channel->reflock);
+	rt_mutex_unlock(&channel->reflock);
 
 	return err ? NULL : channel;
 }
@@ -65,7 +65,7 @@ EXPORT_SYMBOL(host1x_channel_get);
 
 void host1x_channel_put(struct host1x_channel *channel)
 {
-	mutex_lock(&channel->reflock);
+	rt_mutex_lock(&channel->reflock);
 
 	if (channel->refcount == 1) {
 		struct host1x *host = dev_get_drvdata(channel->dev->parent);
@@ -76,7 +76,7 @@ void host1x_channel_put(struct host1x_channel *channel)
 
 	channel->refcount--;
 
-	mutex_unlock(&channel->reflock);
+	rt_mutex_unlock(&channel->reflock);
 }
 EXPORT_SYMBOL(host1x_channel_put);
 
@@ -87,7 +87,7 @@ struct host1x_channel *host1x_channel_request(struct device *dev)
 	struct host1x_channel *channel = NULL;
 	int index, err;
 
-	mutex_lock(&host->chlist_mutex);
+	rt_mutex_lock(&host->chlist_mutex);
 
 	index = find_first_zero_bit(&host->allocated_channels, max_channels);
 	if (index >= max_channels)
@@ -109,13 +109,13 @@ struct host1x_channel *host1x_channel_request(struct device *dev)
 
 	host->allocated_channels |= BIT(index);
 
-	mutex_unlock(&host->chlist_mutex);
+	rt_mutex_unlock(&host->chlist_mutex);
 	return channel;
 
 fail:
 	dev_err(dev, "failed to init channel\n");
 	kfree(channel);
-	mutex_unlock(&host->chlist_mutex);
+	rt_mutex_unlock(&host->chlist_mutex);
 	return NULL;
 }
 EXPORT_SYMBOL(host1x_channel_request);

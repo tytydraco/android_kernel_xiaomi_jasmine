@@ -1555,11 +1555,11 @@ static void sde_hdcp_1x_off(void *input)
 	 * Also, need to set the state to inactive here so that any ongoing
 	 * reauth works will know that the HDCP session has been turned off.
 	 */
-	mutex_lock(hdcp->init_data.mutex);
+	rt_mutex_lock(hdcp->init_data.mutex);
 	DSS_REG_W(io, isr->int_reg,
 		DSS_REG_R(io, isr->int_reg) & ~HDCP_INT_EN);
 	hdcp->hdcp_state = HDCP_STATE_INACTIVE;
-	mutex_unlock(hdcp->init_data.mutex);
+	rt_mutex_unlock(hdcp->init_data.mutex);
 
 	/* complete any wait pending */
 	complete_all(&hdcp->sink_r0_available);

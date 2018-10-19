@@ -27,7 +27,7 @@ struct nvkm_vma {
 struct nvkm_vm {
 	struct nvkm_mmu *mmu;
 
-	struct mutex mutex;
+	struct rt_mutex mutex;
 	struct nvkm_mm mm;
 	struct kref refcount;
 

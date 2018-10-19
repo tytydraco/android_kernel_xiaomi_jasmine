@@ -108,13 +108,13 @@ static int channel_submit(struct host1x_job *job)
 	prev_max = job->syncpt_end = host1x_syncpt_read_max(sp);
 
 	/* get submit lock */
-	err = mutex_lock_interruptible(&ch->submitlock);
+	err = rt_mutex_lock_interruptible(&ch->submitlock);
 	if (err)
 		goto error;
 
 	completed_waiter = kzalloc(sizeof(*completed_waiter), GFP_KERNEL);
 	if (!completed_waiter) {
-		mutex_unlock(&ch->submitlock);
+		rt_mutex_unlock(&ch->submitlock);
 		err = -ENOMEM;
 		goto error;
 	}
@@ -122,7 +122,7 @@ static int channel_submit(struct host1x_job *job)
 	/* begin a CDMA submit */
 	err = host1x_cdma_begin(&ch->cdma, job);
 	if (err) {
-		mutex_unlock(&ch->submitlock);
+		rt_mutex_unlock(&ch->submitlock);
 		goto error;
 	}
 
@@ -166,7 +166,7 @@ static int channel_submit(struct host1x_job *job)
 	completed_waiter = NULL;
 	WARN(err, "Failed to set submit complete interrupt");
 
-	mutex_unlock(&ch->submitlock);
+	rt_mutex_unlock(&ch->submitlock);
 
 	return 0;
 
@@ -179,8 +179,8 @@ static int host1x_channel_init(struct host1x_channel *ch, struct host1x *dev,
 			       unsigned int index)
 {
 	ch->id = index;
-	mutex_init(&ch->reflock);
-	mutex_init(&ch->submitlock);
+	rt_mutex_init(&ch->reflock);
+	rt_mutex_init(&ch->submitlock);
 
 	ch->regs = dev->regs + index * HOST1X_CHANNEL_SIZE;
 	return 0;

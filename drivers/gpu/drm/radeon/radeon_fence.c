@@ -902,7 +902,7 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 {
 	int ring, r;
 
-	mutex_lock(&rdev->ring_lock);
+	rt_mutex_lock(&rdev->ring_lock);
 	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
 		if (!rdev->fence_drv[ring].initialized)
 			continue;
@@ -916,7 +916,7 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 		radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);
 		rdev->fence_drv[ring].initialized = false;
 	}
-	mutex_unlock(&rdev->ring_lock);
+	rt_mutex_unlock(&rdev->ring_lock);
 }
 
 /**

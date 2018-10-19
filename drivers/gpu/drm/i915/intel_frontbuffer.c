@@ -82,18 +82,18 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	if (!obj->frontbuffer_bits)
 		return;
 
 	if (origin == ORIGIN_CS) {
-		mutex_lock(&dev_priv->fb_tracking.lock);
+		rt_mutex_lock(&dev_priv->fb_tracking.lock);
 		dev_priv->fb_tracking.busy_bits
 			|= obj->frontbuffer_bits;
 		dev_priv->fb_tracking.flip_bits
 			&= ~obj->frontbuffer_bits;
-		mutex_unlock(&dev_priv->fb_tracking.lock);
+		rt_mutex_unlock(&dev_priv->fb_tracking.lock);
 	}
 
 	intel_psr_invalidate(dev, obj->frontbuffer_bits);
@@ -120,9 +120,9 @@ static void intel_frontbuffer_flush(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Delay flushing when rings are still busy.*/
-	mutex_lock(&dev_priv->fb_tracking.lock);
+	rt_mutex_lock(&dev_priv->fb_tracking.lock);
 	frontbuffer_bits &= ~dev_priv->fb_tracking.busy_bits;
-	mutex_unlock(&dev_priv->fb_tracking.lock);
+	rt_mutex_unlock(&dev_priv->fb_tracking.lock);
 
 	if (!frontbuffer_bits)
 		return;
@@ -149,7 +149,7 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned frontbuffer_bits;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!rt_mutex_is_locked(&dev->struct_mutex));
 
 	if (!obj->frontbuffer_bits)
 		return;
@@ -157,12 +157,12 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 	frontbuffer_bits = obj->frontbuffer_bits;
 
 	if (retire) {
-		mutex_lock(&dev_priv->fb_tracking.lock);
+		rt_mutex_lock(&dev_priv->fb_tracking.lock);
 		/* Filter out new bits since rendering started. */
 		frontbuffer_bits &= dev_priv->fb_tracking.busy_bits;
 
 		dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
-		mutex_unlock(&dev_priv->fb_tracking.lock);
+		rt_mutex_unlock(&dev_priv->fb_tracking.lock);
 	}
 
 	intel_frontbuffer_flush(dev, frontbuffer_bits, origin);
@@ -185,11 +185,11 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	mutex_lock(&dev_priv->fb_tracking.lock);
+	rt_mutex_lock(&dev_priv->fb_tracking.lock);
 	dev_priv->fb_tracking.flip_bits |= frontbuffer_bits;
 	/* Remove stale busy bits due to the old buffer. */
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
-	mutex_unlock(&dev_priv->fb_tracking.lock);
+	rt_mutex_unlock(&dev_priv->fb_tracking.lock);
 
 	intel_psr_single_frame_update(dev, frontbuffer_bits);
 }
@@ -209,11 +209,11 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	mutex_lock(&dev_priv->fb_tracking.lock);
+	rt_mutex_lock(&dev_priv->fb_tracking.lock);
 	/* Mask any cancelled flips. */
 	frontbuffer_bits &= dev_priv->fb_tracking.flip_bits;
 	dev_priv->fb_tracking.flip_bits &= ~frontbuffer_bits;
-	mutex_unlock(&dev_priv->fb_tracking.lock);
+	rt_mutex_unlock(&dev_priv->fb_tracking.lock);
 
 	intel_frontbuffer_flush(dev, frontbuffer_bits, ORIGIN_FLIP);
 }
@@ -234,10 +234,10 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	mutex_lock(&dev_priv->fb_tracking.lock);
+	rt_mutex_lock(&dev_priv->fb_tracking.lock);
 	/* Remove stale busy bits due to the old buffer. */
 	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
-	mutex_unlock(&dev_priv->fb_tracking.lock);
+	rt_mutex_unlock(&dev_priv->fb_tracking.lock);
 
 	intel_frontbuffer_flush(dev, frontbuffer_bits, ORIGIN_FLIP);
 }

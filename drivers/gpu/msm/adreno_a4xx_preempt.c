@@ -539,7 +539,7 @@ void a4xx_preemption_schedule(struct adreno_device *adreno_dev)
 	if (!adreno_is_preemption_enabled(adreno_dev))
 		return;
 
-	mutex_lock(&device->mutex);
+	rt_mutex_lock(&device->mutex);
 
 	switch (atomic_read(&adreno_dev->preempt.state)) {
 	case ADRENO_PREEMPT_NONE:
@@ -561,7 +561,7 @@ void a4xx_preemption_schedule(struct adreno_device *adreno_dev)
 		break;
 	}
 
-	mutex_unlock(&device->mutex);
+	rt_mutex_unlock(&device->mutex);
 }
 
 int a4xx_preemption_init(struct adreno_device *adreno_dev)

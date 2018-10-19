@@ -110,9 +110,9 @@ struct msm_dsi_host {
 
 	struct completion dma_comp;
 	struct completion video_comp;
-	struct mutex dev_mutex;
-	struct mutex cmd_mutex;
-	struct mutex clk_mutex;
+	struct rt_mutex dev_mutex;
+	struct rt_mutex cmd_mutex;
+	struct rt_mutex clk_mutex;
 	spinlock_t intr_lock; /* Protect interrupt ctrl register */
 
 	u32 err_work_state;
@@ -487,7 +487,7 @@ static int dsi_clk_ctrl(struct msm_dsi_host *msm_host, bool enable)
 {
 	int ret = 0;
 
-	mutex_lock(&msm_host->clk_mutex);
+	rt_mutex_lock(&msm_host->clk_mutex);
 	if (enable) {
 		ret = dsi_bus_clk_enable(msm_host);
 		if (ret) {
@@ -508,7 +508,7 @@ static int dsi_clk_ctrl(struct msm_dsi_host *msm_host, bool enable)
 	}
 
 unlock_ret:
-	mutex_unlock(&msm_host->clk_mutex);
+	rt_mutex_unlock(&msm_host->clk_mutex);
 	return ret;
 }
 
@@ -866,10 +866,10 @@ static void dsi_tx_buf_free(struct msm_dsi_host *msm_host)
 
 	if (msm_host->tx_gem_obj) {
 		msm_gem_put_iova(msm_host->tx_gem_obj, 0);
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		msm_gem_free_object(msm_host->tx_gem_obj);
 		msm_host->tx_gem_obj = NULL;
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 	}
 }
 
@@ -1328,9 +1328,9 @@ static ssize_t dsi_host_transfer(struct mipi_dsi_host *host,
 	if (!msg || !msm_host->power_on)
 		return -EINVAL;
 
-	mutex_lock(&msm_host->cmd_mutex);
+	rt_mutex_lock(&msm_host->cmd_mutex);
 	ret = msm_dsi_manager_cmd_xfer(msm_host->id, msg);
-	mutex_unlock(&msm_host->cmd_mutex);
+	rt_mutex_unlock(&msm_host->cmd_mutex);
 
 	return ret;
 }
@@ -1442,9 +1442,9 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	init_completion(&msm_host->dma_comp);
 	init_completion(&msm_host->video_comp);
-	mutex_init(&msm_host->dev_mutex);
-	mutex_init(&msm_host->cmd_mutex);
-	mutex_init(&msm_host->clk_mutex);
+	rt_mutex_init(&msm_host->dev_mutex);
+	rt_mutex_init(&msm_host->cmd_mutex);
+	rt_mutex_init(&msm_host->clk_mutex);
 	spin_lock_init(&msm_host->intr_lock);
 
 	/* setup workqueue */
@@ -1473,9 +1473,9 @@ void msm_dsi_host_destroy(struct mipi_dsi_host *host)
 		msm_host->workqueue = NULL;
 	}
 
-	mutex_destroy(&msm_host->clk_mutex);
-	mutex_destroy(&msm_host->cmd_mutex);
-	mutex_destroy(&msm_host->dev_mutex);
+	rt_mutex_destroy(&msm_host->clk_mutex);
+	rt_mutex_destroy(&msm_host->cmd_mutex);
+	rt_mutex_destroy(&msm_host->dev_mutex);
 }
 
 int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
@@ -1832,7 +1832,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 	u32 clk_pre = 0, clk_post = 0;
 	int ret = 0;
 
-	mutex_lock(&msm_host->dev_mutex);
+	rt_mutex_lock(&msm_host->dev_mutex);
 	if (msm_host->power_on) {
 		DBG("dsi host already on");
 		goto unlock_ret;
@@ -1889,7 +1889,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 		gpiod_set_value(msm_host->disp_en_gpio, 1);
 
 	msm_host->power_on = true;
-	mutex_unlock(&msm_host->dev_mutex);
+	rt_mutex_unlock(&msm_host->dev_mutex);
 
 	return 0;
 
@@ -1898,7 +1898,7 @@ fail_disable_clk:
 fail_disable_reg:
 	dsi_host_regulator_disable(msm_host);
 unlock_ret:
-	mutex_unlock(&msm_host->dev_mutex);
+	rt_mutex_unlock(&msm_host->dev_mutex);
 	return ret;
 }
 
@@ -1906,7 +1906,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
-	mutex_lock(&msm_host->dev_mutex);
+	rt_mutex_lock(&msm_host->dev_mutex);
 	if (!msm_host->power_on) {
 		DBG("dsi host already off");
 		goto unlock_ret;
@@ -1930,7 +1930,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	msm_host->power_on = false;
 
 unlock_ret:
-	mutex_unlock(&msm_host->dev_mutex);
+	rt_mutex_unlock(&msm_host->dev_mutex);
 	return 0;
 }
 

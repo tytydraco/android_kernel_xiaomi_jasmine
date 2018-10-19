@@ -774,7 +774,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	for (i = 0; i < num_groups; ++i) {
 		struct rcar_du_group *rgrp = &rcdu->groups[i];
 
-		mutex_init(&rgrp->lock);
+		rt_mutex_init(&rgrp->lock);
 
 		rgrp->dev = rcdu;
 		rgrp->mmio_offset = mmio_offsets[i];

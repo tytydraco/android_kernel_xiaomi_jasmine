@@ -42,7 +42,7 @@
 #include "drm_internal.h"
 
 /* from BKL pushdown */
-DEFINE_MUTEX(drm_global_mutex);
+DEFINE_RT_MUTEX(drm_global_mutex);
 
 static int drm_open_helper(struct file *filp, struct drm_minor *minor);
 
@@ -221,7 +221,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 
 	INIT_LIST_HEAD(&priv->lhead);
 	INIT_LIST_HEAD(&priv->fbs);
-	mutex_init(&priv->fbs_lock);
+	rt_mutex_init(&priv->fbs_lock);
 	INIT_LIST_HEAD(&priv->blobs);
 	INIT_LIST_HEAD(&priv->event_list);
 	init_waitqueue_head(&priv->event_wait);
@@ -241,7 +241,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 
 	/* if there is no current master make this fd it, but do not create
 	 * any master object for render clients */
-	mutex_lock(&dev->master_mutex);
+	rt_mutex_lock(&dev->master_mutex);
 	if (drm_is_primary_client(priv) && !priv->minor->master) {
 		/* create a new master */
 		ret = drm_new_set_master(dev, priv);
@@ -251,11 +251,11 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
 	}
-	mutex_unlock(&dev->master_mutex);
+	rt_mutex_unlock(&dev->master_mutex);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_add(&priv->lhead, &dev->filelist);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 #ifdef __alpha__
 	/*
@@ -280,7 +280,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	return 0;
 
 out_close:
-	mutex_unlock(&dev->master_mutex);
+	rt_mutex_unlock(&dev->master_mutex);
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, priv);
 out_prime_destroy:
@@ -369,7 +369,7 @@ int drm_lastclose(struct drm_device * dev)
 	if (dev->irq_enabled && !drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_irq_uninstall(dev);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 
 	drm_agp_clear(dev);
 
@@ -377,7 +377,7 @@ int drm_lastclose(struct drm_device * dev)
 	drm_legacy_vma_flush(dev);
 	drm_legacy_dma_takedown(dev);
 
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	drm_legacy_dev_reinit(dev);
 
@@ -404,15 +404,15 @@ int drm_release(struct inode *inode, struct file *filp)
 	struct drm_device *dev = minor->dev;
 	int retcode = 0;
 
-	mutex_lock(&drm_global_mutex);
+	rt_mutex_lock(&drm_global_mutex);
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_del(&file_priv->lhead);
 	if (file_priv->magic)
 		idr_remove(&file_priv->master->magic_map, file_priv->magic);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->preclose)
 		dev->driver->preclose(dev, file_priv);
@@ -445,7 +445,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	drm_legacy_ctxbitmap_flush(dev, file_priv);
 
-	mutex_lock(&dev->master_mutex);
+	rt_mutex_lock(&dev->master_mutex);
 
 	if (file_priv->is_master) {
 		struct drm_master *master = file_priv->master;
@@ -454,7 +454,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		 * Since the master is disappearing, so is the
 		 * possibility to lock.
 		 */
-		mutex_lock(&dev->struct_mutex);
+		rt_mutex_lock(&dev->struct_mutex);
 		if (master->lock.hw_lock) {
 			if (dev->sigdata.lock == master->lock.hw_lock)
 				dev->sigdata.lock = NULL;
@@ -462,7 +462,7 @@ int drm_release(struct inode *inode, struct file *filp)
 			master->lock.file_priv = NULL;
 			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
-		mutex_unlock(&dev->struct_mutex);
+		rt_mutex_unlock(&dev->struct_mutex);
 
 		if (file_priv->minor->master == file_priv->master) {
 			/* drop the reference held my the minor */
@@ -476,7 +476,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (file_priv->master)
 		drm_master_put(&file_priv->master);
 	file_priv->is_master = 0;
-	mutex_unlock(&dev->master_mutex);
+	rt_mutex_unlock(&dev->master_mutex);
 
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file_priv);
@@ -499,7 +499,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		if (drm_device_is_unplugged(dev))
 			drm_put_dev(dev);
 	}
-	mutex_unlock(&drm_global_mutex);
+	rt_mutex_unlock(&drm_global_mutex);
 
 	drm_minor_release(minor);
 

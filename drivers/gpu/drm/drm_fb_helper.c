@@ -109,7 +109,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	if (!drm_fbdev_emulation)
 		return 0;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 		struct drm_fb_helper_connector *fb_helper_connector;
 
@@ -120,7 +120,7 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 		fb_helper_connector->connector = connector;
 		fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
 	}
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 fail:
 	for (i = 0; i < fb_helper->connector_count; i++) {
@@ -128,7 +128,7 @@ fail:
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	return -ENOMEM;
 }
@@ -142,7 +142,7 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 	if (!drm_fbdev_emulation)
 		return 0;
 
-	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&fb_helper->dev->mode_config.mutex));
 	if (fb_helper->connector_count + 1 > fb_helper->connector_info_alloc_count) {
 		temp = krealloc(fb_helper->connector_info, sizeof(struct drm_fb_helper_connector *) * (fb_helper->connector_count + 1), GFP_KERNEL);
 		if (!temp)
@@ -200,7 +200,7 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 	if (!drm_fbdev_emulation)
 		return 0;
 
-	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
+	WARN_ON(!rt_mutex_is_locked(&fb_helper->dev->mode_config.mutex));
 
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		if (fb_helper->connector_info[i]->connector == connector)
@@ -2101,11 +2101,11 @@ int drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 	if (!drm_fbdev_emulation)
 		return 0;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	count = drm_fb_helper_probe_connector_modes(fb_helper,
 						    dev->mode_config.max_width,
 						    dev->mode_config.max_height);
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
@@ -2147,10 +2147,10 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	if (!drm_fbdev_emulation)
 		return 0;
 
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
+	rt_mutex_lock(&fb_helper->dev->mode_config.mutex);
 	if (!fb_helper->fb || !drm_fb_helper_is_bound(fb_helper)) {
 		fb_helper->delayed_hotplug = true;
-		mutex_unlock(&fb_helper->dev->mode_config.mutex);
+		rt_mutex_unlock(&fb_helper->dev->mode_config.mutex);
 		return 0;
 	}
 	DRM_DEBUG_KMS("\n");
@@ -2159,7 +2159,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	max_height = fb_helper->fb->height;
 
 	drm_fb_helper_probe_connector_modes(fb_helper, max_width, max_height);
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
+	rt_mutex_unlock(&fb_helper->dev->mode_config.mutex);
 
 	drm_modeset_lock_all(dev);
 	drm_setup_crtcs(fb_helper);
@@ -2180,9 +2180,9 @@ static int __init drm_fb_helper_modinit(void)
 	const char *name = "fbcon";
 	struct module *fbcon;
 
-	mutex_lock(&module_mutex);
+	rt_mutex_lock(&module_mutex);
 	fbcon = find_module(name);
-	mutex_unlock(&module_mutex);
+	rt_mutex_unlock(&module_mutex);
 
 	if (!fbcon)
 		request_module_nowait(name);

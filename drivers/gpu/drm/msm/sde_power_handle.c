@@ -44,7 +44,7 @@ struct sde_power_client *sde_power_client_create(
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&phandle->phandle_lock);
+	rt_mutex_lock(&phandle->phandle_lock);
 	strlcpy(client->name, client_name, MAX_CLIENT_NAME_LEN);
 	client->usecase_ndx = VOTE_INDEX_DISABLE;
 	client->id = id;
@@ -52,7 +52,7 @@ struct sde_power_client *sde_power_client_create(
 		client, id);
 	id++;
 	list_add(&client->list, &phandle->power_client_clist);
-	mutex_unlock(&phandle->phandle_lock);
+	rt_mutex_unlock(&phandle->phandle_lock);
 
 	return client;
 }
@@ -65,9 +65,9 @@ void sde_power_client_destroy(struct sde_power_handle *phandle,
 	} else {
 		pr_debug("bus vote client %s destroyed:%pK id:%u\n",
 			client->name, client, client->id);
-		mutex_lock(&phandle->phandle_lock);
+		rt_mutex_lock(&phandle->phandle_lock);
 		list_del_init(&client->list);
-		mutex_unlock(&phandle->phandle_lock);
+		rt_mutex_unlock(&phandle->phandle_lock);
 		kfree(client);
 	}
 }
@@ -398,7 +398,7 @@ int sde_power_data_bus_set_quota(struct sde_power_handle *phandle,
 		return -EINVAL;
 	}
 
-	mutex_lock(&phandle->phandle_lock);
+	rt_mutex_lock(&phandle->phandle_lock);
 
 	pclient->ab[bus_client] = ab_quota;
 	pclient->ib[bus_client] = ib_quota;
@@ -420,7 +420,7 @@ int sde_power_data_bus_set_quota(struct sde_power_handle *phandle,
 			total_ab_rt, total_ab_nrt,
 			total_ib_rt, total_ib_nrt);
 
-	mutex_unlock(&phandle->phandle_lock);
+	rt_mutex_unlock(&phandle->phandle_lock);
 
 	return rc;
 }
@@ -595,7 +595,7 @@ void sde_power_data_bus_bandwidth_ctrl(struct sde_power_handle *phandle,
 
 	pdbus = &phandle->data_bus_handle;
 
-	mutex_lock(&phandle->phandle_lock);
+	rt_mutex_lock(&phandle->phandle_lock);
 	if (enable) {
 		if (pdbus->bus_ref_cnt == 0)
 			changed++;
@@ -630,7 +630,7 @@ void sde_power_data_bus_bandwidth_ctrl(struct sde_power_handle *phandle,
 		}
 	}
 
-	mutex_unlock(&phandle->phandle_lock);
+	rt_mutex_unlock(&phandle->phandle_lock);
 }
 
 int sde_power_resource_init(struct platform_device *pdev,
@@ -691,7 +691,7 @@ int sde_power_resource_init(struct platform_device *pdev,
 	}
 
 	INIT_LIST_HEAD(&phandle->power_client_clist);
-	mutex_init(&phandle->phandle_lock);
+	rt_mutex_init(&phandle->phandle_lock);
 
 	return rc;
 
@@ -756,7 +756,7 @@ int sde_power_resource_enable(struct sde_power_handle *phandle,
 
 	mp = &phandle->mp;
 
-	mutex_lock(&phandle->phandle_lock);
+	rt_mutex_lock(&phandle->phandle_lock);
 	if (enable)
 		pclient->refcount++;
 	else if (pclient->refcount)
@@ -815,7 +815,7 @@ int sde_power_resource_enable(struct sde_power_handle *phandle,
 	}
 
 end:
-	mutex_unlock(&phandle->phandle_lock);
+	rt_mutex_unlock(&phandle->phandle_lock);
 	return rc;
 
 clk_err:
@@ -824,7 +824,7 @@ reg_bus_hdl_err:
 	msm_dss_enable_vreg(mp->vreg_config, mp->num_vreg, 0);
 vreg_err:
 	phandle->current_usecase_ndx = prev_usecase_ndx;
-	mutex_unlock(&phandle->phandle_lock);
+	rt_mutex_unlock(&phandle->phandle_lock);
 	return rc;
 }
 

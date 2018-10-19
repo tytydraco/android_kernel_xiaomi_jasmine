@@ -256,7 +256,7 @@ struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 	if (num > 63)
 		return ERR_PTR(-ENODEV);
 
-	mutex_lock(&ipu->channel_lock);
+	rt_mutex_lock(&ipu->channel_lock);
 
 	channel = &ipu->channel[num];
 
@@ -269,7 +269,7 @@ struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 	channel->num = num;
 
 out:
-	mutex_unlock(&ipu->channel_lock);
+	rt_mutex_unlock(&ipu->channel_lock);
 
 	return channel;
 }
@@ -281,11 +281,11 @@ void ipu_idmac_put(struct ipuv3_channel *channel)
 
 	dev_dbg(ipu->dev, "%s %d\n", __func__, channel->num);
 
-	mutex_lock(&ipu->channel_lock);
+	rt_mutex_lock(&ipu->channel_lock);
 
 	channel->busy = false;
 
-	mutex_unlock(&ipu->channel_lock);
+	rt_mutex_unlock(&ipu->channel_lock);
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_put);
 
@@ -1033,7 +1033,7 @@ static struct ipu_platform_reg client_reg[] = {
 	},
 };
 
-static DEFINE_MUTEX(ipu_client_id_mutex);
+static DEFINE_RT_MUTEX(ipu_client_id_mutex);
 static int ipu_client_id;
 
 static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
@@ -1042,10 +1042,10 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	unsigned i;
 	int id, ret;
 
-	mutex_lock(&ipu_client_id_mutex);
+	rt_mutex_lock(&ipu_client_id_mutex);
 	id = ipu_client_id;
 	ipu_client_id += ARRAY_SIZE(client_reg);
-	mutex_unlock(&ipu_client_id_mutex);
+	rt_mutex_unlock(&ipu_client_id_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		struct ipu_platform_reg *reg = &client_reg[i];
@@ -1239,7 +1239,7 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->ipu_type = devtype->type;
 
 	spin_lock_init(&ipu->lock);
-	mutex_init(&ipu->channel_lock);
+	rt_mutex_init(&ipu->channel_lock);
 
 	dev_dbg(&pdev->dev, "cm_reg:   0x%08lx\n",
 			ipu_base + devtype->cm_ofs);

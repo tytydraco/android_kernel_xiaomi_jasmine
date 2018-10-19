@@ -375,7 +375,7 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 	struct vmw_display_unit *du;
 	struct drm_crtc *crtc;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		du = vmw_crtc_to_du(crtc);
@@ -391,7 +391,7 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 					du->hotspot_y + du->core_hotspot_y);
 	}
 
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 }
 
 /*
@@ -810,13 +810,13 @@ static int vmw_create_dmabuf_proxy(struct drm_device *dev,
 	res = &(*srf_out)->res;
 
 	/* Reserve and switch the backing mob. */
-	mutex_lock(&res->dev_priv->cmdbuf_mutex);
+	rt_mutex_lock(&res->dev_priv->cmdbuf_mutex);
 	(void) vmw_resource_reserve(res, false, true);
 	vmw_dmabuf_unreference(&res->backup);
 	res->backup = vmw_dmabuf_reference(dmabuf_mob);
 	res->backup_offset = 0;
 	vmw_resource_unreserve(res, false, NULL, 0);
-	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 
 	return 0;
 }
@@ -1159,7 +1159,7 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	if (arg->flags & DRM_VMW_CURSOR_BYPASS_ALL) {
 
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -1168,7 +1168,7 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 			du->hotspot_y = arg->yhot;
 		}
 
-		mutex_unlock(&dev->mode_config.mutex);
+		rt_mutex_unlock(&dev->mode_config.mutex);
 		return 0;
 	}
 
@@ -1184,7 +1184,7 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 	du->hotspot_y = arg->yhot;
 
 out:
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
 }
@@ -1337,7 +1337,7 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 	struct vmw_display_unit *du;
 	struct drm_connector *con;
 
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 
 #if 0
 	{
@@ -1367,7 +1367,7 @@ static int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 		con->status = vmw_du_connector_detect(con, true);
 	}
 
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	return 0;
 }
@@ -1916,7 +1916,7 @@ void vmw_kms_helper_resource_revert(struct vmw_validation_ctx *ctx)
 	vmw_kms_helper_buffer_revert(ctx->buf);
 	vmw_dmabuf_unreference(&ctx->buf);
 	vmw_resource_unreserve(res, false, NULL, 0);
-	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 }
 
 /**
@@ -1940,9 +1940,9 @@ int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
 	ctx->res = res;
 
 	if (interruptible)
-		ret = mutex_lock_interruptible(&res->dev_priv->cmdbuf_mutex);
+		ret = rt_mutex_lock_interruptible(&res->dev_priv->cmdbuf_mutex);
 	else
-		mutex_lock(&res->dev_priv->cmdbuf_mutex);
+		rt_mutex_lock(&res->dev_priv->cmdbuf_mutex);
 
 	if (unlikely(ret != 0))
 		return -ERESTARTSYS;
@@ -1970,7 +1970,7 @@ out_revert:
 out_unreserve:
 	vmw_resource_unreserve(res, false, NULL, 0);
 out_unlock:
-	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 	return ret;
 }
 
@@ -1993,7 +1993,7 @@ void vmw_kms_helper_resource_finish(struct vmw_validation_ctx *ctx,
 
 	vmw_dmabuf_unreference(&ctx->buf);
 	vmw_resource_unreserve(res, false, NULL, 0);
-	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
+	rt_mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 }
 
 /**

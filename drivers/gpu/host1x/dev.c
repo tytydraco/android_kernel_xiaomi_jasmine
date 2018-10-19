@@ -124,7 +124,7 @@ static int host1x_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	mutex_init(&host->devices_lock);
+	rt_mutex_init(&host->devices_lock);
 	INIT_LIST_HEAD(&host->devices);
 	INIT_LIST_HEAD(&host->list);
 	host->dev = &pdev->dev;

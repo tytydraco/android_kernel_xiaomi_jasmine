@@ -143,10 +143,10 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 		ttm_eu_backoff_reservation_reverse(list, entry);
 
 		if (ret == -EDEADLK && intr) {
-			ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
+			ret = ww_rt_mutex_lock_slow_interruptible(&bo->resv->lock,
 							       ticket);
 		} else if (ret == -EDEADLK) {
-			ww_mutex_lock_slow(&bo->resv->lock, ticket);
+			ww_rt_mutex_lock_slow(&bo->resv->lock, ticket);
 			ret = 0;
 		}
 

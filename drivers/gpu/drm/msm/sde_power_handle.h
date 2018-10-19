@@ -103,7 +103,7 @@ struct sde_power_data_bus_handle {
 struct sde_power_handle {
 	struct dss_module_power mp;
 	struct list_head power_client_clist;
-	struct mutex phandle_lock;
+	struct rt_mutex phandle_lock;
 	struct device *dev;
 	u32 current_usecase_ndx;
 	u32 reg_bus_hdl;

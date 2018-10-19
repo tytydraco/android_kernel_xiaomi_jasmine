@@ -311,7 +311,7 @@ typedef struct drm_radeon_private {
 	int r600_npipes;
 	int r600_nbanks;
 
-	struct mutex cs_mutex;
+	struct rt_mutex cs_mutex;
 	u32 cs_id_scnt;
 	u32 cs_id_wcnt;
 	/* r6xx/r7xx drm blit vertex buffer */

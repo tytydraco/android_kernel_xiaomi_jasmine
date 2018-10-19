@@ -66,7 +66,7 @@ enum cdma_event {
 };
 
 struct host1x_cdma {
-	struct mutex lock;		/* controls access to shared state */
+	struct rt_mutex lock;		/* controls access to shared state */
 	struct semaphore sem;		/* signalled when event occurs */
 	enum cdma_event event;		/* event that sem is waiting for */
 	unsigned int slots_used;	/* pb slots used in current submit */

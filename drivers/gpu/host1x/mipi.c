@@ -120,7 +120,7 @@ struct tegra_mipi {
 	const struct tegra_mipi_soc *soc;
 	struct device *dev;
 	void __iomem *regs;
-	struct mutex lock;
+	struct rt_mutex lock;
 	struct clk *clk;
 
 	unsigned long usage_count;
@@ -242,7 +242,7 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device)
 	dev->pads = args.args[0];
 	dev->device = device;
 
-	mutex_lock(&dev->mipi->lock);
+	rt_mutex_lock(&dev->mipi->lock);
 
 	if (dev->mipi->usage_count++ == 0) {
 		err = tegra_mipi_power_up(dev->mipi);
@@ -254,7 +254,7 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device)
 		}
 	}
 
-	mutex_unlock(&dev->mipi->lock);
+	rt_mutex_unlock(&dev->mipi->lock);
 
 	return dev;
 
@@ -272,7 +272,7 @@ void tegra_mipi_free(struct tegra_mipi_device *device)
 {
 	int err;
 
-	mutex_lock(&device->mipi->lock);
+	rt_mutex_lock(&device->mipi->lock);
 
 	if (--device->mipi->usage_count == 0) {
 		err = tegra_mipi_power_down(device->mipi);
@@ -287,7 +287,7 @@ void tegra_mipi_free(struct tegra_mipi_device *device)
 		}
 	}
 
-	mutex_unlock(&device->mipi->lock);
+	rt_mutex_unlock(&device->mipi->lock);
 
 	platform_device_put(device->pdev);
 	kfree(device);
@@ -322,7 +322,7 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 	if (err < 0)
 		return err;
 
-	mutex_lock(&device->mipi->lock);
+	rt_mutex_lock(&device->mipi->lock);
 
 	value = MIPI_CAL_BIAS_PAD_DRV_DN_REF(soc->pad_drive_down_ref) |
 		MIPI_CAL_BIAS_PAD_DRV_UP_REF(soc->pad_drive_up_ref);
@@ -377,7 +377,7 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 
 	err = tegra_mipi_wait(device->mipi);
 
-	mutex_unlock(&device->mipi->lock);
+	rt_mutex_unlock(&device->mipi->lock);
 	clk_disable(device->mipi->clk);
 
 	return err;
@@ -518,7 +518,7 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 	if (IS_ERR(mipi->regs))
 		return PTR_ERR(mipi->regs);
 
-	mutex_init(&mipi->lock);
+	rt_mutex_init(&mipi->lock);
 
 	mipi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mipi->clk)) {

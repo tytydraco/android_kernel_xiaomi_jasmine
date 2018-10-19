@@ -167,7 +167,7 @@ struct kfd_dev {
 	struct kgd2kfd_shared_resources shared_resources;
 
 	const struct kfd2kgd_calls *kfd2kgd;
-	struct mutex doorbell_mutex;
+	struct rt_mutex doorbell_mutex;
 	DECLARE_BITMAP(doorbell_available_index,
 			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
@@ -175,7 +175,7 @@ struct kfd_dev {
 	uint64_t gtt_start_gpu_addr;
 	void *gtt_start_cpu_ptr;
 	void *gtt_sa_bitmap;
-	struct mutex gtt_sa_lock;
+	struct rt_mutex gtt_sa_lock;
 	unsigned int gtt_sa_chunk_size;
 	unsigned int gtt_sa_num_of_chunks;
 
@@ -482,7 +482,7 @@ struct kfd_process {
 
 	struct mm_struct *mm;
 
-	struct mutex mutex;
+	struct rt_mutex mutex;
 
 	/*
 	 * In any process, the thread that started main() is the lead
@@ -517,7 +517,7 @@ struct kfd_process {
 	bool is_32bit_user_mode;
 
 	/* Event-related data */
-	struct mutex event_mutex;
+	struct rt_mutex event_mutex;
 	/* All events in process hashed by ID, linked on kfd_event.events. */
 	DECLARE_HASHTABLE(events, 4);
 	struct list_head signal_event_pages;	/* struct slot_page_header.
@@ -676,7 +676,7 @@ int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 struct packet_manager {
 	struct device_queue_manager *dqm;
 	struct kernel_queue *priv_queue;
-	struct mutex lock;
+	struct rt_mutex lock;
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
 };

@@ -23,7 +23,7 @@
 #include "dpaux.h"
 #include "drm.h"
 
-static DEFINE_MUTEX(dpaux_lock);
+static DEFINE_RT_MUTEX(dpaux_lock);
 static LIST_HEAD(dpaux_list);
 
 struct tegra_dpaux {
@@ -386,9 +386,9 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	tegra_dpaux_writel(dpaux, value, DPAUX_INTR_EN_AUX);
 	tegra_dpaux_writel(dpaux, value, DPAUX_INTR_AUX);
 
-	mutex_lock(&dpaux_lock);
+	rt_mutex_lock(&dpaux_lock);
 	list_add_tail(&dpaux->list, &dpaux_list);
-	mutex_unlock(&dpaux_lock);
+	rt_mutex_unlock(&dpaux_lock);
 
 	platform_set_drvdata(pdev, dpaux);
 
@@ -407,9 +407,9 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 
 	drm_dp_aux_unregister(&dpaux->aux);
 
-	mutex_lock(&dpaux_lock);
+	rt_mutex_lock(&dpaux_lock);
 	list_del(&dpaux->list);
-	mutex_unlock(&dpaux_lock);
+	rt_mutex_unlock(&dpaux_lock);
 
 	cancel_work_sync(&dpaux->work);
 
@@ -440,15 +440,15 @@ struct tegra_dpaux *tegra_dpaux_find_by_of_node(struct device_node *np)
 {
 	struct tegra_dpaux *dpaux;
 
-	mutex_lock(&dpaux_lock);
+	rt_mutex_lock(&dpaux_lock);
 
 	list_for_each_entry(dpaux, &dpaux_list, list)
 		if (np == dpaux->dev->of_node) {
-			mutex_unlock(&dpaux_lock);
+			rt_mutex_unlock(&dpaux_lock);
 			return dpaux;
 		}
 
-	mutex_unlock(&dpaux_lock);
+	rt_mutex_unlock(&dpaux_lock);
 
 	return NULL;
 }

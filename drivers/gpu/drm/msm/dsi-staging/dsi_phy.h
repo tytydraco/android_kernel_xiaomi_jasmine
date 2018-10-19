@@ -65,7 +65,7 @@ struct msm_dsi_phy {
 	int index;
 	const char *name;
 	u32 refcount;
-	struct mutex phy_lock;
+	struct rt_mutex phy_lock;
 
 	const struct dsi_ver_spec_info *ver_info;
 	struct dsi_phy_hw hw;

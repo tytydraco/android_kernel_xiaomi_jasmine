@@ -229,7 +229,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 
 	map = vma->vm_private_data;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
 		if (pt->vma->vm_private_data == map)
 			found_maps++;
@@ -275,7 +275,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 			kfree(map);
 		}
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 /**
@@ -424,9 +424,9 @@ static void drm_vm_open(struct vm_area_struct *vma)
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	drm_vm_open_locked(dev, vma);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 void drm_vm_close_locked(struct drm_device *dev,
@@ -459,9 +459,9 @@ static void drm_vm_close(struct vm_area_struct *vma)
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	drm_vm_close_locked(dev, vma);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 }
 
 /**
@@ -660,9 +660,9 @@ int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	ret = drm_mmap_locked(filp, vma);
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -690,7 +690,7 @@ int drm_vma_info(struct seq_file *m, void *data)
 	unsigned int pgprot;
 #endif
 
-	mutex_lock(&dev->struct_mutex);
+	rt_mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(pt, &dev->vmalist, head)
 		vma_count++;
 
@@ -729,6 +729,6 @@ int drm_vma_info(struct seq_file *m, void *data)
 #endif
 		seq_printf(m, "\n");
 	}
-	mutex_unlock(&dev->struct_mutex);
+	rt_mutex_unlock(&dev->struct_mutex);
 	return 0;
 }

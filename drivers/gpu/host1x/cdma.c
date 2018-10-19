@@ -154,16 +154,16 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
 
 		/* If somebody has managed to already start waiting, yield */
 		if (cdma->event != CDMA_EVENT_NONE) {
-			mutex_unlock(&cdma->lock);
+			rt_mutex_unlock(&cdma->lock);
 			schedule();
-			mutex_lock(&cdma->lock);
+			rt_mutex_lock(&cdma->lock);
 			continue;
 		}
 		cdma->event = event;
 
-		mutex_unlock(&cdma->lock);
+		rt_mutex_unlock(&cdma->lock);
 		down(&cdma->sem);
-		mutex_lock(&cdma->lock);
+		rt_mutex_lock(&cdma->lock);
 	}
 	return 0;
 }
@@ -363,7 +363,7 @@ int host1x_cdma_init(struct host1x_cdma *cdma)
 {
 	int err;
 
-	mutex_init(&cdma->lock);
+	rt_mutex_init(&cdma->lock);
 	sema_init(&cdma->sem, 0);
 
 	INIT_LIST_HEAD(&cdma->sync_queue);
@@ -404,7 +404,7 @@ int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job)
 {
 	struct host1x *host1x = cdma_to_host1x(cdma);
 
-	mutex_lock(&cdma->lock);
+	rt_mutex_lock(&cdma->lock);
 
 	if (job->timeout) {
 		/* init state on first submit with timeout value */
@@ -413,7 +413,7 @@ int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job)
 			err = host1x_hw_cdma_timeout_init(host1x, cdma,
 							  job->syncpt_id);
 			if (err) {
-				mutex_unlock(&cdma->lock);
+				rt_mutex_unlock(&cdma->lock);
 				return err;
 			}
 		}
@@ -477,7 +477,7 @@ void host1x_cdma_end(struct host1x_cdma *cdma,
 		cdma_start_timer_locked(cdma, job);
 
 	trace_host1x_cdma_end(dev_name(job->channel->dev));
-	mutex_unlock(&cdma->lock);
+	rt_mutex_unlock(&cdma->lock);
 }
 
 /*
@@ -485,7 +485,7 @@ void host1x_cdma_end(struct host1x_cdma *cdma,
  */
 void host1x_cdma_update(struct host1x_cdma *cdma)
 {
-	mutex_lock(&cdma->lock);
+	rt_mutex_lock(&cdma->lock);
 	update_cdma_locked(cdma);
-	mutex_unlock(&cdma->lock);
+	rt_mutex_unlock(&cdma->lock);
 }

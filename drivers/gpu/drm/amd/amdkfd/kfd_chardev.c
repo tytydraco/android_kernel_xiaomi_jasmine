@@ -271,7 +271,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		return -EINVAL;
 	}
 
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(&p->mutex);
 
 	pdd = kfd_bind_process_to_device(dev, p);
 	if (IS_ERR(pdd)) {
@@ -295,7 +295,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	args->doorbell_offset = (KFD_MMAP_DOORBELL_MASK | args->gpu_id);
 	args->doorbell_offset <<= PAGE_SHIFT;
 
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 
 	pr_debug("kfd: queue id %d was created successfully\n", args->queue_id);
 
@@ -312,7 +312,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 err_create_queue:
 err_bind_process:
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 	return err;
 }
 
@@ -326,11 +326,11 @@ static int kfd_ioctl_destroy_queue(struct file *filp, struct kfd_process *p,
 				args->queue_id,
 				p->pasid);
 
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(&p->mutex);
 
 	retval = pqm_destroy_queue(&p->pqm, args->queue_id);
 
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 	return retval;
 }
 
@@ -372,11 +372,11 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	pr_debug("kfd: updating queue id %d for PASID %d\n",
 			args->queue_id, p->pasid);
 
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(&p->mutex);
 
 	retval = pqm_update_queue(&p->pqm, args->queue_id, &properties);
 
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 
 	return retval;
 }
@@ -404,7 +404,7 @@ static int kfd_ioctl_set_memory_policy(struct file *filep,
 	if (dev == NULL)
 		return -EINVAL;
 
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(&p->mutex);
 
 	pdd = kfd_bind_process_to_device(dev, p);
 	if (IS_ERR(pdd)) {
@@ -428,7 +428,7 @@ static int kfd_ioctl_set_memory_policy(struct file *filep,
 		err = -EINVAL;
 
 out:
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 
 	return err;
 }
@@ -452,8 +452,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		return -EINVAL;
 	}
 
-	mutex_lock(kfd_get_dbgmgr_mutex());
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(kfd_get_dbgmgr_mutex());
+	rt_mutex_lock(&p->mutex);
 
 	/*
 	 * make sure that we have pdd, if this the first queue created for
@@ -461,8 +461,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	 */
 	pdd = kfd_bind_process_to_device(dev, p);
 	if (IS_ERR(pdd)) {
-		mutex_unlock(&p->mutex);
-		mutex_unlock(kfd_get_dbgmgr_mutex());
+		rt_mutex_unlock(&p->mutex);
+		rt_mutex_unlock(kfd_get_dbgmgr_mutex());
 		return PTR_ERR(pdd);
 	}
 
@@ -481,8 +481,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		status = -EINVAL;
 	}
 
-	mutex_unlock(&p->mutex);
-	mutex_unlock(kfd_get_dbgmgr_mutex());
+	rt_mutex_unlock(&p->mutex);
+	rt_mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	return status;
 }
@@ -503,7 +503,7 @@ static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
 		return -EINVAL;
 	}
 
-	mutex_lock(kfd_get_dbgmgr_mutex());
+	rt_mutex_lock(kfd_get_dbgmgr_mutex());
 
 	status = kfd_dbgmgr_unregister(dev->dbgmgr, p);
 	if (status == 0) {
@@ -511,7 +511,7 @@ static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
 		dev->dbgmgr = NULL;
 	}
 
-	mutex_unlock(kfd_get_dbgmgr_mutex());
+	rt_mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	return status;
 }
@@ -622,11 +622,11 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	/* Currently HSA Event is not supported for DBG */
 	aw_info.watch_event = NULL;
 
-	mutex_lock(kfd_get_dbgmgr_mutex());
+	rt_mutex_lock(kfd_get_dbgmgr_mutex());
 
 	status = kfd_dbgmgr_address_watch(dev->dbgmgr, &aw_info);
 
-	mutex_unlock(kfd_get_dbgmgr_mutex());
+	rt_mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	kfree(args_buff);
 
@@ -710,7 +710,7 @@ static int kfd_ioctl_dbg_wave_control(struct file *filep,
 					*((uint32_t *)(&args_buff[args_idx]));
 	wac_info.dbgWave_msg.MemoryVA = NULL;
 
-	mutex_lock(kfd_get_dbgmgr_mutex());
+	rt_mutex_lock(kfd_get_dbgmgr_mutex());
 
 	pr_debug("Calling dbg manager process %p, operand %u, mode %u, trapId %u, message %u\n",
 			wac_info.process, wac_info.operand,
@@ -721,7 +721,7 @@ static int kfd_ioctl_dbg_wave_control(struct file *filep,
 
 	pr_debug("Returned status of dbg manager is %ld\n", status);
 
-	mutex_unlock(kfd_get_dbgmgr_mutex());
+	rt_mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	kfree(args_buff);
 
@@ -768,7 +768,7 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 
 	args->num_of_nodes = 0;
 
-	mutex_lock(&p->mutex);
+	rt_mutex_lock(&p->mutex);
 
 	/*if the process-device list isn't empty*/
 	if (kfd_has_process_device_data(p)) {
@@ -807,7 +807,7 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 				(args->num_of_nodes < NUM_OF_SUPPORTED_GPUS));
 	}
 
-	mutex_unlock(&p->mutex);
+	rt_mutex_unlock(&p->mutex);
 
 	return 0;
 }

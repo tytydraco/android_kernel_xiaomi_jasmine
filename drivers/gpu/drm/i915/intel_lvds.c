@@ -440,7 +440,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
 		return NOTIFY_OK;
 
-	mutex_lock(&dev_priv->modeset_restore_lock);
+	rt_mutex_lock(&dev_priv->modeset_restore_lock);
 	if (dev_priv->modeset_restore == MODESET_SUSPENDED)
 		goto exit;
 	/*
@@ -478,7 +478,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	dev_priv->modeset_restore = MODESET_DONE;
 
 exit:
-	mutex_unlock(&dev_priv->modeset_restore_lock);
+	rt_mutex_unlock(&dev_priv->modeset_restore_lock);
 	return NOTIFY_OK;
 }
 
@@ -1087,7 +1087,7 @@ void intel_lvds_init(struct drm_device *dev)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	mutex_lock(&dev->mode_config.mutex);
+	rt_mutex_lock(&dev->mode_config.mutex);
 	edid = drm_get_edid(connector, intel_gmbus_get_adapter(dev_priv, pin));
 	if (edid) {
 		if (drm_add_edid_modes(connector, edid)) {
@@ -1164,7 +1164,7 @@ void intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	intel_panel_init(&intel_connector->panel, fixed_mode, downclock_mode);
 
@@ -1187,7 +1187,7 @@ out:
 	return;
 
 failed:
-	mutex_unlock(&dev->mode_config.mutex);
+	rt_mutex_unlock(&dev->mode_config.mutex);
 
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
 	drm_connector_cleanup(connector);

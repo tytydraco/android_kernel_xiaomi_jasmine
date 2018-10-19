@@ -34,9 +34,9 @@
 #include "kfd_dbgmgr.h"
 #include "kfd_dbgdev.h"
 
-static DEFINE_MUTEX(kfd_dbgmgr_mutex);
+static DEFINE_RT_MUTEX(kfd_dbgmgr_mutex);
 
-struct mutex *kfd_get_dbgmgr_mutex(void)
+struct rt_mutex *kfd_get_dbgmgr_mutex(void)
 {
 	return &kfd_dbgmgr_mutex;
 }

@@ -348,7 +348,7 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 	struct drm_i915_private *dev_priv = work->crtc->base.dev->dev_private;
 	struct drm_framebuffer *crtc_fb = work->crtc->base.primary->fb;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 	if (work == dev_priv->fbc.fbc_work) {
 		/* Double check that we haven't switched fb without cancelling
 		 * the prior work.
@@ -358,14 +358,14 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 
 		dev_priv->fbc.fbc_work = NULL;
 	}
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 
 	kfree(work);
 }
 
 static void intel_fbc_cancel_work(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->fbc.lock));
 
 	if (dev_priv->fbc.fbc_work == NULL)
 		return;
@@ -393,7 +393,7 @@ static void intel_fbc_schedule_enable(struct intel_crtc *crtc)
 	struct intel_fbc_work *work;
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->fbc.lock));
 
 	intel_fbc_cancel_work(dev_priv);
 
@@ -428,7 +428,7 @@ static void intel_fbc_schedule_enable(struct intel_crtc *crtc)
 
 static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->fbc.lock));
 
 	intel_fbc_cancel_work(dev_priv);
 
@@ -447,9 +447,9 @@ void intel_fbc_disable(struct drm_i915_private *dev_priv)
 	if (!fbc_supported(dev_priv))
 		return;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 	__intel_fbc_disable(dev_priv);
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 }
 
 /*
@@ -465,10 +465,10 @@ void intel_fbc_disable_crtc(struct intel_crtc *crtc)
 	if (!fbc_supported(dev_priv))
 		return;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 	if (dev_priv->fbc.crtc == crtc)
 		__intel_fbc_disable(dev_priv);
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 }
 
 const char *intel_no_fbc_reason_str(enum no_fbc_reason reason)
@@ -693,9 +693,9 @@ void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 	if (!fbc_supported(dev_priv))
 		return;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 	__intel_fbc_cleanup_cfb(dev_priv);
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 }
 
 /*
@@ -855,7 +855,7 @@ static void __intel_fbc_update(struct drm_i915_private *dev_priv)
 	struct drm_i915_gem_object *obj;
 	const struct drm_display_mode *adjusted_mode;
 
-	WARN_ON(!mutex_is_locked(&dev_priv->fbc.lock));
+	WARN_ON(!rt_mutex_is_locked(&dev_priv->fbc.lock));
 
 	/* disable framebuffer compression in vGPU */
 	if (intel_vgpu_active(dev_priv->dev))
@@ -1018,9 +1018,9 @@ void intel_fbc_update(struct drm_i915_private *dev_priv)
 	if (!fbc_supported(dev_priv))
 		return;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 	__intel_fbc_update(dev_priv);
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 }
 
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
@@ -1035,7 +1035,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 	if (origin == ORIGIN_GTT)
 		return;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 
 	if (dev_priv->fbc.enabled)
 		fbc_bits = INTEL_FRONTBUFFER_PRIMARY(dev_priv->fbc.crtc->pipe);
@@ -1050,7 +1050,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 	if (dev_priv->fbc.busy_bits)
 		__intel_fbc_disable(dev_priv);
 
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 }
 
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
@@ -1062,7 +1062,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 	if (origin == ORIGIN_GTT)
 		return;
 
-	mutex_lock(&dev_priv->fbc.lock);
+	rt_mutex_lock(&dev_priv->fbc.lock);
 
 	dev_priv->fbc.busy_bits &= ~frontbuffer_bits;
 
@@ -1071,7 +1071,7 @@ void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		__intel_fbc_update(dev_priv);
 	}
 
-	mutex_unlock(&dev_priv->fbc.lock);
+	rt_mutex_unlock(&dev_priv->fbc.lock);
 }
 
 /**
@@ -1084,7 +1084,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
 
-	mutex_init(&dev_priv->fbc.lock);
+	rt_mutex_init(&dev_priv->fbc.lock);
 
 	if (!HAS_FBC(dev_priv)) {
 		dev_priv->fbc.enabled = false;
