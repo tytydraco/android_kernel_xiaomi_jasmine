@@ -1116,23 +1116,4 @@ bool rcu_is_nocb_cpu(int cpu);
 static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
 #endif
 
-
-/* Only for use by adaptive-ticks code. */
-#ifdef CONFIG_NO_HZ_FULL_SYSIDLE
-bool rcu_sys_is_idle(void);
-void rcu_sysidle_force_exit(void);
-#else /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-
-static inline bool rcu_sys_is_idle(void)
-{
-	return false;
-}
-
-static inline void rcu_sysidle_force_exit(void)
-{
-}
-
-#endif /* #else #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
-
-
 #endif /* __LINUX_RCUPDATE_H */
