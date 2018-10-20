@@ -96,7 +96,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
-static DEFINE_MUTEX(sparse_irq_lock);
+static DEFINE_RT_MUTEX(sparse_irq_lock);
 static DECLARE_BITMAP(allocated_irqs, IRQ_BITMAP_BITS);
 
 #ifdef CONFIG_SPARSE_IRQ
@@ -133,12 +133,12 @@ static inline void free_masks(struct irq_desc *desc) { }
 
 void irq_lock_sparse(void)
 {
-	mutex_lock(&sparse_irq_lock);
+	rt_mutex_lock(&sparse_irq_lock);
 }
 
 void irq_unlock_sparse(void)
 {
-	mutex_unlock(&sparse_irq_lock);
+	rt_mutex_unlock(&sparse_irq_lock);
 }
 
 static struct irq_desc *alloc_desc(int irq, int node, struct module *owner)
@@ -183,9 +183,9 @@ static void free_desc(unsigned int irq)
 	 * sparse tree we can free it. Access in proc will fail to
 	 * lookup the descriptor.
 	 */
-	mutex_lock(&sparse_irq_lock);
+	rt_mutex_lock(&sparse_irq_lock);
 	delete_irq_desc(irq);
-	mutex_unlock(&sparse_irq_lock);
+	rt_mutex_unlock(&sparse_irq_lock);
 
 	free_masks(desc);
 	free_percpu(desc->kstat_irqs);
@@ -202,9 +202,9 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 		desc = alloc_desc(start + i, node, owner);
 		if (!desc)
 			goto err;
-		mutex_lock(&sparse_irq_lock);
+		rt_mutex_lock(&sparse_irq_lock);
 		irq_insert_desc(start + i, desc);
-		mutex_unlock(&sparse_irq_lock);
+		rt_mutex_unlock(&sparse_irq_lock);
 	}
 	return start;
 
@@ -212,9 +212,9 @@ err:
 	for (i--; i >= 0; i--)
 		free_desc(start + i);
 
-	mutex_lock(&sparse_irq_lock);
+	rt_mutex_lock(&sparse_irq_lock);
 	bitmap_clear(allocated_irqs, start, cnt);
-	mutex_unlock(&sparse_irq_lock);
+	rt_mutex_unlock(&sparse_irq_lock);
 	return -ENOMEM;
 }
 
@@ -322,9 +322,9 @@ static int irq_expand_nr_irqs(unsigned int nr)
 
 void irq_mark_irq(unsigned int irq)
 {
-	mutex_lock(&sparse_irq_lock);
+	rt_mutex_lock(&sparse_irq_lock);
 	bitmap_set(allocated_irqs, irq, 1);
-	mutex_unlock(&sparse_irq_lock);
+	rt_mutex_unlock(&sparse_irq_lock);
 }
 
 #ifdef CONFIG_GENERIC_IRQ_LEGACY
@@ -410,9 +410,9 @@ void irq_free_descs(unsigned int from, unsigned int cnt)
 	for (i = 0; i < cnt; i++)
 		free_desc(from + i);
 
-	mutex_lock(&sparse_irq_lock);
+	rt_mutex_lock(&sparse_irq_lock);
 	bitmap_clear(allocated_irqs, from, cnt);
-	mutex_unlock(&sparse_irq_lock);
+	rt_mutex_unlock(&sparse_irq_lock);
 }
 EXPORT_SYMBOL_GPL(irq_free_descs);
 
@@ -448,7 +448,7 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		from = arch_dynirq_lower_bound(from);
 	}
 
-	mutex_lock(&sparse_irq_lock);
+	rt_mutex_lock(&sparse_irq_lock);
 
 	start = bitmap_find_next_zero_area(allocated_irqs, IRQ_BITMAP_BITS,
 					   from, cnt, 0);
@@ -463,11 +463,11 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 	}
 
 	bitmap_set(allocated_irqs, start, cnt);
-	mutex_unlock(&sparse_irq_lock);
+	rt_mutex_unlock(&sparse_irq_lock);
 	return alloc_descs(start, cnt, node, owner);
 
 err:
-	mutex_unlock(&sparse_irq_lock);
+	rt_mutex_unlock(&sparse_irq_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__irq_alloc_descs);

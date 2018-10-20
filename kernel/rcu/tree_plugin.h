@@ -32,7 +32,7 @@
 
 #ifdef CONFIG_RCU_BOOST
 
-#include "../locking/rtmutex_common.h"
+#include "../locking/rtrt_mutex_common.h"
 
 /*
  * Control variables for per-CPU and per-rcu_node kthreads.  These
@@ -763,7 +763,7 @@ void synchronize_rcu_expedited(void)
 
 	/* Clean up and exit. */
 	rcu_exp_gp_seq_end(rsp);
-	mutex_unlock(&rnp_unlock->exp_funnel_mutex);
+	rt_mutex_unlock(&rnp_unlock->exp_funnel_mutex);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
@@ -930,7 +930,7 @@ void exit_rcu(void)
 
 #ifdef CONFIG_RCU_BOOST
 
-#include "../locking/rtmutex_common.h"
+#include "../locking/rtrt_mutex_common.h"
 
 #ifdef CONFIG_RCU_TRACE
 

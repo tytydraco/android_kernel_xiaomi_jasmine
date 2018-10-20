@@ -18,9 +18,9 @@
 #include <linux/fs.h>
 
 static LIST_HEAD(irq_domain_list);
-static DEFINE_MUTEX(irq_domain_mutex);
+static DEFINE_RT_MUTEX(irq_domain_mutex);
 
-static DEFINE_MUTEX(revmap_trees_mutex);
+static DEFINE_RT_MUTEX(revmap_trees_mutex);
 static struct irq_domain *irq_default_domain;
 
 static int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
@@ -118,9 +118,9 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 	domain->revmap_direct_max_irq = direct_max;
 	irq_domain_check_hierarchy(domain);
 
-	mutex_lock(&irq_domain_mutex);
+	rt_mutex_lock(&irq_domain_mutex);
 	list_add(&domain->link, &irq_domain_list);
-	mutex_unlock(&irq_domain_mutex);
+	rt_mutex_unlock(&irq_domain_mutex);
 
 	pr_debug("Added domain %s\n", domain->name);
 	return domain;
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(__irq_domain_add);
  */
 void irq_domain_remove(struct irq_domain *domain)
 {
-	mutex_lock(&irq_domain_mutex);
+	rt_mutex_lock(&irq_domain_mutex);
 
 	/*
 	 * radix_tree_delete() takes care of destroying the root
@@ -154,7 +154,7 @@ void irq_domain_remove(struct irq_domain *domain)
 	if (unlikely(irq_default_domain == domain))
 		irq_set_default_host(NULL);
 
-	mutex_unlock(&irq_domain_mutex);
+	rt_mutex_unlock(&irq_domain_mutex);
 
 	pr_debug("Removed domain %s\n", domain->name);
 
@@ -262,7 +262,7 @@ struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
 	 * values must generate an exact match for the domain to be
 	 * selected.
 	 */
-	mutex_lock(&irq_domain_mutex);
+	rt_mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(h, &irq_domain_list, link) {
 		if (h->ops->match)
 			rc = h->ops->match(h, to_of_node(fwnode), bus_token);
@@ -276,7 +276,7 @@ struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
 			break;
 		}
 	}
-	mutex_unlock(&irq_domain_mutex);
+	rt_mutex_unlock(&irq_domain_mutex);
 	return found;
 }
 EXPORT_SYMBOL_GPL(irq_find_matching_fwnode);
@@ -328,9 +328,9 @@ void irq_domain_disassociate(struct irq_domain *domain, unsigned int irq)
 	if (hwirq < domain->revmap_size) {
 		domain->linear_revmap[hwirq] = 0;
 	} else {
-		mutex_lock(&revmap_trees_mutex);
+		rt_mutex_lock(&revmap_trees_mutex);
 		radix_tree_delete(&domain->revmap_tree, hwirq);
-		mutex_unlock(&revmap_trees_mutex);
+		rt_mutex_unlock(&revmap_trees_mutex);
 	}
 }
 
@@ -348,7 +348,7 @@ int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
 	if (WARN(irq_data->domain, "error: virq%i is already associated", virq))
 		return -EINVAL;
 
-	mutex_lock(&irq_domain_mutex);
+	rt_mutex_lock(&irq_domain_mutex);
 	irq_data->hwirq = hwirq;
 	irq_data->domain = domain;
 	if (domain->ops->map) {
@@ -365,7 +365,7 @@ int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
 			}
 			irq_data->domain = NULL;
 			irq_data->hwirq = 0;
-			mutex_unlock(&irq_domain_mutex);
+			rt_mutex_unlock(&irq_domain_mutex);
 			return ret;
 		}
 
@@ -377,11 +377,11 @@ int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
 	if (hwirq < domain->revmap_size) {
 		domain->linear_revmap[hwirq] = virq;
 	} else {
-		mutex_lock(&revmap_trees_mutex);
+		rt_mutex_lock(&revmap_trees_mutex);
 		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
-		mutex_unlock(&revmap_trees_mutex);
+		rt_mutex_unlock(&revmap_trees_mutex);
 	}
-	mutex_unlock(&irq_domain_mutex);
+	rt_mutex_unlock(&irq_domain_mutex);
 
 	irq_clear_status_flags(virq, IRQ_NOREQUEST);
 
@@ -689,7 +689,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 
 	seq_printf(m, " %-16s  %-6s  %-10s  %-10s  %s\n",
 		   "name", "mapped", "linear-max", "direct-max", "devtree-node");
-	mutex_lock(&irq_domain_mutex);
+	rt_mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(domain, &irq_domain_list, link) {
 		struct device_node *of_node;
 		int count = 0;
@@ -702,7 +702,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			   domain->revmap_direct_max_irq,
 			   of_node ? of_node_full_name(of_node) : "");
 	}
-	mutex_unlock(&irq_domain_mutex);
+	rt_mutex_unlock(&irq_domain_mutex);
 
 	seq_printf(m, "%-5s  %-7s  %-15s  %-*s  %6s  %-14s  %s\n", "irq", "hwirq",
 		      "chip name", (int)(2 * sizeof(void *) + 2), "chip data",
@@ -900,9 +900,9 @@ static void irq_domain_insert_irq(int virq)
 		if (hwirq < domain->revmap_size) {
 			domain->linear_revmap[hwirq] = virq;
 		} else {
-			mutex_lock(&revmap_trees_mutex);
+			rt_mutex_lock(&revmap_trees_mutex);
 			radix_tree_insert(&domain->revmap_tree, hwirq, data);
-			mutex_unlock(&revmap_trees_mutex);
+			rt_mutex_unlock(&revmap_trees_mutex);
 		}
 
 		/* If not already assigned, give the domain the chip's name */
@@ -929,9 +929,9 @@ static void irq_domain_remove_irq(int virq)
 		if (hwirq < domain->revmap_size) {
 			domain->linear_revmap[hwirq] = 0;
 		} else {
-			mutex_lock(&revmap_trees_mutex);
+			rt_mutex_lock(&revmap_trees_mutex);
 			radix_tree_delete(&domain->revmap_tree, hwirq);
-			mutex_unlock(&revmap_trees_mutex);
+			rt_mutex_unlock(&revmap_trees_mutex);
 		}
 	}
 }
@@ -1200,15 +1200,15 @@ int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 		goto out_free_desc;
 	}
 
-	mutex_lock(&irq_domain_mutex);
+	rt_mutex_lock(&irq_domain_mutex);
 	ret = irq_domain_alloc_irqs_recursive(domain, virq, nr_irqs, arg);
 	if (ret < 0) {
-		mutex_unlock(&irq_domain_mutex);
+		rt_mutex_unlock(&irq_domain_mutex);
 		goto out_free_irq_data;
 	}
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_insert_irq(virq + i);
-	mutex_unlock(&irq_domain_mutex);
+	rt_mutex_unlock(&irq_domain_mutex);
 
 	return virq;
 
@@ -1233,11 +1233,11 @@ void irq_domain_free_irqs(unsigned int virq, unsigned int nr_irqs)
 		 "NULL pointer, cannot free irq\n"))
 		return;
 
-	mutex_lock(&irq_domain_mutex);
+	rt_mutex_lock(&irq_domain_mutex);
 	for (i = 0; i < nr_irqs; i++)
 		irq_domain_remove_irq(virq + i);
 	irq_domain_free_irqs_recursive(data->domain, virq, nr_irqs);
-	mutex_unlock(&irq_domain_mutex);
+	rt_mutex_unlock(&irq_domain_mutex);
 
 	irq_domain_free_irq_data(virq, nr_irqs);
 	irq_free_descs(virq, nr_irqs);

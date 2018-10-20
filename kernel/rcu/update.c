@@ -790,7 +790,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 /* Spawn rcu_tasks_kthread() at first call to call_rcu_tasks(). */
 static void rcu_spawn_tasks_kthread(void)
 {
-	static DEFINE_MUTEX(rcu_tasks_kthread_mutex);
+	static DEFINE_RT_MUTEX(rcu_tasks_kthread_mutex);
 	static struct task_struct *rcu_tasks_kthread_ptr;
 	struct task_struct *t;
 
@@ -798,16 +798,16 @@ static void rcu_spawn_tasks_kthread(void)
 		smp_mb(); /* Ensure caller sees full kthread. */
 		return;
 	}
-	mutex_lock(&rcu_tasks_kthread_mutex);
+	rt_mutex_lock(&rcu_tasks_kthread_mutex);
 	if (rcu_tasks_kthread_ptr) {
-		mutex_unlock(&rcu_tasks_kthread_mutex);
+		rt_mutex_unlock(&rcu_tasks_kthread_mutex);
 		return;
 	}
 	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
 	BUG_ON(IS_ERR(t));
 	smp_mb(); /* Ensure others see full kthread. */
 	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
-	mutex_unlock(&rcu_tasks_kthread_mutex);
+	rt_mutex_unlock(&rcu_tasks_kthread_mutex);
 }
 
 #endif /* #ifdef CONFIG_TASKS_RCU */

@@ -19,7 +19,7 @@
  * comes in on to an unassigned handler will get stuck with
  * "IRQS_WAITING" cleared and the interrupt disabled.
  */
-static DEFINE_MUTEX(probing_active);
+static DEFINE_RT_MUTEX(probing_active);
 
 /**
  *	probe_irq_on	- begin an interrupt autodetect
@@ -38,7 +38,7 @@ unsigned long probe_irq_on(void)
 	 * quiesce the kernel, or at least the asynchronous portion
 	 */
 	async_synchronize_full();
-	mutex_lock(&probing_active);
+	rt_mutex_lock(&probing_active);
 	/*
 	 * something may have generated an irq long ago and we want to
 	 * flush such a longstanding irq before considering it as spurious.
@@ -132,7 +132,7 @@ unsigned int probe_irq_mask(unsigned long val)
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
-	mutex_unlock(&probing_active);
+	rt_mutex_unlock(&probing_active);
 
 	return mask & val;
 }
@@ -174,7 +174,7 @@ int probe_irq_off(unsigned long val)
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}
-	mutex_unlock(&probing_active);
+	rt_mutex_unlock(&probing_active);
 
 	if (nr_of_irqs > 1)
 		irq_found = -irq_found;

@@ -193,7 +193,7 @@ static u64 notrace rcu_trace_clock_local(void)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
-static DEFINE_MUTEX(boost_mutex);	/* protect setting boost_starttime */
+static DEFINE_RT_MUTEX(boost_mutex);	/* protect setting boost_starttime */
 					/*  and boost task create/destroy. */
 static atomic_t barrier_cbs_count;	/* Barrier callbacks registered. */
 static bool barrier_phase;		/* Test phase. */
@@ -782,11 +782,11 @@ static int rcu_torture_boost(void *arg)
 		 */
 		while (oldstarttime == boost_starttime &&
 		       !kthread_should_stop()) {
-			if (mutex_trylock(&boost_mutex)) {
+			if (rt_mutex_trylock(&boost_mutex)) {
 				boost_starttime = jiffies +
 						  test_boost_interval * HZ;
 				n_rcu_torture_boosts++;
-				mutex_unlock(&boost_mutex);
+				rt_mutex_unlock(&boost_mutex);
 				break;
 			}
 			schedule_timeout_uninterruptible(1);
@@ -1362,10 +1362,10 @@ static void rcutorture_booster_cleanup(int cpu)
 
 	if (boost_tasks[cpu] == NULL)
 		return;
-	mutex_lock(&boost_mutex);
+	rt_mutex_lock(&boost_mutex);
 	t = boost_tasks[cpu];
 	boost_tasks[cpu] = NULL;
-	mutex_unlock(&boost_mutex);
+	rt_mutex_unlock(&boost_mutex);
 
 	/* This must be outside of the mutex, otherwise deadlock! */
 	torture_stop_kthread(rcu_torture_boost, t);
@@ -1379,7 +1379,7 @@ static int rcutorture_booster_init(int cpu)
 		return 0;  /* Already created, nothing more to do. */
 
 	/* Don't allow time recalculation while creating a new task. */
-	mutex_lock(&boost_mutex);
+	rt_mutex_lock(&boost_mutex);
 	VERBOSE_TOROUT_STRING("Creating rcu_torture_boost task");
 	boost_tasks[cpu] = kthread_create_on_node(rcu_torture_boost, NULL,
 						  cpu_to_node(cpu),
@@ -1389,12 +1389,12 @@ static int rcutorture_booster_init(int cpu)
 		VERBOSE_TOROUT_STRING("rcu_torture_boost task create failed");
 		n_rcu_torture_boost_ktrerror++;
 		boost_tasks[cpu] = NULL;
-		mutex_unlock(&boost_mutex);
+		rt_mutex_unlock(&boost_mutex);
 		return retval;
 	}
 	kthread_bind(boost_tasks[cpu], cpu);
 	wake_up_process(boost_tasks[cpu]);
-	mutex_unlock(&boost_mutex);
+	rt_mutex_unlock(&boost_mutex);
 	return 0;
 }
 
