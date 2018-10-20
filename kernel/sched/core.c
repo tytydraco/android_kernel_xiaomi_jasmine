@@ -96,7 +96,7 @@
 #include <trace/events/sched.h>
 #include "walt.h"
 
-DEFINE_MUTEX(sched_domains_mutex);
+DEFINE_RT_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
 static void update_rq_clock_task(struct rq *rq, s64 delta);
@@ -231,9 +231,9 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 
 	/* Ensure the static_key remains in a consistent state */
 	inode = file_inode(filp);
-	mutex_lock(&inode->i_mutex);
+	rt_mutex_lock(&inode->i_mutex);
 	i = sched_feat_set(cmp);
-	mutex_unlock(&inode->i_mutex);
+	rt_mutex_unlock(&inode->i_mutex);
 	if (i == __SCHED_FEAT_NR)
 		return -EINVAL;
 
@@ -7634,7 +7634,7 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 	int i, j, n;
 	int new_topology;
 
-	mutex_lock(&sched_domains_mutex);
+	rt_mutex_lock(&sched_domains_mutex);
 
 	/* always unregister in case we don't destroy any domains */
 	unregister_sched_domain_sysctl();
@@ -7688,7 +7688,7 @@ match2:
 
 	register_sched_domain_sysctl();
 
-	mutex_unlock(&sched_domains_mutex);
+	rt_mutex_unlock(&sched_domains_mutex);
 }
 
 static int num_cpus_frozen;	/* used to mark begin/end of suspend/resume */
@@ -7783,12 +7783,12 @@ void __init sched_init_smp(void)
 	 * cpu masks are stable and all blatant races in the below code cannot
 	 * happen.
 	 */
-	mutex_lock(&sched_domains_mutex);
+	rt_mutex_lock(&sched_domains_mutex);
 	init_sched_domains(cpu_active_mask);
 	cpumask_andnot(non_isolated_cpus, cpu_possible_mask, cpu_isolated_map);
 	if (cpumask_empty(non_isolated_cpus))
 		cpumask_set_cpu(smp_processor_id(), non_isolated_cpus);
-	mutex_unlock(&sched_domains_mutex);
+	rt_mutex_unlock(&sched_domains_mutex);
 
 	hotcpu_notifier(sched_domains_numa_masks_update, CPU_PRI_SCHED_ACTIVE);
 	hotcpu_notifier(cpuset_cpu_active, CPU_PRI_CPUSET_ACTIVE);
@@ -8318,7 +8318,7 @@ void sched_move_task(struct task_struct *tsk)
 /*
  * Ensure that the real time constraints are schedulable.
  */
-static DEFINE_MUTEX(rt_constraints_mutex);
+static DEFINE_RT_MUTEX(rt_constraints_mutex);
 
 /* Must be called with tasklist_lock held */
 static inline int tg_has_rt_tasks(struct task_group *tg)
@@ -8434,7 +8434,7 @@ static int tg_set_rt_bandwidth(struct task_group *tg,
 	if (rt_period == 0)
 		return -EINVAL;
 
-	mutex_lock(&rt_constraints_mutex);
+	rt_mutex_lock(&rt_constraints_mutex);
 	read_lock(&tasklist_lock);
 	err = __rt_schedulable(tg, rt_period, rt_runtime);
 	if (err)
@@ -8454,7 +8454,7 @@ static int tg_set_rt_bandwidth(struct task_group *tg,
 	raw_spin_unlock_irq(&tg->rt_bandwidth.rt_runtime_lock);
 unlock:
 	read_unlock(&tasklist_lock);
-	mutex_unlock(&rt_constraints_mutex);
+	rt_mutex_unlock(&rt_constraints_mutex);
 
 	return err;
 }
@@ -8508,11 +8508,11 @@ static int sched_rt_global_constraints(void)
 {
 	int ret = 0;
 
-	mutex_lock(&rt_constraints_mutex);
+	rt_mutex_lock(&rt_constraints_mutex);
 	read_lock(&tasklist_lock);
 	ret = __rt_schedulable(NULL, 0, 0);
 	read_unlock(&tasklist_lock);
-	mutex_unlock(&rt_constraints_mutex);
+	rt_mutex_unlock(&rt_constraints_mutex);
 
 	return ret;
 }
@@ -8633,10 +8633,10 @@ int sched_rt_handler(struct ctl_table *table, int write,
 		loff_t *ppos)
 {
 	int old_period, old_runtime;
-	static DEFINE_MUTEX(mutex);
+	static DEFINE_RT_MUTEX(mutex);
 	int ret;
 
-	mutex_lock(&mutex);
+	rt_mutex_lock(&mutex);
 	old_period = sysctl_sched_rt_period;
 	old_runtime = sysctl_sched_rt_runtime;
 
@@ -8663,7 +8663,7 @@ undo:
 		sysctl_sched_rt_period = old_period;
 		sysctl_sched_rt_runtime = old_runtime;
 	}
-	mutex_unlock(&mutex);
+	rt_mutex_unlock(&mutex);
 
 	return ret;
 }
@@ -8673,9 +8673,9 @@ int sched_rr_handler(struct ctl_table *table, int write,
 		loff_t *ppos)
 {
 	int ret;
-	static DEFINE_MUTEX(mutex);
+	static DEFINE_RT_MUTEX(mutex);
 
-	mutex_lock(&mutex);
+	rt_mutex_lock(&mutex);
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 	/* make sure that internally we keep jiffies */
 	/* also, writing zero resets timeslice to default */
@@ -8683,7 +8683,7 @@ int sched_rr_handler(struct ctl_table *table, int write,
 		sched_rr_timeslice = sched_rr_timeslice <= 0 ?
 			RR_TIMESLICE : msecs_to_jiffies(sched_rr_timeslice);
 	}
-	mutex_unlock(&mutex);
+	rt_mutex_unlock(&mutex);
 	return ret;
 }
 
@@ -8817,7 +8817,7 @@ static u64 cpu_shares_read_u64(struct cgroup_subsys_state *css,
 }
 
 #ifdef CONFIG_CFS_BANDWIDTH
-static DEFINE_MUTEX(cfs_constraints_mutex);
+static DEFINE_RT_MUTEX(cfs_constraints_mutex);
 
 const u64 max_cfs_quota_period = 1 * NSEC_PER_SEC; /* 1s */
 const u64 min_cfs_quota_period = 1 * NSEC_PER_MSEC; /* 1ms */
@@ -8853,7 +8853,7 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 	 * unthrottle_offline_cfs_rqs().
 	 */
 	get_online_cpus();
-	mutex_lock(&cfs_constraints_mutex);
+	rt_mutex_lock(&cfs_constraints_mutex);
 	ret = __cfs_schedulable(tg, period, quota);
 	if (ret)
 		goto out_unlock;
@@ -8891,7 +8891,7 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 	if (runtime_was_enabled && !runtime_enabled)
 		cfs_bandwidth_usage_dec();
 out_unlock:
-	mutex_unlock(&cfs_constraints_mutex);
+	rt_mutex_unlock(&cfs_constraints_mutex);
 	put_online_cpus();
 
 	return ret;
