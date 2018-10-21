@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.4.161 Kernel Configuration
+# Linux/arm64 4.4.162 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -4150,7 +4150,8 @@ CONFIG_ARCH_HAS_UBSAN_SANITIZE_ALL=y
 # CONFIG_STRICT_DEVMEM is not set
 # CONFIG_PID_IN_CONTEXTIDR is not set
 # CONFIG_ARM64_RANDOMIZE_TEXT_OFFSET is not set
-# CONFIG_DEBUG_RODATA is not set
+CONFIG_DEBUG_RODATA=y
+CONFIG_DEBUG_ALIGN_RODATA=y
 # CONFIG_FORCE_PAGES is not set
 # CONFIG_FREE_PAGES_RDONLY is not set
 # CONFIG_ARM64_STRICT_BREAK_BEFORE_MAKE is not set
