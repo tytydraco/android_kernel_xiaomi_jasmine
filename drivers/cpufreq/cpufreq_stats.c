@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/cputime.h>
 
-static spinlock_t cpufreq_stats_lock;
+static raw_spinlock_t cpufreq_stats_lock;
 
 struct cpufreq_stats {
 	unsigned int total_trans;
@@ -34,14 +34,14 @@ static int cpufreq_stats_update(struct cpufreq_stats *stats)
 {
 	unsigned long long cur_time = get_jiffies_64();
 
-	spin_lock(&cpufreq_stats_lock);
+	raw_spin_lock(&cpufreq_stats_lock);
 	stats->time_in_state[stats->last_index] += cur_time - stats->last_time;
 	stats->last_time = cur_time;
-	spin_unlock(&cpufreq_stats_lock);
+	raw_spin_unlock(&cpufreq_stats_lock);
 	return 0;
 }
 
-static ssize_t show_total_trans(struct cpufreq_policy *policy, char *buf)
+inline static ssize_t show_total_trans(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%d\n", policy->stats->total_trans);
 }
@@ -316,7 +316,7 @@ static int __init cpufreq_stats_init(void)
 	int ret;
 	unsigned int cpu;
 
-	spin_lock_init(&cpufreq_stats_lock);
+	raw_spin_lock_init(&cpufreq_stats_lock);
 	ret = cpufreq_register_notifier(&notifier_policy_block,
 				CPUFREQ_POLICY_NOTIFIER);
 	if (ret)
