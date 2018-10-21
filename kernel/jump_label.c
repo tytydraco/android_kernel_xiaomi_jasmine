@@ -18,16 +18,16 @@
 #ifdef HAVE_JUMP_LABEL
 
 /* mutex to protect coming/going of the the jump_label table */
-static DEFINE_MUTEX(jump_label_mutex);
+static DEFINE_RT_MUTEX(jump_label_mutex);
 
 void jump_label_lock(void)
 {
-	mutex_lock(&jump_label_mutex);
+	rt_mutex_lock(&jump_label_mutex);
 }
 
 void jump_label_unlock(void)
 {
-	mutex_unlock(&jump_label_mutex);
+	rt_mutex_unlock(&jump_label_mutex);
 }
 
 static int jump_label_cmp(const void *a, const void *b)
@@ -102,7 +102,7 @@ static void __static_key_slow_dec(struct static_key *key,
 	 * returns is unbalanced, because all other static_key_slow_inc()
 	 * instances block while the update is in progress.
 	 */
-	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex)) {
+	if (!atomic_dec_and_rt_mutex_lock(&key->enabled, &jump_label_mutex)) {
 		WARN(atomic_read(&key->enabled) < 0,
 		     "jump label: negative count!\n");
 		return;

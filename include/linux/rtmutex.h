@@ -98,4 +98,6 @@ extern int rt_mutex_trylock(struct rt_mutex *lock);
 
 extern void rt_mutex_unlock(struct rt_mutex *lock);
 
+extern int atomic_dec_and_rt_mutex_lock(atomic_t *cnt, struct rt_mutex *lock);
+
 #endif
