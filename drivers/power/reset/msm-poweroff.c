@@ -73,12 +73,10 @@ static void scm_disable_sdi(void);
 
 static int in_panic;
 static int dload_type = SCM_DLOAD_FULLDUMP;
-#if defined(CONFIG_KERNEL_CUSTOM_E7S)
- int download_mode = 0;
-#elif defined(CONFIG_KERNEL_CUSTOM_D2S)
+#if defined(CONFIG_KERNEL_CUSTOM_E7S) || defined(CONFIG_KERNEL_CUSTOM_D2S)
 int download_mode = 0;
 #else
- int download_mode = 1;
+int download_mode = 1;
 #endif
 static struct kobject dload_kobj;
 static void *dload_mode_addr, *dload_type_addr;
