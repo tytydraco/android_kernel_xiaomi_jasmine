@@ -1924,11 +1924,13 @@ check_ctx:
 	}
 	spin_unlock_irqrestore(&xprt_ctx->xprt_ctx_lock_lhb1, flags);
 	rwref_write_put(&xprt_ctx->xprt_state_lhb0);
-	rt_mutex_lock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
+#ifdef CONFIG_DEBUG_FS
+  rt_mutex_lock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
 	if (ctx != NULL)
 		glink_debugfs_add_channel(ctx, xprt_ctx);
 	rt_mutex_unlock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
-	return ctx;
+#endif
+  return ctx;
 }
 
 /**
@@ -2739,10 +2741,12 @@ static bool glink_delete_ch_from_list(struct channel_ctx *ctx, bool add_flcid)
 			flags);
 	if (add_flcid)
 		glink_add_free_lcid_list(ctx);
-	rt_mutex_lock(&ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
+#ifdef CONFIG_DEBUG_FS
+  rt_mutex_lock(&ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
 	glink_debugfs_remove_channel(ctx, ctx->transport_ptr);
 	rt_mutex_unlock(&ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
-	rwref_put(&ctx->ch_state_lhb2);
+#endif
+  rwref_put(&ctx->ch_state_lhb2);
 	return ret;
 }
 
@@ -3741,9 +3745,11 @@ void glink_xprt_ctx_release(struct rwref_lock *xprt_st_lock)
 				xprt_ctx->edge);
 	xprt_rm_dbgfs.curr_name = xprt_ctx->name;
 	xprt_rm_dbgfs.par_name = "xprt";
-	glink_debugfs_remove_recur(&xprt_rm_dbgfs);
+#ifdef CONFIG_DEBUG_FS
+  glink_debugfs_remove_recur(&xprt_rm_dbgfs);
 	GLINK_INFO("%s: xprt debugfs removec\n", __func__);
-	rwref_put(&xprt_ctx->edge_ctx->edge_ref_lock_lhd1);
+#endif	
+  rwref_put(&xprt_ctx->edge_ctx->edge_ref_lock_lhd1);
 	kthread_stop(xprt_ctx->tx_task);
 	xprt_ctx->tx_task = NULL;
 	glink_core_deinit_xprt_qos_cfg(xprt_ctx);
@@ -4083,8 +4089,10 @@ int glink_core_register_transport(struct glink_transport_if *if_ptr,
 	rt_mutex_lock(&transport_list_lock_lha0);
 	list_add_tail(&xprt_ptr->list_node, &transport_list);
 	rt_mutex_unlock(&transport_list_lock_lha0);
-	glink_debugfs_add_xprt(xprt_ptr);
-	snprintf(log_name, sizeof(log_name), "%s_%s",
+#ifdef CONFIG_DEBUG_FS
+  glink_debugfs_add_xprt(xprt_ptr);
+#endif
+  snprintf(log_name, sizeof(log_name), "%s_%s",
 			xprt_ptr->edge, xprt_ptr->name);
 	xprt_ptr->log_ctx = ipc_log_context_create(NUM_LOG_PAGES, log_name, 0);
 	if (!xprt_ptr->log_ctx)
@@ -4751,9 +4759,11 @@ static bool ch_migrate(struct channel_ctx *l_ctx, struct channel_ctx *r_ctx)
 	list_del_init(&l_ctx->port_list_node);
 	spin_unlock_irqrestore(&l_ctx->transport_ptr->xprt_ctx_lock_lhb1,
 									flags);
-	rt_mutex_lock(&l_ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
+#ifdef CONFIG_DEBUG_FS
+  rt_mutex_lock(&l_ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
 	glink_debugfs_remove_channel(l_ctx, l_ctx->transport_ptr);
 	rt_mutex_unlock(&l_ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
+#endif
 
 	memcpy(ctx_clone, l_ctx, sizeof(*ctx_clone));
 	ctx_clone->local_xprt_req = 0;
@@ -4827,9 +4837,11 @@ static bool ch_migrate(struct channel_ctx *l_ctx, struct channel_ctx *r_ctx)
 		spin_unlock_irqrestore(&xprt->xprt_ctx_lock_lhb1, flags);
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	rt_mutex_lock(&xprt->xprt_dbgfs_lock_lhb4);
 	glink_debugfs_add_channel(l_ctx, xprt);
 	rt_mutex_unlock(&xprt->xprt_dbgfs_lock_lhb4);
+#endif
 
 	rt_mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt, &transport_list, list_node)
@@ -5921,6 +5933,7 @@ char *glink_get_xprt_edge_name(struct glink_core_xprt_ctx *xprt_ctx)
 }
 EXPORT_SYMBOL(glink_get_xprt_edge_name);
 
+#ifdef CONFIG_DEBUG_FS
 /**
  * glink_get_xprt_state() - get the state of the transport
  * @xprt_ctx:	pointer to the transport context.
@@ -5935,6 +5948,7 @@ const char *glink_get_xprt_state(struct glink_core_xprt_ctx *xprt_ctx)
 	return glink_get_xprt_state_string(xprt_ctx->local_state);
 }
 EXPORT_SYMBOL(glink_get_xprt_state);
+#endif
 
 /**
  * glink_get_xprt_version_features() - get the version and feature set
@@ -6081,6 +6095,7 @@ int glink_get_ch_rcid(struct channel_ctx *ch_ctx)
 }
 EXPORT_SYMBOL(glink_get_ch_rcid);
 
+#ifdef CONFIG_DEBUG_FS
 /**
  * glink_get_ch_lstate() - get the local channel state
  * @ch_ctx:	pointer to the channel context.
@@ -6095,6 +6110,7 @@ const char *glink_get_ch_lstate(struct channel_ctx *ch_ctx)
 	return glink_get_ch_state_string(ch_ctx->local_open_state);
 }
 EXPORT_SYMBOL(glink_get_ch_lstate);
+#endif
 
 /**
  * glink_get_ch_rstate() - get the remote channel state
@@ -6269,7 +6285,9 @@ static int glink_init(void)
 	log_ctx = ipc_log_context_create(NUM_LOG_PAGES, "glink", 0);
 	if (!log_ctx)
 		GLINK_ERR("%s: unable to create log context\n", __func__);
+#ifdef CONFIG_DEBUG_FS
 	glink_debugfs_init();
+#endif
 
 	return 0;
 }
