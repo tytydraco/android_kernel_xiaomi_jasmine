@@ -72,16 +72,6 @@ struct latency_level {
 };
 
 /**
- * lpm_cpu_pre_pc_cb(): API to get the L2 flag to pass to TZ
- *
- * @cpu: cpuid of the CPU going down.
- *
- * Returns the l2 flush flag enum that is passed down to TZ during power
- * collaps
- */
-enum msm_pm_l2_scm_flag lpm_cpu_pre_pc_cb(unsigned int cpu);
-
-/**
  * msm_pm_sleep_mode_allow() - API to determine if sleep mode is allowed.
  * @cpu:	CPU on which to check for the sleep mode.
  * @mode:	Sleep Mode to check for.
