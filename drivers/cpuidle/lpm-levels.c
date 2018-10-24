@@ -139,16 +139,16 @@ EXPORT_SYMBOL(lpm_suspend_wake_time);
 static int lpm_cpu_callback(struct notifier_block *cpu_nb,
 	unsigned long action, void *hcpu)
 {
-	unsigned long cpu = (unsigned long) hcpu;
-	struct lpm_cluster *cluster = per_cpu(cpu_cluster, (unsigned int) cpu);
+	uintptr_t cpu = (uintptr_t) hcpu;
+	struct lpm_cluster *cluster = per_cpu(cpu_cluster, cpu);
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DYING:
-		cluster_prepare(cluster, get_cpu_mask((unsigned int) cpu),
+		cluster_prepare(cluster, get_cpu_mask(cpu),
 					NR_LPM_LEVELS, false, 0);
 		break;
 	case CPU_STARTING:
-		cluster_unprepare(cluster, get_cpu_mask((unsigned int) cpu),
+		cluster_unprepare(cluster, get_cpu_mask(cpu),
 					NR_LPM_LEVELS, false, 0);
 		break;
 	default:
