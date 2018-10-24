@@ -126,11 +126,6 @@ module_param_named(sleep_time_override,
 	msm_pm_sleep_time_override, int, S_IRUGO | S_IWUSR | S_IWGRP);
 static uint64_t suspend_wake_time;
 
-static bool print_parsed_dt;
-module_param_named(
-	print_parsed_dt, print_parsed_dt, bool, S_IRUGO | S_IWUSR | S_IWGRP
-);
-
 void lpm_suspend_wake_time(uint64_t wakeup_time)
 {
 	if (wakeup_time <= 0) {
@@ -1765,9 +1760,6 @@ static int lpm_probe(struct platform_device *pdev)
 		put_online_cpus();
 		return PTR_ERR(lpm_root_node);
 	}
-
-	if (print_parsed_dt)
-		cluster_dt_walkthrough(lpm_root_node);
 
 	/*
 	 * Register hotplug notifier before broadcast time to ensure there
