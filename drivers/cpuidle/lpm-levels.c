@@ -1613,12 +1613,9 @@ static int lpm_probe(struct platform_device *pdev)
 	int ret;
 	struct kobject *module_kobj = NULL;
 
-	get_online_cpus();
 	lpm_root_node = lpm_of_parse_cluster(pdev);
-
 	if (IS_ERR_OR_NULL(lpm_root_node)) {
 		pr_err("%s(): Failed to probe low power modes\n", __func__);
-		put_online_cpus();
 		return PTR_ERR(lpm_root_node);
 	}
 
@@ -1628,6 +1625,7 @@ static int lpm_probe(struct platform_device *pdev)
 	 * core.  BUG in existing code but no known issues possibly because of
 	 * how late lpm_levels gets initialized.
 	 */
+	get_online_cpus();
 	suspend_set_ops(&lpm_suspend_ops);
 	hrtimer_init(&lpm_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer_init(&histtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
