@@ -116,11 +116,6 @@ static struct notifier_block __refdata lpm_cpu_nblk = {
 	.notifier_call = lpm_cpu_callback,
 };
 
-static bool menu_select;
-module_param_named(
-	menu_select, menu_select, bool, S_IRUGO | S_IWUSR | S_IWGRP
-);
-
 static int msm_pm_sleep_time_override;
 module_param_named(sleep_time_override,
 	msm_pm_sleep_time_override, int, S_IRUGO | S_IWUSR | S_IWGRP);
