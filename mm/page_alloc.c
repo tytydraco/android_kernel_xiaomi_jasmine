@@ -495,7 +495,7 @@ static void bad_page(struct page *page, const char *reason,
 		nr_shown = 0;
 	}
 	if (nr_shown++ == 0)
-		resume = jiffies + 60 * HZ;
+		resume = jiffies + msecs_to_jiffies(60000);
 
 	printk(KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
 		current->comm, page_to_pfn(page));
@@ -3070,7 +3070,7 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
 
 		if (!page && gfp_mask & __GFP_NOFAIL)
 			wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC,
-									HZ/50);
+									msecs_to_jiffies(500));
 	} while (!page && (gfp_mask & __GFP_NOFAIL));
 
 	return page;
@@ -3357,7 +3357,7 @@ retry:
 	if ((did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER) ||
 	    ((gfp_mask & __GFP_REPEAT) && pages_reclaimed < (1 << order))) {
 		/* Wait for some write requests to complete then retry */
-		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, HZ/50);
+		wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC, msecs_to_jiffies(500));
 		goto retry;
 	}
 
