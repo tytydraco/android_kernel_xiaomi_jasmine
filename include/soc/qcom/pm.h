@@ -31,6 +31,8 @@
 #define msm_secondary_startup secondary_holding_pen
 #endif
 
+#define msm_cpuidle_get_deep_idle_latency(void) (10)
+
 enum msm_pm_sleep_mode {
 	MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT,
 	MSM_PM_SLEEP_MODE_RETENTION,
@@ -127,7 +129,6 @@ void msm_pm_set_rpm_wakeup_irq(unsigned int irq);
 int msm_pm_wait_cpu_shutdown(unsigned int cpu);
 int __init msm_pm_sleep_status_init(void);
 void lpm_cpu_hotplug_enter(unsigned int cpu);
-s32 msm_cpuidle_get_deep_idle_latency(void);
 int msm_pm_collapse(unsigned long unused);
 
 /**
