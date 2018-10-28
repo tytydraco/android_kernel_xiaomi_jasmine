@@ -705,7 +705,7 @@ static int sugov_init(struct cpufreq_policy *policy)
                 }
 	}
 
-	tunables->iowait_boost_enable = IS_ENABLED(CONFIG_IOWAIT_BOOST_ENABLE);
+	tunables->iowait_boost_enable = policy->iowait_boost_enable;
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
