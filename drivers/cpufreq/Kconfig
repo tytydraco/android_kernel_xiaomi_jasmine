@@ -222,6 +222,30 @@ config CPU_FREQ_GOV_CONSERVATIVE
 
 	  If in doubt, say N.
 
+config CPU_BOOST
+	tristate "Event base short term CPU freq boost"
+	depends on CPU_FREQ
+	help
+	  This driver boosts the frequency of one or more CPUs based on
+	  various events that might occur in the system. As of now, the
+	  events it reacts to are:
+	  - Migration of important threads from one CPU to another.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_SCHED
+	bool "'sched' cpufreq governor"
+	depends on CPU_FREQ
+	depends on SMP
+	select CPU_FREQ_GOV_COMMON
+	help
+	  'sched' - this governor scales cpu frequency from the
+	  scheduler as a function of cpu capacity utilization. It does
+	  not evaluate utilization on a periodic basis (as ondemand
+	  does) but instead is event-driven by the scheduler.
+
+	  If in doubt, say N.
+
 config CPU_FREQ_GOV_SCHEDUTIL
 	bool "'schedutil' cpufreq policy governor"
 	depends on CPU_FREQ && SMP
@@ -279,27 +303,6 @@ config INPUT_BOOST_FREQ_PERF
 endif
 
 comment "CPU frequency scaling drivers"
-
-config CPU_BOOST
-	tristate "Event base short term CPU freq boost"
-	depends on CPU_FREQ
-	help
-	  This driver boosts the frequency of one or more CPUs based on
-	  various events that might occur in the system. As of now, the
-	  events it reacts to are:
-	  - Migration of important threads from one CPU to another.
-
-	  If in doubt, say N.
-
-config CPU_BOOST_DYNAMIC_STUNE_BOOST
-  int "Enable dynamic stune boosting by default"
-  depends on CPU_BOOST
-  default 1
-
-config CPU_BOOST_DURATION
-  int "Default cpu boost duration in ms"
-  depends on CPU_BOOST
-  default 40
 
 config CPUFREQ_DT
 	tristate "Generic DT based cpufreq driver"
