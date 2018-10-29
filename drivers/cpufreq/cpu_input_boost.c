@@ -47,7 +47,7 @@ struct boost_drv {
 	struct notifier_block fb_notif;
 	unsigned long max_boost_expires;
 	atomic_t max_boost_dur;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	u32 state;
 };
 
@@ -111,25 +111,25 @@ static u32 get_boost_state(struct boost_drv *b)
 {
 	u32 state;
 
-	spin_lock(&b->lock);
+	raw_spin_lock(&b->lock);
 	state = b->state;
-	spin_unlock(&b->lock);
+	raw_spin_unlock(&b->lock);
 
 	return state;
 }
 
 static void set_boost_bit(struct boost_drv *b, u32 state)
 {
-	spin_lock(&b->lock);
+	raw_spin_lock(&b->lock);
 	b->state |= state;
-	spin_unlock(&b->lock);
+	raw_spin_unlock(&b->lock);
 }
 
 static void clear_boost_bit(struct boost_drv *b, u32 state)
 {
-	spin_lock(&b->lock);
+	raw_spin_lock(&b->lock);
 	b->state &= ~state;
-	spin_unlock(&b->lock);
+	raw_spin_unlock(&b->lock);
 }
 
 static void update_online_cpu_policy(void)
@@ -169,14 +169,14 @@ static void __cpu_input_boost_kick_max(struct boost_drv *b,
 	unsigned long new_expires;
 
 	/* Skip this boost if there's already a longer boost in effect */
-	spin_lock(&b->lock);
+	raw_spin_lock(&b->lock);
 	new_expires = jiffies + msecs_to_jiffies(duration_ms);
 	if (time_after(b->max_boost_expires, new_expires)) {
-		spin_unlock(&b->lock);
+		raw_spin_unlock(&b->lock);
 		return;
 	}
 	b->max_boost_expires = new_expires;
-	spin_unlock(&b->lock);
+	raw_spin_unlock(&b->lock);
 
 	atomic_set(&b->max_boost_dur, duration_ms);
 	queue_work(b->wq, &b->max_boost);
@@ -411,7 +411,7 @@ static int __init cpu_input_boost_init(void)
 		goto free_b;
 	}
 
-	spin_lock_init(&b->lock);
+	raw_spin_lock_init(&b->lock);
 	INIT_WORK(&b->input_boost, input_boost_worker);
 	INIT_DELAYED_WORK(&b->input_unboost, input_unboost_worker);
 	INIT_WORK(&b->max_boost, max_boost_worker);
