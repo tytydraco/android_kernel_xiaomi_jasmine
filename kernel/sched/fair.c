@@ -6545,9 +6545,10 @@ static int find_new_capacity(struct energy_env *eenv,
 	eenv->cap_idx = max_idx;
 
 	for (idx = 0; idx < sge->nr_cap_states; idx++) {
-		if (sge->cap_states[idx].cap >= util)
+		if (sge->cap_states[idx].cap >= util) {
 			eenv->cap_idx = idx;
 			break;
+    }
 	}
 
 	return eenv->cap_idx;
@@ -9194,6 +9195,38 @@ group_type group_classify(struct sched_group *group,
 	return group_other;
 }
 
+#ifdef CONFIG_NO_HZ_COMMON
+/*
+ *  * idle load balancing data
+ *   *  - used by the nohz balance, but we want it available here
+ *    *    so that we can see which CPUs have no tick.
+ *     */
+static struct {
+  cpumask_var_t idle_cpus_mask;
+  atomic_t nr_cpus;
+  unsigned long next_balance;     /* in jiffy units */
+} nohz ____cacheline_aligned;
+
+static inline void update_cpu_stats_if_tickless(struct rq *rq)
+{
+  /* only called from update_sg_lb_stats when irqs are disabled */
+  if (cpumask_test_cpu(rq->cpu, nohz.idle_cpus_mask)) {
+    /* rate limit updates to once-per-jiffie at most */
+    if (READ_ONCE(jiffies) <= rq->last_load_update_tick)
+      return;
+  
+    raw_spin_lock(&rq->lock);
+    update_rq_clock(rq);
+    update_idle_cpu_load(rq);
+    update_cfs_rq_load_avg(rq->clock_task, &rq->cfs, false);
+    raw_spin_unlock(&rq->lock);
+  }
+}
+
+#else
+static inline void update_cpu_stats_if_tickless(struct rq *rq) { }
+#endif
+
 /**
  * update_sg_lb_stats - Update sched_group's statistics for load balancing.
  * @env: The load balancing environment.
@@ -10797,18 +10830,6 @@ static inline int on_null_domain(struct rq *rq)
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
-/*
- * idle load balancing details
- * - When one of the busy CPUs notice that there may be an idle rebalancing
- *   needed, they will kick the idle load balancer, which then does idle
- *   load balancing for all the idle CPUs.
- */
-static struct {
-	cpumask_var_t idle_cpus_mask;
-	atomic_t nr_cpus;
-	unsigned long next_balance;     /* in jiffy units */
-} nohz ____cacheline_aligned;
-
 #ifdef CONFIG_SCHED_HMP
 static inline int find_new_hmp_ilb(int type)
 {
@@ -10842,20 +10863,22 @@ static inline int find_new_hmp_ilb(int type)
 }
 #endif	/* CONFIG_SCHED_HMP */
 
-static inline int find_new_ilb(int type)
+/*
+*   idle load balancing details
+ *  - When one of the busy CPUs notice that there may be an idle rebalancing
+ *    needed, they will kick the idle load balancer, which then does idle
+ *    load balancing for all the idle CPUs.
+ */
+static inline int find_new_ilb(void)
 {
-	int ilb;
+  int ilb;
 
-#ifdef CONFIG_SCHED_HMP
-	return find_new_hmp_ilb(type);
-#endif
+  ilb = cpumask_first(nohz.idle_cpus_mask);
 
-	ilb = cpumask_first(nohz.idle_cpus_mask);
+  if (ilb < nr_cpu_ids && idle_cpu(ilb))
+    return ilb;
 
-	if (ilb < nr_cpu_ids && idle_cpu(ilb))
-		return ilb;
-
-	return nr_cpu_ids;
+  return nr_cpu_ids;
 }
 
 /*
@@ -10863,13 +10886,13 @@ static inline int find_new_ilb(int type)
  * nohz_load_balancer CPU (if there is one) otherwise fallback to any idle
  * CPU (if there is one).
  */
-static void nohz_balancer_kick(int type)
+static void nohz_balancer_kick(void)
 {
 	int ilb_cpu;
 
 	nohz.next_balance++;
 
-	ilb_cpu = find_new_ilb(type);
+	ilb_cpu = find_new_ilb();
 
 	if (ilb_cpu >= nr_cpu_ids)
 		return;
@@ -11129,11 +11152,7 @@ static void run_rebalance_domains(struct softirq_action *h)
  */
 void trigger_load_balance(struct rq *rq)
 {
-	int type = NOHZ_KICK_ANY;
-
-	/* Don't need to rebalance while attached to NULL domain or
-	 * cpu is isolated.
-	 */
+	/* Don't need to rebalance while attached to NULL domain */
 	if (unlikely(on_null_domain(rq)) || cpu_isolated(cpu_of(rq)))
 		return;
 

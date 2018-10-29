@@ -5890,7 +5890,7 @@ static void sched_update_group_capacities(int cpu)
 {
 	struct sched_domain *sd;
 
-	mutex_lock(&sched_domains_mutex);
+	rt_mutex_lock(&sched_domains_mutex);
 	rcu_read_lock();
 
 	for_each_domain(cpu, sd) {
@@ -5906,7 +5906,7 @@ static void sched_update_group_capacities(int cpu)
 	}
 
 	rcu_read_unlock();
-	mutex_unlock(&sched_domains_mutex);
+	rt_mutex_unlock(&sched_domains_mutex);
 }
 
 static unsigned int cpu_isolation_vote[NR_CPUS];
