@@ -303,8 +303,13 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
+ifeq ($(cc-name),clang)
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = -O3
+else
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -std=gnu89
 HOSTCXXFLAGS = -Ofast
+endif
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -665,10 +670,10 @@ endif
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
-ifdef CONFIG_PROFILE_ALL_BRANCHES
-KBUILD_CFLAGS	+= -Ofast
+ifeq ($(cc-name),clang)
+KBUILD_CFLAGS	+= -O3
 else
-KBUILD_CFLAGS   += -Ofast
+KBUILD_CFLAGS += -Ofast
 endif
 endif
 
@@ -676,7 +681,17 @@ ifdef CONFIG_CC_WERROR
 KBUILD_CFLAGS	+= -Werror
 endif
 
-KBUILD_CFLAGS += -ffast-math -funsafe-math-optimizations -fno-signed-zeros -freciprocal-math -ffp-contract=fast -mcpu=cortex-a73.cortex-a53 -mtune=cortex-a73.cortex-a53 -floop-nest-optimize -fgraphite-identity -ftree-loop-distribution
+KBUILD_CFLAGS += -ffast-math -funsafe-math-optimizations -fno-signed-zeros -freciprocal-math -ffp-contract=fast  
+
+ifeq ($(cc-name),clang)
+KBUILD_CFLAGS += -mtune=cortex-a53 -mcpu=cortex-a53
+else
+KBUILD_CFLAGS += -mtune=cortex-a73.cortex-a53 -mcpu=cortex-a73.cortex-a53 
+endif
+
+ifneq ($(cc-name),clang)
+KBUILD_CFLAGS += -floop-nest-optimize -fgraphite-identity -ftree-loop-distribution
+endif
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
