@@ -308,7 +308,7 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 		 * kthreadd (or new kernel thread) will call complete()
 		 * shortly.
 		 */
-		wait_for_completion_interruptible(&done);
+		wait_for_completion(&done);
 	}
 	task = create->result;
 	if (!IS_ERR(task)) {
@@ -460,7 +460,7 @@ int kthread_park(struct task_struct *k)
 			set_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
 			if (k != current) {
 				wake_up_process(k);
-				wait_for_completion_interruptible(&kthread->parked);
+				wait_for_completion(&kthread->parked);
 			}
 		}
 		ret = 0;
@@ -497,7 +497,7 @@ int kthread_stop(struct task_struct *k)
 		set_bit(KTHREAD_SHOULD_STOP, &kthread->flags);
 		__kthread_unpark(k, kthread);
 		wake_up_process(k);
-		wait_for_completion_interruptible(&kthread->exited);
+		wait_for_completion(&kthread->exited);
 	}
 	ret = k->exit_code;
 	put_task_struct(k);
@@ -709,7 +709,7 @@ retry:
 	spin_unlock_irq(&worker->lock);
 
 	if (!noop)
-		wait_for_completion_interruptible(&fwork.done);
+		wait_for_completion(&fwork.done);
 }
 EXPORT_SYMBOL_GPL(flush_kthread_work);
 
@@ -809,6 +809,6 @@ void flush_kthread_worker(struct kthread_worker *worker)
 	};
 
 	queue_kthread_work(worker, &fwork.work);
-	wait_for_completion_interruptible(&fwork.done);
+	wait_for_completion(&fwork.done);
 }
 EXPORT_SYMBOL_GPL(flush_kthread_worker);
