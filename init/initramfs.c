@@ -527,14 +527,14 @@ extern unsigned long __initramfs_size;
 
 static void __init free_initrd(void)
 {
-#ifdef CONFIG_KEXEC_CORE
+#ifdef CONFIG_KEXEC
 	unsigned long crashk_start = (unsigned long)__va(crashk_res.start);
 	unsigned long crashk_end   = (unsigned long)__va(crashk_res.end);
 #endif
 	if (do_retain_initrd)
 		goto skip;
 
-#ifdef CONFIG_KEXEC_CORE
+#ifdef CONFIG_KEXEC
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,
 	 * free only memory that is not part of crashkernel region.
@@ -621,8 +621,8 @@ static int __init populate_rootfs(void)
 {
 	char *err;
 
-	if (do_skip_initramfs)
-		return default_rootfs();
+	//if (do_skip_initramfs)
+		//return default_rootfs();
 
 	err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
 	if (err)
