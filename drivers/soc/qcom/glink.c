@@ -146,7 +146,7 @@ struct glink_core_xprt_ctx {
 	struct delayed_work pm_qos_work;
 	struct glink_core_edge_ctx *edge_ctx;
 
-	struct rt_mutex xprt_dbgfs_lock_lhb4;
+	struct mutex xprt_dbgfs_lock_lhb4;
 	void *log_ctx;
 };
 
@@ -160,12 +160,12 @@ struct glink_core_xprt_ctx {
 struct glink_core_edge_ctx {
 	struct list_head list_node;
 	char name[GLINK_NAME_SIZE];
-	struct rt_mutex edge_migration_lock_lhd2;
+	struct mutex edge_migration_lock_lhd2;
 	struct rwref_lock edge_ref_lock_lhd1;
 };
 
 static LIST_HEAD(edge_list);
-static DEFINE_RT_MUTEX(edge_list_lock_lhd0);
+static DEFINE_MUTEX(edge_list_lock_lhd0);
 /**
  * Channel Context
  * @xprt_state_lhb0:	controls read/write access to channel state
@@ -335,7 +335,7 @@ static LIST_HEAD(transport_list);
  * existing accesses to transport list are in non-IRQ context, defining the
  * transport_list_lock as a mutex.
  */
-static DEFINE_RT_MUTEX(transport_list_lock_lha0);
+static DEFINE_MUTEX(transport_list_lock_lha0);
 
 struct link_state_notifier_info {
 	struct list_head list;
@@ -346,7 +346,7 @@ struct link_state_notifier_info {
 	void *priv;
 };
 static LIST_HEAD(link_state_notifier_list);
-static DEFINE_RT_MUTEX(link_state_notifier_lock_lha1);
+static DEFINE_MUTEX(link_state_notifier_lock_lha1);
 
 static struct glink_core_xprt_ctx *find_open_transport(const char *edge,
 						       const char *name,
@@ -474,7 +474,7 @@ int glink_ssr(const char *subsystem)
 	uint32_t i;
 	unsigned long flags;
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt_ctx, &transport_list, list_node) {
 		if (!strcmp(subsystem, xprt_ctx->edge) &&
 				xprt_is_fully_opened(xprt_ctx)) {
@@ -494,7 +494,7 @@ int glink_ssr(const char *subsystem)
 			transport_found = true;
 		}
 	}
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 
 	if (!transport_found)
 		ret = -ENODEV;
@@ -1000,7 +1000,7 @@ static void glink_core_migration_edge_lock(struct glink_core_xprt_ctx *xprt_ctx)
 	struct glink_core_edge_ctx *edge_ctx = xprt_ctx->edge_ctx;
 
 	rwref_get(&edge_ctx->edge_ref_lock_lhd1);
-	rt_mutex_lock(&edge_ctx->edge_migration_lock_lhd2);
+	mutex_lock(&edge_ctx->edge_migration_lock_lhd2);
 }
 
 /**
@@ -1013,7 +1013,7 @@ static void glink_core_migration_edge_unlock(
 {
 	struct glink_core_edge_ctx *edge_ctx = xprt_ctx->edge_ctx;
 
-	rt_mutex_unlock(&edge_ctx->edge_migration_lock_lhd2);
+	mutex_unlock(&edge_ctx->edge_migration_lock_lhd2);
 	rwref_put(&edge_ctx->edge_ref_lock_lhd1);
 }
 
@@ -1030,9 +1030,9 @@ static void glink_edge_ctx_release(struct rwref_lock *ch_st_lock)
 					struct glink_core_edge_ctx,
 						edge_ref_lock_lhd1);
 
-	rt_mutex_lock(&edge_list_lock_lhd0);
+	mutex_lock(&edge_list_lock_lhd0);
 	list_del(&ctx->list_node);
-	rt_mutex_unlock(&edge_list_lock_lhd0);
+	mutex_unlock(&edge_list_lock_lhd0);
 	kfree(ctx);
 }
 
@@ -1050,25 +1050,25 @@ static struct glink_core_edge_ctx *edge_name_to_ctx_create(
 {
 	struct glink_core_edge_ctx *edge_ctx;
 
-	rt_mutex_lock(&edge_list_lock_lhd0);
+	mutex_lock(&edge_list_lock_lhd0);
 	list_for_each_entry(edge_ctx, &edge_list, list_node) {
 		if (!strcmp(edge_ctx->name, xprt_ctx->edge)) {
 			rwref_get(&edge_ctx->edge_ref_lock_lhd1);
-			rt_mutex_unlock(&edge_list_lock_lhd0);
+			mutex_unlock(&edge_list_lock_lhd0);
 			return edge_ctx;
 		}
 	}
 	edge_ctx = kzalloc(sizeof(struct glink_core_edge_ctx), GFP_KERNEL);
 	if (!edge_ctx) {
-		rt_mutex_unlock(&edge_list_lock_lhd0);
+		mutex_unlock(&edge_list_lock_lhd0);
 		return NULL;
 	}
 	strlcpy(edge_ctx->name, xprt_ctx->edge, GLINK_NAME_SIZE);
 	rwref_lock_init(&edge_ctx->edge_ref_lock_lhd1, glink_edge_ctx_release);
-	rt_mutex_init(&edge_ctx->edge_migration_lock_lhd2);
+	mutex_init(&edge_ctx->edge_migration_lock_lhd2);
 	INIT_LIST_HEAD(&edge_ctx->list_node);
 	list_add_tail(&edge_ctx->list_node, &edge_list);
-	rt_mutex_unlock(&edge_list_lock_lhd0);
+	mutex_unlock(&edge_list_lock_lhd0);
 	return edge_ctx;
 }
 
@@ -1925,10 +1925,10 @@ check_ctx:
 	spin_unlock_irqrestore(&xprt_ctx->xprt_ctx_lock_lhb1, flags);
 	rwref_write_put(&xprt_ctx->xprt_state_lhb0);
 #ifdef CONFIG_DEBUG_FS
-  rt_mutex_lock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
+  mutex_lock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
 	if (ctx != NULL)
 		glink_debugfs_add_channel(ctx, xprt_ctx);
-	rt_mutex_unlock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
+	mutex_unlock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
 #endif
   return ctx;
 }
@@ -2044,7 +2044,7 @@ static struct glink_core_xprt_ctx *find_open_transport(const char *edge,
 	ret = (struct glink_core_xprt_ctx *)ERR_PTR(-ENODEV);
 	*best_id = USHRT_MAX;
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt, &transport_list, list_node) {
 		if (strcmp(edge, xprt->edge))
 			continue;
@@ -2072,7 +2072,7 @@ static struct glink_core_xprt_ctx *find_open_transport(const char *edge,
 		}
 	}
 
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 
 	if (IS_ERR_OR_NULL(ret))
 		return ret;
@@ -2472,7 +2472,7 @@ static void notif_if_up_all_xprts(
 	struct glink_link_state_cb_info cb_info;
 
 	cb_info.link_state = GLINK_LINK_STATE_UP;
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt_ptr, &transport_list, list_node) {
 		if (strlen(notif_info->edge) &&
 		    strcmp(notif_info->edge, xprt_ptr->edge))
@@ -2490,7 +2490,7 @@ static void notif_if_up_all_xprts(
 		notif_info->glink_link_state_notif_cb(&cb_info,
 						notif_info->priv);
 	}
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 }
 
 /**
@@ -2511,7 +2511,7 @@ static void check_link_notifier_and_notify(struct glink_core_xprt_ctx *xprt_ptr,
 	struct glink_link_state_cb_info cb_info;
 
 	cb_info.link_state = link_state;
-	rt_mutex_lock(&link_state_notifier_lock_lha1);
+	mutex_lock(&link_state_notifier_lock_lha1);
 	list_for_each_entry(notif_info, &link_state_notifier_list, list) {
 		if (strlen(notif_info->edge) &&
 		    strcmp(notif_info->edge, xprt_ptr->edge))
@@ -2526,7 +2526,7 @@ static void check_link_notifier_and_notify(struct glink_core_xprt_ctx *xprt_ptr,
 		notif_info->glink_link_state_notif_cb(&cb_info,
 						notif_info->priv);
 	}
-	rt_mutex_unlock(&link_state_notifier_lock_lha1);
+	mutex_unlock(&link_state_notifier_lock_lha1);
 }
 
 /**
@@ -2742,9 +2742,9 @@ static bool glink_delete_ch_from_list(struct channel_ctx *ctx, bool add_flcid)
 	if (add_flcid)
 		glink_add_free_lcid_list(ctx);
 #ifdef CONFIG_DEBUG_FS
-  rt_mutex_lock(&ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
+  mutex_lock(&ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
 	glink_debugfs_remove_channel(ctx, ctx->transport_ptr);
-	rt_mutex_unlock(&ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
+	mutex_unlock(&ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
 #endif
   rwref_put(&ctx->ch_state_lhb2);
 	return ret;
@@ -3403,9 +3403,9 @@ void *glink_register_link_state_cb(struct glink_link_info *link_info,
 	notif_info->glink_link_state_notif_cb =
 				link_info->glink_link_state_notif_cb;
 
-	rt_mutex_lock(&link_state_notifier_lock_lha1);
+	mutex_lock(&link_state_notifier_lock_lha1);
 	list_add_tail(&notif_info->list, &link_state_notifier_list);
-	rt_mutex_unlock(&link_state_notifier_lock_lha1);
+	mutex_unlock(&link_state_notifier_lock_lha1);
 
 	notif_if_up_all_xprts(notif_info);
 	return notif_info;
@@ -3426,17 +3426,17 @@ void glink_unregister_link_state_cb(void *notif_handle)
 	if (IS_ERR_OR_NULL(notif_handle))
 		return;
 
-	rt_mutex_lock(&link_state_notifier_lock_lha1);
+	mutex_lock(&link_state_notifier_lock_lha1);
 	list_for_each_entry_safe(notif_info, tmp_notif_info,
 				 &link_state_notifier_list, list) {
 		if (notif_info == notif_handle) {
 			list_del(&notif_info->list);
-			rt_mutex_unlock(&link_state_notifier_lock_lha1);
+			mutex_unlock(&link_state_notifier_lock_lha1);
 			kfree(notif_info);
 			return;
 		}
 	}
-	rt_mutex_unlock(&link_state_notifier_lock_lha1);
+	mutex_unlock(&link_state_notifier_lock_lha1);
 	return;
 }
 EXPORT_SYMBOL(glink_unregister_link_state_cb);
@@ -4063,7 +4063,7 @@ int glink_core_register_transport(struct glink_transport_if *if_ptr,
 	INIT_LIST_HEAD(&xprt_ptr->channels);
 	INIT_LIST_HEAD(&xprt_ptr->notified);
 	spin_lock_init(&xprt_ptr->tx_ready_lock_lhb3);
-	rt_mutex_init(&xprt_ptr->xprt_dbgfs_lock_lhb4);
+	mutex_init(&xprt_ptr->xprt_dbgfs_lock_lhb4);
 	init_kthread_work(&xprt_ptr->tx_kwork, tx_func);
 	init_kthread_worker(&xprt_ptr->tx_wq);
 	xprt_ptr->tx_task = kthread_run(kthread_worker_fn,
@@ -4086,9 +4086,9 @@ int glink_core_register_transport(struct glink_transport_if *if_ptr,
 	if_ptr->glink_core_priv = xprt_ptr;
 	if_ptr->glink_core_if_ptr = &core_impl;
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_add_tail(&xprt_ptr->list_node, &transport_list);
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 #ifdef CONFIG_DEBUG_FS
   glink_debugfs_add_xprt(xprt_ptr);
 #endif
@@ -4120,9 +4120,9 @@ void glink_core_unregister_transport(struct glink_transport_if *if_ptr)
 		return;
 	}
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_del(&xprt_ptr->list_node);
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 	flush_delayed_work(&xprt_ptr->pm_qos_work);
 	pm_qos_remove_request(&xprt_ptr->pm_qos_req);
 	ipc_log_context_destroy(xprt_ptr->log_ctx);
@@ -4240,7 +4240,7 @@ static struct glink_core_xprt_ctx *glink_create_dummy_xprt_ctx(
 	xprt_ptr->dummy_in_use = true;
 	INIT_LIST_HEAD(&xprt_ptr->notified);
 	spin_lock_init(&xprt_ptr->tx_ready_lock_lhb3);
-	rt_mutex_init(&xprt_ptr->xprt_dbgfs_lock_lhb4);
+	mutex_init(&xprt_ptr->xprt_dbgfs_lock_lhb4);
 	return xprt_ptr;
 }
 
@@ -4563,7 +4563,7 @@ static struct channel_ctx *find_l_ctx_get(struct channel_ctx *r_ctx)
 	unsigned long flags;
 	struct channel_ctx *l_ctx = NULL;
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt, &transport_list, list_node)
 		if (!strcmp(r_ctx->transport_ptr->edge, xprt->edge)) {
 			rwref_write_get(&xprt->xprt_state_lhb0);
@@ -4584,7 +4584,7 @@ static struct channel_ctx *find_l_ctx_get(struct channel_ctx *r_ctx)
 									flags);
 			rwref_write_put(&xprt->xprt_state_lhb0);
 		}
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 
 	return l_ctx;
 }
@@ -4605,7 +4605,7 @@ static struct channel_ctx *find_r_ctx_get(struct channel_ctx *l_ctx)
 	unsigned long flags;
 	struct channel_ctx *r_ctx = NULL;
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt, &transport_list, list_node)
 		if (!strcmp(l_ctx->transport_ptr->edge, xprt->edge)) {
 			rwref_write_get(&xprt->xprt_state_lhb0);
@@ -4626,7 +4626,7 @@ static struct channel_ctx *find_r_ctx_get(struct channel_ctx *l_ctx)
 									flags);
 			rwref_write_put(&xprt->xprt_state_lhb0);
 		}
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 
 	return r_ctx;
 }
@@ -4748,21 +4748,21 @@ static bool ch_migrate(struct channel_ctx *l_ctx, struct channel_ctx *r_ctx)
 	if (!ctx_clone)
 		goto exit;
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt, &transport_list, list_node)
 		if (!strcmp(l_ctx->transport_ptr->edge, xprt->edge))
 			if (xprt->id == new_xprt)
 				break;
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 
 	spin_lock_irqsave(&l_ctx->transport_ptr->xprt_ctx_lock_lhb1, flags);
 	list_del_init(&l_ctx->port_list_node);
 	spin_unlock_irqrestore(&l_ctx->transport_ptr->xprt_ctx_lock_lhb1,
 									flags);
 #ifdef CONFIG_DEBUG_FS
-  rt_mutex_lock(&l_ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
+  mutex_lock(&l_ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
 	glink_debugfs_remove_channel(l_ctx, l_ctx->transport_ptr);
-	rt_mutex_unlock(&l_ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
+	mutex_unlock(&l_ctx->transport_ptr->xprt_dbgfs_lock_lhb4);
 #endif
 
 	memcpy(ctx_clone, l_ctx, sizeof(*ctx_clone));
@@ -4838,17 +4838,17 @@ static bool ch_migrate(struct channel_ctx *l_ctx, struct channel_ctx *r_ctx)
 	}
 
 #ifdef CONFIG_DEBUG_FS
-	rt_mutex_lock(&xprt->xprt_dbgfs_lock_lhb4);
+	mutex_lock(&xprt->xprt_dbgfs_lock_lhb4);
 	glink_debugfs_add_channel(l_ctx, xprt);
-	rt_mutex_unlock(&xprt->xprt_dbgfs_lock_lhb4);
+	mutex_unlock(&xprt->xprt_dbgfs_lock_lhb4);
 #endif
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	list_for_each_entry(xprt, &transport_list, list_node)
 		if (!strcmp(l_ctx->transport_ptr->edge, xprt->edge))
 			if (xprt->id < best_xprt)
 				best_xprt = xprt->id;
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 	l_ctx->local_open_state = GLINK_CHANNEL_OPENING;
 	l_ctx->local_xprt_req = best_xprt;
 	l_ctx->transport_ptr->ops->tx_cmd_ch_open(l_ctx->transport_ptr->ops,
@@ -5855,7 +5855,7 @@ void glink_xprt_ctx_iterator_init(struct xprt_ctx_iterator *xprt_i)
 	if (xprt_i == NULL)
 		return;
 
-	rt_mutex_lock(&transport_list_lock_lha0);
+	mutex_lock(&transport_list_lock_lha0);
 	xprt_i->xprt_list = &transport_list;
 	xprt_i->i_curr = list_entry(&transport_list,
 			struct glink_core_xprt_ctx, list_node);
@@ -5873,7 +5873,7 @@ void glink_xprt_ctx_iterator_end(struct xprt_ctx_iterator *xprt_i)
 
 	xprt_i->xprt_list = NULL;
 	xprt_i->i_curr = NULL;
-	rt_mutex_unlock(&transport_list_lock_lha0);
+	mutex_unlock(&transport_list_lock_lha0);
 }
 EXPORT_SYMBOL(glink_xprt_ctx_iterator_end);
 

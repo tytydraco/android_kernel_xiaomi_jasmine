@@ -19,7 +19,6 @@
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <linux/rtmutex.h>
 #include <linux/spinlock.h>
 
 struct kref {
@@ -141,23 +140,6 @@ static inline int kref_put_mutex(struct kref *kref,
 		mutex_lock(lock);
 		if (unlikely(!atomic_dec_and_test(&kref->refcount))) {
 			mutex_unlock(lock);
-			return 0;
-		}
-		release(kref);
-		return 1;
-	}
-	return 0;
-}
-
-static inline int kref_put_rt_mutex(struct kref *kref,
-				 void (*release)(struct kref *kref),
-				 struct rt_mutex *lock)
-{
-	WARN_ON(release == NULL);
-	if (unlikely(!atomic_add_unless(&kref->refcount, -1, 1))) {
-		rt_mutex_lock(lock);
-		if (unlikely(!atomic_dec_and_test(&kref->refcount))) {
-			rt_mutex_unlock(lock);
 			return 0;
 		}
 		release(kref);

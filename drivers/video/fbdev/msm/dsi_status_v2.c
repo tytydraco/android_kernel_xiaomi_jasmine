@@ -73,10 +73,10 @@ void mdp3_check_dsi_ctrl_status(struct work_struct *work,
 		return;
 	}
 
-	rt_mutex_lock(&mdp3_session->lock);
+	mutex_lock(&mdp3_session->lock);
 	if (!mdp3_session->status) {
 		pr_debug("%s: display off already\n", __func__);
-		rt_mutex_unlock(&mdp3_session->lock);
+		mutex_unlock(&mdp3_session->lock);
 		return;
 	}
 
@@ -87,7 +87,7 @@ void mdp3_check_dsi_ctrl_status(struct work_struct *work,
 		ret = ctrl_pdata->check_status(ctrl_pdata);
 	else
 		pr_err("%s: wait_for_dma_done error\n", __func__);
-	rt_mutex_unlock(&mdp3_session->lock);
+	mutex_unlock(&mdp3_session->lock);
 
 	if (mdss_fb_is_power_on_interactive(pdsi_status->mfd)) {
 		if (ret > 0) {

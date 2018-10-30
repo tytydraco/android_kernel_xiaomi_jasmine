@@ -43,7 +43,7 @@ struct mdss_smmu_private {
 	struct device_node *pdev;
 	struct list_head smmu_device_list;
 	struct list_head user_list;
-	struct rt_mutex smmu_reg_lock;
+	struct mutex smmu_reg_lock;
 };
 
 void mdss_smmu_register(struct device *dev);

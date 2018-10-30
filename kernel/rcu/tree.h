@@ -248,7 +248,7 @@ struct rcu_node {
 				/* Counts of upcoming no-CB GP requests. */
 	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
 
-	struct rt_mutex exp_funnel_mutex ____cacheline_internodealigned_in_smp;
+	struct mutex exp_funnel_mutex ____cacheline_internodealigned_in_smp;
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -383,7 +383,7 @@ struct rcu_data {
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
-	struct rt_mutex exp_funnel_mutex;
+	struct mutex exp_funnel_mutex;
 
 	/* 7) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
@@ -490,7 +490,7 @@ struct rcu_state {
 	long qlen;				/* Total number of callbacks. */
 	/* End of fields guarded by orphan_lock. */
 
-	struct rt_mutex barrier_mutex;		/* Guards barrier fields. */
+	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	struct completion barrier_completion;	/* Wake at barrier end. */
 	unsigned long barrier_sequence;		/* ++ at start and end of */

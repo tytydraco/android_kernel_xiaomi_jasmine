@@ -261,7 +261,7 @@ struct mdss_scaler_block {
 	 * LUT values come asynchronously from userspace
 	 * via ioctl.
 	 */
-	struct rt_mutex scaler_lock;
+	struct mutex scaler_lock;
 };
 
 struct mdss_data_type;
@@ -320,7 +320,7 @@ struct mdss_data_type {
 
 	struct mdss_smmu_client mdss_smmu[MDSS_IOMMU_MAX_DOMAIN];
 	struct mdss_smmu_ops smmu_ops;
-	struct rt_mutex reg_lock;
+	struct mutex reg_lock;
 
 	/* bitmap to track pipes that have BWC enabled */
 	DECLARE_BITMAP(bwc_enable_map, MAX_DRV_SUP_PIPES);
@@ -397,13 +397,13 @@ struct mdss_data_type {
 	/* data bus (AXI) */
 	u32 bus_hdl;
 	u32 bus_ref_cnt;
-	struct rt_mutex bus_lock;
+	struct mutex bus_lock;
 
 	/* register bus (AHB) */
 	u32 reg_bus_hdl;
 	u32 reg_bus_usecase_ndx;
 	struct list_head reg_bus_clist;
-	struct rt_mutex reg_bus_lock;
+	struct mutex reg_bus_lock;
 	struct reg_bus_client *reg_bus_clt;
 	struct reg_bus_client *pp_reg_bus_clt;
 
@@ -473,7 +473,7 @@ struct mdss_data_type {
 	u32 nwb;
 	u32 *wb_offsets;
 	u32 nwb_offsets;
-	struct rt_mutex wb_lock;
+	struct mutex wb_lock;
 
 	struct mdss_mdp_ctl *ctl_off;
 	u32 nctl;
@@ -527,7 +527,7 @@ struct mdss_data_type {
 
 	struct mdss_mdp_cdm *cdm_off;
 	u32 ncdm;
-	struct rt_mutex cdm_lock;
+	struct mutex cdm_lock;
 
 	struct mdss_mdp_dsc *dsc_off;
 	u32 ndsc;

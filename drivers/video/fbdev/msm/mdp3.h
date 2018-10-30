@@ -144,7 +144,7 @@ struct mdp3_hw_resource {
 	struct platform_device *pdev;
 	u32 mdp_rev;
 
-	struct rt_mutex res_mutex;
+	struct mutex res_mutex;
 
 	struct clk *clocks[MDP3_MAX_CLK];
 	int clock_ref_count[MDP3_MAX_CLK];
@@ -167,7 +167,7 @@ struct mdp3_hw_resource {
 	unsigned int iommu_ref_cnt;
 	bool allow_iommu_update;
 	struct ion_handle *ion_handle;
-	struct rt_mutex iommu_lock;
+	struct mutex iommu_lock;
 
 	struct mdp3_dma dma[MDP3_DMA_MAX];
 	struct mdp3_intf intf[MDP3_DMA_OUTPUT_SEL_MAX];
@@ -201,7 +201,7 @@ struct mdp3_hw_resource {
 	u8 smart_blit_en;
 	bool solid_fill_vote_en;
 	struct list_head reg_bus_clist;
-	struct rt_mutex reg_bus_lock;
+	struct mutex reg_bus_lock;
 };
 
 struct mdp3_img_data {

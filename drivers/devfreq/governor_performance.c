@@ -34,7 +34,7 @@ static int devfreq_performance_handler(struct devfreq *devfreq,
 	int ret = 0;
 	unsigned long freq;
 
-	rt_mutex_lock(&devfreq->lock);
+	mutex_lock(&devfreq->lock);
 	freq = devfreq->previous_freq;
 	switch (event) {
 	case DEVFREQ_GOV_START:
@@ -51,7 +51,7 @@ static int devfreq_performance_handler(struct devfreq *devfreq,
 				DEVFREQ_FLAG_WAKEUP_MAXFREQ);
 		break;
 	}
-	rt_mutex_unlock(&devfreq->lock);
+	mutex_unlock(&devfreq->lock);
 	return ret;
 }
 

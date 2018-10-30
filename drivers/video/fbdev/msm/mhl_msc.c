@@ -20,7 +20,7 @@
 #include "mdss_hdmi_mhl.h"
 
 static struct mhl_tx_ctrl *mhl_ctrl;
-static DEFINE_RT_MUTEX(msc_send_workqueue_mutex);
+static DEFINE_MUTEX(msc_send_workqueue_mutex);
 
 const char *devcap_reg_name[] = {
 	"DEV_STATE       ",
@@ -130,24 +130,24 @@ void mhl_msc_send_work(struct work_struct *work)
 	 * Remove item from the queue
 	 * and schedule it
 	 */
-	rt_mutex_lock(&msc_send_workqueue_mutex);
+	mutex_lock(&msc_send_workqueue_mutex);
 	while (!list_empty(&mhl_ctrl->list_cmd)) {
 		cmd_env = list_first_entry(&mhl_ctrl->list_cmd,
 					   struct msc_cmd_envelope,
 					   msc_queue_envelope);
 		list_del(&cmd_env->msc_queue_envelope);
-		rt_mutex_unlock(&msc_send_workqueue_mutex);
+		mutex_unlock(&msc_send_workqueue_mutex);
 
 		postpone_send = mhl_flag_scrpd_burst_req(
 			mhl_ctrl,
 			&cmd_env->msc_cmd_msg);
 		if (postpone_send) {
 			if (cmd_env->msc_cmd_msg.retry-- > 0) {
-				rt_mutex_lock(&msc_send_workqueue_mutex);
+				mutex_lock(&msc_send_workqueue_mutex);
 				list_add_tail(
 					&cmd_env->msc_queue_envelope,
 					&mhl_ctrl->list_cmd);
-				rt_mutex_unlock(&msc_send_workqueue_mutex);
+				mutex_unlock(&msc_send_workqueue_mutex);
 			} else {
 				pr_err("%s: max scrpd retry out\n",
 				       __func__);
@@ -171,9 +171,9 @@ void mhl_msc_send_work(struct work_struct *work)
 			vfree(cmd_env);
 		}
 
-		rt_mutex_lock(&msc_send_workqueue_mutex);
+		mutex_lock(&msc_send_workqueue_mutex);
 	}
-	rt_mutex_unlock(&msc_send_workqueue_mutex);
+	mutex_unlock(&msc_send_workqueue_mutex);
 }
 
 int mhl_queue_msc_command(struct mhl_tx_ctrl *mhl_ctrl,
@@ -182,11 +182,11 @@ int mhl_queue_msc_command(struct mhl_tx_ctrl *mhl_ctrl,
 {
 	struct msc_cmd_envelope *cmd_env;
 
-	rt_mutex_lock(&msc_send_workqueue_mutex);
+	mutex_lock(&msc_send_workqueue_mutex);
 	cmd_env = vmalloc(sizeof(struct msc_cmd_envelope));
 	if (!cmd_env) {
 		pr_err("%s: out of memory!\n", __func__);
-		rt_mutex_unlock(&msc_send_workqueue_mutex);
+		mutex_unlock(&msc_send_workqueue_mutex);
 		return -ENOMEM;
 	}
 
@@ -199,7 +199,7 @@ int mhl_queue_msc_command(struct mhl_tx_ctrl *mhl_ctrl,
 	else
 		list_add_tail(&cmd_env->msc_queue_envelope,
 			      &mhl_ctrl->list_cmd);
-	rt_mutex_unlock(&msc_send_workqueue_mutex);
+	mutex_unlock(&msc_send_workqueue_mutex);
 	queue_work(mhl_ctrl->msc_send_workqueue, &mhl_ctrl->mhl_msc_send_work);
 
 	return 0;

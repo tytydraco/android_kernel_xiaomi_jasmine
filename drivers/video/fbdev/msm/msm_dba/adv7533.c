@@ -137,7 +137,7 @@ struct adv7533 {
 	struct msm_dba_device_info dev_info;
 	struct adv7533_cec_msg cec_msg[ADV7533_CEC_BUF_MAX];
 	struct i2c_client *i2c_client;
-	struct rt_mutex ops_mutex;
+	struct mutex ops_mutex;
 };
 
 static char mdss_mdp_panel[MDSS_MAX_PANEL_LEN];
@@ -1299,14 +1299,14 @@ static void adv7533_set_audio_block(void *client, u32 size, void *buf)
 		return;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	size = min_t(u32, size, AUDIO_DATA_SIZE);
 
 	memset(pdata->audio_spkr_data, 0, AUDIO_DATA_SIZE);
 	memcpy(pdata->audio_spkr_data, buf, size);
 
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 }
 
 static void adv7533_get_audio_block(void *client, u32 size, void *buf)
@@ -1319,13 +1319,13 @@ static void adv7533_get_audio_block(void *client, u32 size, void *buf)
 		return;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	size = min_t(u32, size, AUDIO_DATA_SIZE);
 
 	memcpy(buf, pdata->audio_spkr_data, size);
 
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 }
 
 static int adv7533_check_hpd(void *client, u32 flags)
@@ -1345,7 +1345,7 @@ static int adv7533_check_hpd(void *client, u32 flags)
 	 * if cable is already connected by this time
 	 * it won't trigger HPD interrupt.
 	 */
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 	adv7533_read(pdata, I2C_ADDR_MAIN, 0x42, &reg_val, 1);
 
 	connected  = (reg_val & BIT(6));
@@ -1359,7 +1359,7 @@ static int adv7533_check_hpd(void *client, u32 flags)
 
 		adv7533_edid_read_init(pdata);
 	}
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 
 	return connected;
 }
@@ -1376,7 +1376,7 @@ static int adv7533_power_on(void *client, bool on, u32 flags)
 	}
 
 	pr_debug("%s: %d\n", __func__, on);
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	if (on && !pdata->is_power_on) {
 		adv7533_write_array(pdata, adv7533_init_setup,
@@ -1398,7 +1398,7 @@ static int adv7533_power_on(void *client, bool on, u32 flags)
 			MSM_DBA_CB_HPD_DISCONNECT);
 	}
 end:
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return ret;
 }
 
@@ -1561,7 +1561,7 @@ static int adv7533_video_on(void *client, bool on,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	/* DSI lane configuration */
 	lanes = (cfg->num_of_input_lanes << 4);
@@ -1599,7 +1599,7 @@ static int adv7533_video_on(void *client, bool on,
 	adv7533_write_array(pdata, adv7533_video_en,
 				sizeof(adv7533_video_en));
 
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return ret;
 }
 
@@ -1616,7 +1616,7 @@ static int adv7533_hdcp_enable(void *client, bool hdcp_on,
 		return ret;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	adv7533_read(pdata, I2C_ADDR_MAIN, 0xAF, &reg_val, 1);
 
@@ -1639,7 +1639,7 @@ static int adv7533_hdcp_enable(void *client, bool hdcp_on,
 	else
 		adv7533_disable_interrupts(pdata, CFG_HDCP_INTERRUPTS);
 
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return ret;
 }
 
@@ -1673,7 +1673,7 @@ static int adv7533_configure_audio(void *client,
 		return ret;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	if (cfg->copyright == MSM_DBA_AUDIO_COPYRIGHT_NOT_PROTECTED)
 		reg_cfg[0].val |= BIT(5);
@@ -1756,7 +1756,7 @@ static int adv7533_configure_audio(void *client,
 
 	adv7533_write_array(pdata, reg_cfg, sizeof(reg_cfg));
 
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return ret;
 }
 
@@ -1772,7 +1772,7 @@ static int adv7533_hdmi_cec_write(void *client, u32 size,
 		return ret;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	ret = adv7533_cec_prepare_msg(pdata, buf, size);
 	if (ret)
@@ -1781,7 +1781,7 @@ static int adv7533_hdmi_cec_write(void *client, u32 size,
 	/* Enable CEC msg tx with NACK 3 retries */
 	adv7533_write(pdata, I2C_ADDR_CEC_DSI, 0x81, 0x07);
 end:
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return ret;
 }
 
@@ -1797,7 +1797,7 @@ static int adv7533_hdmi_cec_read(void *client, u32 *size, char *buf, u32 flags)
 		return ret;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	for (i = 0; i < ADV7533_CEC_BUF_MAX; i++) {
 		struct adv7533_cec_msg *msg = &pdata->cec_msg[i];
@@ -1817,7 +1817,7 @@ static int adv7533_hdmi_cec_read(void *client, u32 *size, char *buf, u32 flags)
 		*size = 0;
 	}
 
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return ret;
 }
 
@@ -1832,7 +1832,7 @@ static int adv7533_get_edid_size(void *client, u32 *size, u32 flags)
 		return ret;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	if (!size) {
 		ret = -EINVAL;
@@ -1841,7 +1841,7 @@ static int adv7533_get_edid_size(void *client, u32 *size, u32 flags)
 
 	*size = EDID_SEG_SIZE;
 end:
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return ret;
 }
 
@@ -1856,13 +1856,13 @@ static int adv7533_get_raw_edid(void *client,
 		goto end;
 	}
 
-	rt_mutex_lock(&pdata->ops_mutex);
+	mutex_lock(&pdata->ops_mutex);
 
 	size = min_t(u32, size, sizeof(pdata->edid_buf));
 
 	memcpy(buf, pdata->edid_buf, size);
 end:
-	rt_mutex_unlock(&pdata->ops_mutex);
+	mutex_unlock(&pdata->ops_mutex);
 	return 0;
 }
 
@@ -1943,7 +1943,7 @@ static int adv7533_register_dba(struct adv7533 *pdata)
 	strlcpy(pdata->dev_info.chip_name, "adv7533",
 		sizeof(pdata->dev_info.chip_name));
 
-	rt_mutex_init(&pdata->dev_info.dev_mutex);
+	mutex_init(&pdata->dev_info.dev_mutex);
 
 	INIT_LIST_HEAD(&pdata->dev_info.client_list);
 
@@ -1990,7 +1990,7 @@ static int adv7533_probe(struct i2c_client *client,
 	}
 	adv7533_enable_vreg(pdata, 1);
 
-	rt_mutex_init(&pdata->ops_mutex);
+	mutex_init(&pdata->ops_mutex);
 
 	ret = adv7533_read_device_rev(pdata);
 	if (ret) {
@@ -2107,7 +2107,7 @@ static int adv7533_remove(struct i2c_client *client)
 	adv7533_config_vreg(pdata, 0);
 	ret = adv7533_gpio_configure(pdata, false);
 
-	rt_mutex_destroy(&pdata->ops_mutex);
+	mutex_destroy(&pdata->ops_mutex);
 
 	devm_kfree(&client->dev, pdata);
 

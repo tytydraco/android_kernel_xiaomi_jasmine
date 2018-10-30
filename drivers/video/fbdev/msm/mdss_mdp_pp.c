@@ -527,7 +527,7 @@ static u32 igc_limited[IGC_LUT_ENTRIES] = {
 static struct mdp_pp_driver_ops pp_driver_ops;
 static struct mdp_pp_feature_ops *pp_ops;
 
-static DEFINE_RT_MUTEX(mdss_pp_mutex);
+static DEFINE_MUTEX(mdss_pp_mutex);
 static struct mdss_pp_res_type *mdss_pp_res;
 
 static u32 pp_hist_read(char __iomem *v_addr,
@@ -1612,11 +1612,11 @@ int mdss_mdp_scaler_lut_cfg(struct mdp_scale_data_v2 *scaler,
 
 	mdata = mdss_mdp_get_mdata();
 
-	rt_mutex_lock(&mdata->scaler_off->scaler_lock);
+	mutex_lock(&mdata->scaler_off->scaler_lock);
 
 	lut_tbl = &mdata->scaler_off->lut_tbl;
 	if ((!lut_tbl) || (!lut_tbl->valid)) {
-		rt_mutex_unlock(&mdata->scaler_off->scaler_lock);
+		mutex_unlock(&mdata->scaler_off->scaler_lock);
 		pr_err("%s:Invalid QSEED3 LUT TABLE\n", __func__);
 		return -EINVAL;
 	}
@@ -1668,7 +1668,7 @@ int mdss_mdp_scaler_lut_cfg(struct mdp_scale_data_v2 *scaler,
 		}
 	}
 
-	rt_mutex_unlock(&mdata->scaler_off->scaler_lock);
+	mutex_unlock(&mdata->scaler_off->scaler_lock);
 
 	return 0;
 }
@@ -2197,7 +2197,7 @@ static int pp_hist_setup(u32 *op, u32 block, struct mdss_mdp_mixer *mix,
 		goto error;
 	}
 
-	rt_mutex_lock(&hist_info->hist_mutex);
+	mutex_lock(&hist_info->hist_mutex);
 	spin_lock_irqsave(&hist_info->hist_lock, flag);
 	/*
 	 * Set histogram interrupt if histogram collection is enabled. The
@@ -2233,7 +2233,7 @@ static int pp_hist_setup(u32 *op, u32 block, struct mdss_mdp_mixer *mix,
 	}
 
 	spin_unlock_irqrestore(&hist_info->hist_lock, flag);
-	rt_mutex_unlock(&hist_info->hist_mutex);
+	mutex_unlock(&hist_info->hist_mutex);
 error:
 	return ret;
 }
@@ -2567,7 +2567,7 @@ static int pp_dspp_setup(u32 disp_num, struct mdss_mdp_mixer *mixer,
 					&opmode);
 
 	if (ad_hw && (pp_program_mask & PP_PROGRAM_AD)) {
-		rt_mutex_lock(&ad->lock);
+		mutex_lock(&ad->lock);
 		ad_flags = ad->reg_sts;
 		if (ad_flags & PP_AD_STS_DIRTY_DATA)
 			pp_ad_input_write(ad_hw, ad);
@@ -2587,7 +2587,7 @@ static int pp_dspp_setup(u32 disp_num, struct mdss_mdp_mixer *mixer,
 
 		pp_ad_bypass_config(ad, ctl, ad_hw->num, &ad_bypass);
 		writel_relaxed(ad_bypass, ad_hw->base);
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 	}
 
 	writel_relaxed(opmode, base + MDSS_MDP_REG_DSPP_OP_MODE);
@@ -2677,11 +2677,11 @@ int mdss_mdp_dest_scaler_setup_locked(struct mdss_mdp_mixer *mixer)
 		}
 		/* Set LM Flush in order to update DS registers */
 		if (ds->flags & DS_SCALE_UPDATE) {
-			rt_mutex_lock(&ctl->flush_lock);
+			mutex_lock(&ctl->flush_lock);
 			mixer_num = mdss_mdp_mixer_get_hw_num(mixer);
 			ctl->flush_bits |=
 					BIT(mixer_num < 5 ? 6 + mixer_num : 20);
-			rt_mutex_unlock(&ctl->flush_lock);
+			mutex_unlock(&ctl->flush_lock);
 		}
 		/*
 		 * Clearing the flag because we don't need to program the block
@@ -2695,9 +2695,9 @@ int mdss_mdp_dest_scaler_setup_locked(struct mdss_mdp_mixer *mixer)
 	if (ds->flags & (DS_ENABLE | DS_VALIDATE)) {
 		pr_debug("FLUSH[%d]: flags:%X, op_mode:%x\n",
 				ds->num, ds->flags, op_mode);
-		rt_mutex_lock(&ctl->flush_lock);
+		mutex_lock(&ctl->flush_lock);
 		ctl->flush_bits |= BIT(13 + ds->num);
-		rt_mutex_unlock(&ctl->flush_lock);
+		mutex_unlock(&ctl->flush_lock);
 	}
 
 	ds->flags &= ~DS_VALIDATE;
@@ -2736,14 +2736,14 @@ int mdss_mdp_pp_setup(struct mdss_mdp_ctl *ctl)
 
 	/* TODO: have some sort of reader/writer lock to prevent unclocked
 	 * access while display power is toggled */
-	rt_mutex_lock(&ctl->lock);
+	mutex_lock(&ctl->lock);
 	if (!mdss_mdp_ctl_is_power_on(ctl)) {
 		ret = -EPERM;
 		goto error;
 	}
 	ret = mdss_mdp_pp_setup_locked(ctl, &pp_program_info);
 error:
-	rt_mutex_unlock(&ctl->lock);
+	mutex_unlock(&ctl->lock);
 
 	return ret;
 }
@@ -2803,7 +2803,7 @@ int mdss_mdp_pp_setup_locked(struct mdss_mdp_ctl *ctl,
 			pr_warn("ad_setup(disp%d) returns %d\n", disp_num, ret);
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 
 	if (disp_num < MDSS_BLOCK_DISP_NUM)
 		flags = mdss_pp_res->pp_disp_flags[disp_num];
@@ -2891,7 +2891,7 @@ int mdss_mdp_pp_setup_locked(struct mdss_mdp_ctl *ctl,
 			mdss_pp_res->pp_disp_flags[disp_num] &=
 				~PP_FLAGS_RESUME_COMMIT;
 	}
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 exit:
 	return ret;
 }
@@ -3010,7 +3010,7 @@ int mdss_mdp_pp_resume(struct msm_fb_data_type *mfd)
 		return ret;
 	}
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	if (mfd->ipc_resume) {
 		mfd->ipc_resume = false;
 		if (PP_AD_STATE_RUN & ad->state) {
@@ -3032,7 +3032,7 @@ int mdss_mdp_pp_resume(struct msm_fb_data_type *mfd)
 
 	if (PP_AD_STATE_RUN & ad->state)
 		ad->state &= ~PP_AD_STATE_VSYNC;
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 
 	return 0;
 }
@@ -3169,7 +3169,7 @@ int mdss_mdp_pp_init(struct device *dev)
 	if (IS_ERR(mdata->pp_reg_bus_clt))
 		pr_err("bus client register failed\n");
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	if (!mdss_pp_res) {
 		mdss_pp_res = devm_kzalloc(dev, sizeof(*mdss_pp_res),
 				GFP_KERNEL);
@@ -3197,7 +3197,7 @@ int mdss_mdp_pp_init(struct device *dev)
 				goto pp_exit;
 			}
 			for (i = 0; i < mdata->ndspp; i++) {
-				rt_mutex_init(&hist[i].hist_mutex);
+				mutex_init(&hist[i].hist_mutex);
 				spin_lock_init(&hist[i].hist_lock);
 				hist[i].intr_shift = (i * 4) + 12;
 				if (pp_driver_ops.get_hist_offset) {
@@ -3228,7 +3228,7 @@ int mdss_mdp_pp_init(struct device *dev)
 	if (mdata && mdata->vig_pipes) {
 		vig = mdata->vig_pipes;
 		for (i = 0; i < mdata->nvig_pipes; i++) {
-			rt_mutex_init(&vig[i].pp_res.hist.hist_mutex);
+			mutex_init(&vig[i].pp_res.hist.hist_mutex);
 			spin_lock_init(&vig[i].pp_res.hist.hist_lock);
 			vig[i].pp_res.hist.intr_shift = (vig[i].num * 4);
 			if (i == 3)
@@ -3249,13 +3249,13 @@ int mdss_mdp_pp_init(struct device *dev)
 			}
 		}
 	}
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 hist_exit:
 	devm_kfree(dev, hist);
 pp_exit:
 	devm_kfree(dev, mdss_pp_res);
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 
@@ -3264,11 +3264,11 @@ void mdss_mdp_pp_term(struct device *dev)
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 
 	if (mdss_pp_res) {
-		rt_mutex_lock(&mdss_pp_mutex);
+		mutex_lock(&mdss_pp_mutex);
 		devm_kfree(dev, mdss_pp_res->dspp_hist);
 		devm_kfree(dev, mdss_pp_res);
 		mdss_pp_res = NULL;
-		rt_mutex_unlock(&mdss_pp_mutex);
+		mutex_unlock(&mdss_pp_mutex);
 	}
 
 	mdss_reg_bus_vote_client_destroy(mdata->pp_reg_bus_clt);
@@ -3359,12 +3359,12 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 	/* Don't update BL = 0 to AD */
 	if (bl_in == 0)
 		return 0;
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	if (!mfd->ad_bl_level)
 		mfd->ad_bl_level = bl_in;
 	if (!(ad->sts & PP_STS_ENABLE)) {
 		pr_debug("AD is not enabled.\n");
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		return -EPERM;
 	}
 
@@ -3374,7 +3374,7 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 			ad->bl_mfd,
 			(!ad->bl_mfd) ? NULL : ad->bl_mfd->panel_info,
 			ad->bl_att_lut);
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		return -EINVAL;
 	}
 
@@ -3382,7 +3382,7 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 		MDP_PP_AD_BL_LINEAR);
 	if (ret) {
 		pr_err("Failed to linearize BL: %d\n", ret);
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		return ret;
 	}
 
@@ -3390,7 +3390,7 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 		ret = pp_ad_attenuate_bl(ad, temp, &temp);
 		if (ret) {
 			pr_err("Failed to attenuate BL: %d\n", ret);
-			rt_mutex_unlock(&ad->lock);
+			mutex_unlock(&ad->lock);
 			return ret;
 		}
 		ad_bl_out = temp;
@@ -3399,7 +3399,7 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 						MDP_PP_AD_BL_LINEAR_INV);
 		if (ret) {
 			pr_err("Failed to inverse linearize BL: %d\n", ret);
-			rt_mutex_unlock(&ad->lock);
+			mutex_unlock(&ad->lock);
 			return ret;
 		}
 		*bl_out = temp;
@@ -3418,7 +3418,7 @@ static int pp_ad_calc_bl(struct msm_fb_data_type *mfd, int bl_in, int *bl_out,
 		pp_ad_invalidate_input(mfd);
 	}
 
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 	return 0;
 }
 
@@ -3464,7 +3464,7 @@ int mdss_mdp_pa_config(struct msm_fb_data_type *mfd,
 		return ret;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = config->block - MDP_LOGICAL_BLOCK_DISP_0;
 
 	if (config->pa_data.flags & MDP_PP_OPS_READ) {
@@ -3492,7 +3492,7 @@ int mdss_mdp_pa_config(struct msm_fb_data_type *mfd,
 	}
 
 pa_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 
@@ -3529,7 +3529,7 @@ int mdss_mdp_pa_v2_config(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = config->block - MDP_LOGICAL_BLOCK_DISP_0;
 
 	if (flags & MDP_PP_OPS_READ) {
@@ -3594,7 +3594,7 @@ pa_clk_off:
 	}
 
 pa_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 
@@ -3855,7 +3855,7 @@ int mdss_mdp_pcc_config(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = config->block - MDP_LOGICAL_BLOCK_DISP_0;
 
 	if (config->ops & MDP_PP_OPS_READ) {
@@ -3916,7 +3916,7 @@ pcc_set_dirty:
 	}
 
 pcc_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 
@@ -4074,7 +4074,7 @@ int mdss_mdp_igc_lut_config(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = config->block - MDP_LOGICAL_BLOCK_DISP_0;
 
 	if (config->ops & MDP_PP_OPS_READ) {
@@ -4181,7 +4181,7 @@ igc_set_dirty:
 	}
 
 igc_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 static void pp_update_gc_one_lut(char __iomem *addr,
@@ -4406,7 +4406,7 @@ int mdss_mdp_argc_config(struct msm_fb_data_type *mfd,
 		break;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 
 	tbl_size = GC_LUT_SEGMENTS * sizeof(struct mdp_ar_gc_lut_data);
 	if (config->flags & MDP_PP_OPS_READ) {
@@ -4526,7 +4526,7 @@ clock_off:
 		mdss_pp_res->pp_disp_flags[disp_num] |= dirty_flag;
 	}
 argc_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 int mdss_mdp_hist_lut_config(struct msm_fb_data_type *mfd,
@@ -4546,7 +4546,7 @@ int mdss_mdp_hist_lut_config(struct msm_fb_data_type *mfd,
 		return ret;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = PP_BLOCK(config->block) - MDP_LOGICAL_BLOCK_DISP_0;
 
 	if (config->ops & MDP_PP_OPS_READ) {
@@ -4613,7 +4613,7 @@ enhist_set_dirty:
 		mdss_pp_res->pp_disp_flags[disp_num] |= PP_FLAGS_DIRTY_ENHIST;
 	}
 enhist_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 
@@ -4726,7 +4726,7 @@ int mdss_mdp_dither_config(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = config->block - MDP_LOGICAL_BLOCK_DISP_0;
 	if (pp_ops[DITHER].pp_set_config) {
 		pr_debug("version of dither is %d\n", config->version);
@@ -4745,7 +4745,7 @@ int mdss_mdp_dither_config(struct msm_fb_data_type *mfd,
 dither_set_dirty:
 	mdss_pp_res->pp_disp_flags[disp_num] |= PP_FLAGS_DIRTY_DITHER;
 dither_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 
@@ -4799,7 +4799,7 @@ int mdss_mdp_gamut_config(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = config->block - MDP_LOGICAL_BLOCK_DISP_0;
 
 	if (config->flags & MDP_PP_OPS_READ) {
@@ -4965,7 +4965,7 @@ gamut_set_dirty:
 		mdss_pp_res->pp_disp_flags[disp_num] |= PP_FLAGS_DIRTY_GAMUT;
 	}
 gamut_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }
 
@@ -4999,7 +4999,7 @@ static int pp_hist_enable(struct pp_hist_col_info *hist_info,
 	unsigned long flag;
 	int ret = 0;
 
-	rt_mutex_lock(&hist_info->hist_mutex);
+	mutex_lock(&hist_info->hist_mutex);
 	/* check if it is idle */
 	spin_lock_irqsave(&hist_info->hist_lock, flag);
 	if (hist_info->col_en) {
@@ -5024,7 +5024,7 @@ static int pp_hist_enable(struct pp_hist_col_info *hist_info,
 	writel_relaxed(0, hist_info->base);
 	spin_unlock_irqrestore(&hist_info->hist_lock, flag);
 exit:
-	rt_mutex_unlock(&hist_info->hist_mutex);
+	mutex_unlock(&hist_info->hist_mutex);
 	return ret;
 }
 
@@ -5149,7 +5149,7 @@ static int pp_hist_disable(struct pp_hist_col_info *hist_info)
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	u32 intr_mask = 1;
 
-	rt_mutex_lock(&hist_info->hist_mutex);
+	mutex_lock(&hist_info->hist_mutex);
 	spin_lock_irqsave(&hist_info->hist_lock, flag);
 	if (hist_info->col_en == false) {
 		spin_unlock_irqrestore(&hist_info->hist_lock, flag);
@@ -5168,7 +5168,7 @@ static int pp_hist_disable(struct pp_hist_col_info *hist_info)
 				intr_mask << hist_info->intr_shift, false);
 	ret = 0;
 exit:
-	rt_mutex_unlock(&hist_info->hist_mutex);
+	mutex_unlock(&hist_info->hist_mutex);
 	return ret;
 }
 
@@ -5390,7 +5390,7 @@ static int pp_hist_collect(struct mdp_histogram_data *hist,
 	if (!mdata)
 		return -EPERM;
 
-	rt_mutex_lock(&hist_info->hist_mutex);
+	mutex_lock(&hist_info->hist_mutex);
 	spin_lock_irqsave(&hist_info->hist_lock, flag);
 	if ((hist_info->col_en == 0) ||
 		(hist_info->col_state != HIST_READY)) {
@@ -5431,7 +5431,7 @@ static int pp_hist_collect(struct mdp_histogram_data *hist,
 		hist_info->next_sum = 0;
 	}
 hist_collect_exit:
-	rt_mutex_unlock(&hist_info->hist_mutex);
+	mutex_unlock(&hist_info->hist_mutex);
 	return ret;
 }
 
@@ -5532,10 +5532,10 @@ int mdss_mdp_hist_collect(struct mdp_histogram_data *hist)
 		}
 		if (hist_cnt > 1) {
 			for (i = 1; i < hist_cnt; i++) {
-				rt_mutex_lock(&hists[i]->hist_mutex);
+				mutex_lock(&hists[i]->hist_mutex);
 				for (j = 0; j < HIST_V_SIZE; j++)
 					hists[0]->data[j] += hists[i]->data[j];
-				rt_mutex_unlock(&hists[i]->hist_mutex);
+				mutex_unlock(&hists[i]->hist_mutex);
 			}
 		}
 		hist_data_addr = hists[0]->data;
@@ -5642,12 +5642,12 @@ int mdss_mdp_hist_collect(struct mdp_histogram_data *hist)
 				}
 				hist_info  = &pipe->pp_res.hist;
 				off = HIST_V_SIZE * i;
-				rt_mutex_lock(&hist_info->hist_mutex);
+				mutex_lock(&hist_info->hist_mutex);
 				for (j = off; j < off + HIST_V_SIZE; j++)
 					hist_concat[j] =
 						hist_info->data[j - off];
 				hist_info->hist_cnt_sent++;
-				rt_mutex_unlock(&hist_info->hist_mutex);
+				mutex_unlock(&hist_info->hist_mutex);
 				mdss_mdp_pipe_unmap(pipe);
 			}
 
@@ -5917,7 +5917,7 @@ int mdss_mdp_ad_config(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	if (init_cfg->ops & MDP_PP_AD_INIT) {
 		memcpy(&ad->init, &init_cfg->params.init,
 				sizeof(struct mdss_ad_init));
@@ -5989,9 +5989,9 @@ int mdss_mdp_ad_config(struct msm_fb_data_type *mfd,
 
 	if (!ret && (init_cfg->ops & MDP_PP_OPS_DISABLE)) {
 		ad->sts &= ~PP_STS_ENABLE;
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		cancel_work_sync(&ad->calc_work);
-		rt_mutex_lock(&ad->lock);
+		mutex_lock(&ad->lock);
 		ad->mfd = NULL;
 		ad->bl_mfd = NULL;
 	} else if (!ret && (init_cfg->ops & MDP_PP_OPS_ENABLE)) {
@@ -6000,7 +6000,7 @@ int mdss_mdp_ad_config(struct msm_fb_data_type *mfd,
 		ad->bl_mfd = bl_mfd;
 	}
 ad_config_exit:
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 	return ret;
 }
 
@@ -6020,10 +6020,10 @@ int mdss_mdp_ad_bl_config(struct msm_fb_data_type *mfd,
 		return ret;
 	}
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	ad->bl_min_delta = ad_bl_cfg->bl_min_delta;
 	ad->bl_low_limit = ad_bl_cfg->bl_low_limit;
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 	return 0;
 }
 
@@ -6045,7 +6045,7 @@ int mdss_mdp_ad_input(struct msm_fb_data_type *mfd,
 		return ret;
 	}
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	if ((!PP_AD_STATE_IS_INITCFG(ad->state) &&
 			!PP_AD_STS_IS_DIRTY(ad->sts)) &&
 			(input->mode != MDSS_AD_MODE_CALIB)) {
@@ -6105,13 +6105,13 @@ int mdss_mdp_ad_input(struct msm_fb_data_type *mfd,
 				pr_warn("calib_bl 255 max!\n");
 				break;
 			}
-			rt_mutex_unlock(&ad->lock);
-			rt_mutex_lock(&mfd->bl_lock);
+			mutex_unlock(&ad->lock);
+			mutex_lock(&mfd->bl_lock);
 			MDSS_BRIGHT_TO_BL(bl, bl, mfd->panel_info->bl_max,
 					mfd->panel_info->brightness_max);
 			mdss_fb_set_backlight(mfd, bl);
-			rt_mutex_unlock(&mfd->bl_lock);
-			rt_mutex_lock(&ad->lock);
+			mutex_unlock(&mfd->bl_lock);
+			mutex_lock(&ad->lock);
 			mfd->calib_mode_bl = bl;
 		} else {
 			pr_warn("should be in calib mode\n");
@@ -6123,7 +6123,7 @@ int mdss_mdp_ad_input(struct msm_fb_data_type *mfd,
 		goto error;
 	}
 error:
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 	return ret;
 }
 
@@ -6414,10 +6414,10 @@ static int mdss_mdp_ad_ipc_reset(struct msm_fb_data_type *mfd)
 		return ret;
 	}
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	if (ad->state & PP_AD_STATE_RUN && ad->state & PP_AD_STATE_IPC_RESET)
 		ad->state &= ~PP_AD_STATE_IPC_RESET;
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 
 	return 0;
 }
@@ -6468,7 +6468,7 @@ static int mdss_mdp_ad_setup(struct msm_fb_data_type *mfd)
 
 	mdata = mdss_mdp_get_mdata();
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	if (ad->state & PP_AD_STATE_RUN && ad->state & PP_AD_STATE_IPC_RESUME) {
 		if (ad->ipc_frame_count == MDSS_AD_IPC_FRAME_COUNT) {
 			ad->state &= ~PP_AD_STATE_IPC_RESUME;
@@ -6617,7 +6617,7 @@ static int mdss_mdp_ad_setup(struct msm_fb_data_type *mfd)
 		pr_debug("end: ad->sts = 0x%08x, state = 0x%08x\n", ad->sts,
 								ad->state);
 	}
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 exit:
 	return ret;
 }
@@ -6632,15 +6632,15 @@ static void pp_ad_calc_worker(struct work_struct *work)
 	char __iomem *base;
 	ad = container_of(work, struct mdss_ad_info, calc_work);
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	if (!ad->mfd || !(ad->sts & PP_STS_ENABLE)) {
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		return;
 	}
 	mdp5_data = mfd_to_mdp5_data(ad->mfd);
 	if (!mdp5_data) {
 		pr_err("mdp5_data = 0x%pK\n", mdp5_data);
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		return;
 	}
 
@@ -6650,14 +6650,14 @@ static void pp_ad_calc_worker(struct work_struct *work)
 		pr_err("ctl = 0x%pK, mdata = 0x%pK, ad->calc_hw_num = %d, mdata->nad_cfg = %d\n",
 			ctl, mdata, ad->calc_hw_num,
 			(!mdata ? 0 : mdata->nad_cfgs));
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		return;
 	}
 
 	base = mdata->ad_off[ad->calc_hw_num].base;
 
 	if ((ad->cfg.mode == MDSS_AD_MODE_AUTO_STR) && (ad->last_bl == 0)) {
-		rt_mutex_unlock(&ad->lock);
+		mutex_unlock(&ad->lock);
 		return;
 	}
 	if ((PP_AD_STATE_RUN & ad->state) && ad->calc_itr > 0)
@@ -6669,7 +6669,7 @@ static void pp_ad_calc_worker(struct work_struct *work)
 		ad->state &= ~PP_AD_STATE_VSYNC;
 		ctl->ops.remove_vsync_handler(ctl, &ad->handle);
 	}
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON);
 	ad->last_str = 0xFF & readl_relaxed(base + MDSS_MDP_REG_AD_STR_OUT);
@@ -6844,7 +6844,7 @@ int mdss_mdp_ad_addr_setup(struct mdss_data_type *mdata, u32 *ad_offsets)
 			sizeof(mdata->ad_cfgs[i].last_calib));
 		mdata->ad_cfgs[i].last_calib_valid = false;
 		mdata->ad_cfgs[i].last_ad_data_valid = false;
-		rt_mutex_init(&mdata->ad_cfgs[i].lock);
+		mutex_init(&mdata->ad_cfgs[i].lock);
 		mdata->ad_cfgs[i].handle.vsync_handler = pp_ad_vsync_handler;
 		mdata->ad_cfgs[i].handle.cmd_post_flush = true;
 		INIT_WORK(&mdata->ad_cfgs[i].calc_work, pp_ad_calc_worker);
@@ -7184,12 +7184,12 @@ int mdss_mdp_calib_mode(struct msm_fb_data_type *mfd,
 {
 	if (!mdss_pp_res || !mfd)
 		return -EINVAL;
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	mfd->calib_mode = cfg->calib_mask;
-	rt_mutex_lock(&mfd->bl_lock);
+	mutex_lock(&mfd->bl_lock);
 	mfd->calib_mode_bl = mfd->bl_level;
-	rt_mutex_unlock(&mfd->bl_lock);
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mfd->bl_lock);
+	mutex_unlock(&mdss_pp_mutex);
 	return 0;
 }
 
@@ -7714,12 +7714,12 @@ static int pp_mfd_ad_release_all(struct msm_fb_data_type *mfd)
 	if (!ad->mfd)
 		return 0;
 
-	rt_mutex_lock(&ad->lock);
+	mutex_lock(&ad->lock);
 	ad->sts &= ~PP_STS_ENABLE;
 	ad->mfd = NULL;
 	ad->bl_mfd = NULL;
 	ad->state = 0;
-	rt_mutex_unlock(&ad->lock);
+	mutex_unlock(&ad->lock);
 	cancel_work_sync(&ad->calc_work);
 
 	ctl = mfd_to_ctl(mfd);
@@ -7904,7 +7904,7 @@ int mdss_mdp_pa_dither_config(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&mdss_pp_mutex);
+	mutex_lock(&mdss_pp_mutex);
 	disp_num = PP_BLOCK(config->block) - MDP_LOGICAL_BLOCK_DISP_0;
 	res_cache.block = DSPP;
 	res_cache.mdss_pp_res = mdss_pp_res;
@@ -7922,6 +7922,6 @@ int mdss_mdp_pa_dither_config(struct msm_fb_data_type *mfd,
 	}
 	mdss_pp_res->pp_disp_flags[disp_num] |= PP_FLAGS_DIRTY_PA_DITHER;
 dither_config_exit:
-	rt_mutex_unlock(&mdss_pp_mutex);
+	mutex_unlock(&mdss_pp_mutex);
 	return ret;
 }

@@ -51,9 +51,9 @@ struct dp_hdcp2p2_ctrl {
 	enum dp_hdcp2p2_sink_status sink_status; /* Is sink connected */
 	struct dp_hdcp2p2_interrupts *intr;
 	struct hdcp_init_data init_data;
-	struct rt_mutex mutex; /* mutex to protect access to ctrl */
-	struct rt_mutex msg_lock; /* mutex to protect access to msg buffer */
-	struct rt_mutex wakeup_mutex; /* mutex to protect access to wakeup call*/
+	struct mutex mutex; /* mutex to protect access to ctrl */
+	struct mutex msg_lock; /* mutex to protect access to msg buffer */
+	struct mutex wakeup_mutex; /* mutex to protect access to wakeup call*/
 	struct hdcp_ops *ops;
 	void *lib_ctx; /* Handle to HDCP 2.2 Trustzone library */
 	struct hdcp_txmtr_ops *lib; /* Ops for driver to call into TZ */
@@ -99,7 +99,7 @@ static int dp_hdcp2p2_copy_buf(struct dp_hdcp2p2_ctrl *ctrl,
 	if (!data || !data->message_data)
 		return 0;
 
-	rt_mutex_lock(&ctrl->msg_lock);
+	mutex_lock(&ctrl->msg_lock);
 
 	ctrl->timeout = data->timeout;
 	ctrl->num_messages = data->message_data->num_messages;
@@ -115,7 +115,7 @@ static int dp_hdcp2p2_copy_buf(struct dp_hdcp2p2_ctrl *ctrl,
 	ctrl->abort_mask = data->abort_mask;
 
 	if (!data->send_msg_len) {
-		rt_mutex_unlock(&ctrl->msg_lock);
+		mutex_unlock(&ctrl->msg_lock);
 		return 0;
 	}
 
@@ -124,14 +124,14 @@ static int dp_hdcp2p2_copy_buf(struct dp_hdcp2p2_ctrl *ctrl,
 	ctrl->msg_buf = kzalloc(ctrl->send_msg_len, GFP_KERNEL);
 
 	if (!ctrl->msg_buf) {
-		rt_mutex_unlock(&ctrl->msg_lock);
+		mutex_unlock(&ctrl->msg_lock);
 		return -ENOMEM;
 	}
 
 	/* ignore first byte as it contains message id */
 	memcpy(ctrl->msg_buf, data->send_msg_buf + 1, ctrl->send_msg_len);
 
-	rt_mutex_unlock(&ctrl->msg_lock);
+	mutex_unlock(&ctrl->msg_lock);
 
 	return 0;
 }
@@ -152,7 +152,7 @@ static int dp_hdcp2p2_wakeup(struct hdmi_hdcp_wakeup_data *data)
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&ctrl->wakeup_mutex);
+	mutex_lock(&ctrl->wakeup_mutex);
 
 	ctrl->wakeup_cmd = data->cmd;
 
@@ -198,7 +198,7 @@ static int dp_hdcp2p2_wakeup(struct hdmi_hdcp_wakeup_data *data)
 		pr_err("invalid wakeup command %d\n", ctrl->wakeup_cmd);
 	}
 exit:
-	rt_mutex_unlock(&ctrl->wakeup_mutex);
+	mutex_unlock(&ctrl->wakeup_mutex);
 
 	return 0;
 }
@@ -497,20 +497,20 @@ static void dp_hdcp2p2_send_msg_work(struct kthread_work *work)
 		goto exit;
 	}
 
-	rt_mutex_lock(&ctrl->msg_lock);
+	mutex_lock(&ctrl->msg_lock);
 
 	rc = dp_hdcp2p2_aux_write_message(ctrl, ctrl->msg_buf,
 			ctrl->send_msg_len, ctrl->msg_part->offset,
 			ctrl->timeout);
 	if (rc) {
 		pr_err("Error sending msg to sink %d\n", rc);
-		rt_mutex_unlock(&ctrl->msg_lock);
+		mutex_unlock(&ctrl->msg_lock);
 		goto exit;
 	}
 
 	cdata.cmd = HDCP_LIB_WKUP_CMD_MSG_SEND_SUCCESS;
 	cdata.timeout = ctrl->timeout;
-	rt_mutex_unlock(&ctrl->msg_lock);
+	mutex_unlock(&ctrl->msg_lock);
 
 exit:
 	if (rc == -ETIMEDOUT)
@@ -782,9 +782,9 @@ void dp_hdcp2p2_deinit(void *input)
 	sysfs_remove_group(ctrl->init_data.sysfs_kobj,
 				&dp_hdcp2p2_fs_attr_group);
 
-	rt_mutex_destroy(&ctrl->mutex);
-	rt_mutex_destroy(&ctrl->msg_lock);
-	rt_mutex_destroy(&ctrl->wakeup_mutex);
+	mutex_destroy(&ctrl->mutex);
+	mutex_destroy(&ctrl->msg_lock);
+	mutex_destroy(&ctrl->wakeup_mutex);
 	kzfree(ctrl->msg_buf);
 	kfree(ctrl);
 }
@@ -850,9 +850,9 @@ void *dp_hdcp2p2_init(struct hdcp_init_data *init_data)
 	atomic_set(&ctrl->auth_state, HDCP_STATE_INACTIVE);
 
 	ctrl->ops = &ops;
-	rt_mutex_init(&ctrl->mutex);
-	rt_mutex_init(&ctrl->msg_lock);
-	rt_mutex_init(&ctrl->wakeup_mutex);
+	mutex_init(&ctrl->mutex);
+	mutex_init(&ctrl->msg_lock);
+	mutex_init(&ctrl->wakeup_mutex);
 
 	register_data.hdcp_ctx = &ctrl->lib_ctx;
 	register_data.client_ops = &client_ops;

@@ -40,7 +40,7 @@ struct hdcp_init_data {
 	struct dss_io_data *core_io;
 	struct dss_io_data *qfprom_io;
 	struct dss_io_data *hdcp_io;
-	struct rt_mutex *mutex;
+	struct mutex *mutex;
 	struct kobject *sysfs_kobj;
 	struct workqueue_struct *workq;
 	void *cb_data;

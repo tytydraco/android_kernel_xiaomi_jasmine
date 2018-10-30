@@ -24,7 +24,7 @@
 #include <video/msm_dba.h>
 #include <msm_dba_internal.h>
 
-static DEFINE_RT_MUTEX(register_mutex);
+static DEFINE_MUTEX(register_mutex);
 
 void *msm_dba_register_client(struct msm_dba_reg_info *info,
 			      struct msm_dba_ops *ops)
@@ -40,7 +40,7 @@ void *msm_dba_register_client(struct msm_dba_reg_info *info,
 		return ERR_PTR(-EINVAL);
 	}
 
-	rt_mutex_lock(&register_mutex);
+	mutex_lock(&register_mutex);
 
 	pr_debug("%s: Client(%s) Chip(%s) Instance(%d)\n", __func__,
 		 info->client_name, info->chip_name, info->instance_id);
@@ -50,7 +50,7 @@ void *msm_dba_register_client(struct msm_dba_reg_info *info,
 		pr_err("%s: Device not found (%s, %d)\n", __func__,
 							 info->chip_name,
 							 info->instance_id);
-		rt_mutex_unlock(&register_mutex);
+		mutex_unlock(&register_mutex);
 		return ERR_PTR(rc);
 	}
 
@@ -58,7 +58,7 @@ void *msm_dba_register_client(struct msm_dba_reg_info *info,
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
-		rt_mutex_unlock(&register_mutex);
+		mutex_unlock(&register_mutex);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -70,10 +70,10 @@ void *msm_dba_register_client(struct msm_dba_reg_info *info,
 	client->cb = info->cb;
 	client->cb_data = info->cb_data;
 
-	rt_mutex_lock_nested(&device->dev_mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&device->dev_mutex, SINGLE_DEPTH_NESTING);
 	list_add(&client->list, &device->client_list);
 	*ops = device->client_ops;
-	rt_mutex_unlock(&device->dev_mutex);
+	mutex_unlock(&device->dev_mutex);
 
 	if (device->reg_fxn) {
 		rc = device->reg_fxn(client);
@@ -81,17 +81,17 @@ void *msm_dba_register_client(struct msm_dba_reg_info *info,
 			pr_err("%s: Client register failed (%s, %d)\n",
 			       __func__, info->chip_name, info->instance_id);
 			/* remove the client from list before freeing */
-			rt_mutex_lock_nested(&device->dev_mutex,
+			mutex_lock_nested(&device->dev_mutex,
 						SINGLE_DEPTH_NESTING);
 			list_del(&client->list);
-			rt_mutex_unlock(&device->dev_mutex);
+			mutex_unlock(&device->dev_mutex);
 			kfree(client);
-			rt_mutex_unlock(&register_mutex);
+			mutex_unlock(&register_mutex);
 			return ERR_PTR(rc);
 		}
 	}
 
-	rt_mutex_unlock(&register_mutex);
+	mutex_unlock(&register_mutex);
 
 	pr_debug("%s: EXIT\n", __func__);
 	return client;
@@ -113,7 +113,7 @@ int msm_dba_deregister_client(void *client)
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&register_mutex);
+	mutex_lock(&register_mutex);
 
 	pr_debug("%s: Client(%s) Chip(%s) Instance(%d)\n", __func__,
 		 handle->client_name, handle->dev->chip_name,
@@ -127,7 +127,7 @@ int msm_dba_deregister_client(void *client)
 		}
 	}
 
-	rt_mutex_lock_nested(&handle->dev->dev_mutex, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&handle->dev->dev_mutex, SINGLE_DEPTH_NESTING);
 
 	list_for_each_safe(position, tmp, &handle->dev->client_list) {
 
@@ -139,11 +139,11 @@ int msm_dba_deregister_client(void *client)
 		}
 	}
 
-	rt_mutex_unlock(&handle->dev->dev_mutex);
+	mutex_unlock(&handle->dev->dev_mutex);
 
 	kfree(handle);
 
-	rt_mutex_unlock(&register_mutex);
+	mutex_unlock(&register_mutex);
 
 	pr_debug("%s: EXIT (%d)\n", __func__, rc);
 	return rc;

@@ -80,7 +80,7 @@ static u32 dsi_dbg_bus_sdm660[] = {
 	0x03C1, 0x03D1, 0x03E1, 0x03F1,
 };
 
-static DEFINE_RT_MUTEX(mdss_debug_lock);
+static DEFINE_MUTEX(mdss_debug_lock);
 
 static char panel_reg[2] = {DEFAULT_READ_PANEL_POWER_MODE_REG, 0x00};
 
@@ -95,13 +95,13 @@ static int panel_debug_base_open(struct inode *inode, struct file *file)
 static int panel_debug_base_release(struct inode *inode, struct file *file)
 {
 	struct mdss_debug_base *dbg = file->private_data;
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 	if (dbg && dbg->buf) {
 		kfree(dbg->buf);
 		dbg->buf_len = 0;
 		dbg->buf = NULL;
 	}
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 	return 0;
 }
 
@@ -133,10 +133,10 @@ static ssize_t panel_debug_base_offset_write(struct file *file,
 	if (cnt > (dbg->max_offset - off))
 		cnt = dbg->max_offset - off;
 
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 	dbg->off = off;
 	dbg->cnt = cnt;
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 
 	pr_debug("offset=%x cnt=%d\n", off, cnt);
 
@@ -156,21 +156,21 @@ static ssize_t panel_debug_base_offset_read(struct file *file,
 	if (*ppos)
 		return 0;	/* the end */
 
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 	len = snprintf(buf, sizeof(buf), "0x%02zx %zx\n", dbg->off, dbg->cnt);
 	if (len < 0 || len >= sizeof(buf)) {
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return 0;
 	}
 
 	if ((count < sizeof(buf)) || copy_to_user(buff, buf, len)) {
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return -EFAULT;
 	}
 
 	*ppos += len;	/* increase offset */
 
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 	return len;
 }
 
@@ -268,14 +268,14 @@ static ssize_t panel_debug_base_reg_read(struct file *file,
 	if (!dbg)
 		return -ENODEV;
 
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 	if (!dbg->cnt) {
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return 0;
 	}
 
 	if (*ppos) {
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return 0;	/* the end */
 	}
 
@@ -318,13 +318,13 @@ static ssize_t panel_debug_base_reg_read(struct file *file,
 	kfree(panel_reg_buf);
 
 	*ppos += len;	/* increase offset */
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 	return len;
 
 read_reg_fail:
 	kfree(rx_buf);
 	kfree(panel_reg_buf);
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 	return rc;
 }
 
@@ -423,13 +423,13 @@ static int mdss_debug_base_open(struct inode *inode, struct file *file)
 static int mdss_debug_base_release(struct inode *inode, struct file *file)
 {
 	struct mdss_debug_base *dbg = file->private_data;
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 	if (dbg && dbg->buf) {
 		kfree(dbg->buf);
 		dbg->buf_len = 0;
 		dbg->buf = NULL;
 	}
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 	return 0;
 }
 
@@ -463,10 +463,10 @@ static ssize_t mdss_debug_base_offset_write(struct file *file,
 	if (cnt > (dbg->max_offset - off))
 		cnt = dbg->max_offset - off;
 
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 	dbg->off = off;
 	dbg->cnt = cnt;
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 
 	pr_debug("offset=%x cnt=%x\n", off, cnt);
 
@@ -486,21 +486,21 @@ static ssize_t mdss_debug_base_offset_read(struct file *file,
 	if (*ppos)
 		return 0;	/* the end */
 
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 	len = snprintf(buf, sizeof(buf), "0x%08zx %zx\n", dbg->off, dbg->cnt);
 	if (len < 0 || len >= sizeof(buf)) {
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return 0;
 	}
 
 	if ((count < sizeof(buf)) || copy_to_user(buff, buf, len)) {
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return -EFAULT;
 	}
 
 	*ppos += len;	/* increase offset */
 
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 	return len;
 }
 
@@ -560,7 +560,7 @@ static ssize_t mdss_debug_base_reg_read(struct file *file,
 		return -ENODEV;
 	}
 
-	rt_mutex_lock(&mdss_debug_lock);
+	mutex_lock(&mdss_debug_lock);
 
 	if (!dbg->buf) {
 		char dump_buf[64];
@@ -573,7 +573,7 @@ static ssize_t mdss_debug_base_reg_read(struct file *file,
 
 		if (!dbg->buf) {
 			pr_err("not enough memory to hold reg dump\n");
-			rt_mutex_unlock(&mdss_debug_lock);
+			mutex_unlock(&mdss_debug_lock);
 			return -ENOMEM;
 		}
 
@@ -608,20 +608,20 @@ static ssize_t mdss_debug_base_reg_read(struct file *file,
 	}
 
 	if (*ppos >= dbg->buf_len) {
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return 0; /* done reading */
 	}
 
 	len = min(count, dbg->buf_len - (size_t) *ppos);
 	if (copy_to_user(user_buf, dbg->buf + *ppos, len)) {
 		pr_err("failed to copy to user\n");
-		rt_mutex_unlock(&mdss_debug_lock);
+		mutex_unlock(&mdss_debug_lock);
 		return -EFAULT;
 	}
 
 	*ppos += len; /* increase offset */
 
-	rt_mutex_unlock(&mdss_debug_lock);
+	mutex_unlock(&mdss_debug_lock);
 	return len;
 }
 
@@ -1302,7 +1302,7 @@ static struct mdss_mdp_misr_map {
 	bool use_ping;
 	bool is_ping_full;
 	bool is_pong_full;
-	struct rt_mutex crc_lock;
+	struct mutex crc_lock;
 	u32 crc_ping[MISR_CRC_BATCH_SIZE];
 	u32 crc_pong[MISR_CRC_BATCH_SIZE];
 } mdss_mdp_misr_table[DISPLAY_MISR_MAX] = {

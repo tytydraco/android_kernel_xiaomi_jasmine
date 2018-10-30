@@ -690,10 +690,10 @@ retry_dma_done:
 		}
 		dma->update_src_cfg = false;
 	}
-	rt_mutex_lock(&dma->pp_lock);
+	mutex_lock(&dma->pp_lock);
 	if (dma->ccs_config.ccs_dirty)
 		mdp3_ccs_update(dma, true);
-	rt_mutex_unlock(&dma->pp_lock);
+	mutex_unlock(&dma->pp_lock);
 	spin_lock_irqsave(&dma->dma_lock, flag);
 	MDP3_REG_WRITE(MDP3_REG_DMA_P_IBUF_ADDR, (u32)(buf +
 			dma->roi.y * dma->source_config.stride +
@@ -966,7 +966,7 @@ static void mdp3_dmap_underrun_worker(struct work_struct *work)
 	struct mdp3_dma *dma;
 
 	dma = container_of(work, struct mdp3_dma, underrun_work);
-	rt_mutex_lock(&dma->pp_lock);
+	mutex_lock(&dma->pp_lock);
 	if (dma->ccs_config.ccs_enable && dma->ccs_config.ccs_dirty) {
 		dma->cc_vect_sel = (dma->cc_vect_sel + 1) % 2;
 		dma->ccs_config.ccs_sel = dma->cc_vect_sel;
@@ -976,7 +976,7 @@ static void mdp3_dmap_underrun_worker(struct work_struct *work)
 		dma->ccs_config.post_bias_sel = dma->cc_vect_sel;
 		mdp3_ccs_update(dma, true);
 	}
-	rt_mutex_unlock(&dma->pp_lock);
+	mutex_unlock(&dma->pp_lock);
 }
 
 static int mdp3_dma_start(struct mdp3_dma *dma, struct mdp3_intf *intf)

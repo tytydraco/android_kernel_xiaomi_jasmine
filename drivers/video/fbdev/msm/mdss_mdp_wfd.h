@@ -23,7 +23,7 @@
 #include "mdss_mdp.h"
 
 struct mdss_mdp_wfd {
-	struct rt_mutex lock;
+	struct mutex lock;
 	struct list_head data_queue;
 	struct mdss_mdp_ctl *ctl;
 	struct device *device;

@@ -105,7 +105,7 @@ struct rcu_state sname##_state = { \
 	.orphan_lock = __RAW_SPIN_LOCK_UNLOCKED(&sname##_state.orphan_lock), \
 	.orphan_nxttail = &sname##_state.orphan_nxtlist, \
 	.orphan_donetail = &sname##_state.orphan_donelist, \
-	.barrier_mutex = __RT_MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
+	.barrier_mutex = __MUTEX_INITIALIZER(sname##_state.barrier_mutex), \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
 }
@@ -3600,9 +3600,9 @@ static bool sync_exp_work_done(struct rcu_state *rsp, struct rcu_node *rnp,
 {
 	if (rcu_exp_gp_seq_done(rsp, s)) {
 		if (rnp)
-			rt_mutex_unlock(&rnp->exp_funnel_mutex);
+			mutex_unlock(&rnp->exp_funnel_mutex);
 		else if (rdp)
-			rt_mutex_unlock(&rdp->exp_funnel_mutex);
+			mutex_unlock(&rdp->exp_funnel_mutex);
 		/* Ensure test happens before caller kfree(). */
 		smp_mb__before_atomic(); /* ^^^ */
 		atomic_long_inc(stat);
@@ -3625,12 +3625,12 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	/*
 	 * First try directly acquiring the root lock in order to reduce
 	 * latency in the common case where expedited grace periods are
-	 * rare.  We check rt_mutex_is_locked() to avoid pathological levels of
+	 * rare.  We check mutex_is_locked() to avoid pathological levels of
 	 * memory contention on ->exp_funnel_mutex in the heavy-load case.
 	 */
 	rnp0 = rcu_get_root(rsp);
-	if (!rt_mutex_is_locked(&rnp0->exp_funnel_mutex)) {
-		if (rt_mutex_trylock(&rnp0->exp_funnel_mutex)) {
+	if (!mutex_is_locked(&rnp0->exp_funnel_mutex)) {
+		if (mutex_trylock(&rnp0->exp_funnel_mutex)) {
 			if (sync_exp_work_done(rsp, rnp0, NULL,
 					       &rsp->expedited_workdone0, s))
 				return NULL;
@@ -3649,17 +3649,17 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
 	if (sync_exp_work_done(rsp, NULL, NULL, &rsp->expedited_workdone1, s))
 		return NULL;
-	rt_mutex_lock(&rdp->exp_funnel_mutex);
+	mutex_lock(&rdp->exp_funnel_mutex);
 	rnp0 = rdp->mynode;
 	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
 		if (sync_exp_work_done(rsp, rnp1, rdp,
 				       &rsp->expedited_workdone2, s))
 			return NULL;
-		rt_mutex_lock(&rnp0->exp_funnel_mutex);
+		mutex_lock(&rnp0->exp_funnel_mutex);
 		if (rnp1)
-			rt_mutex_unlock(&rnp1->exp_funnel_mutex);
+			mutex_unlock(&rnp1->exp_funnel_mutex);
 		else
-			rt_mutex_unlock(&rdp->exp_funnel_mutex);
+			mutex_unlock(&rdp->exp_funnel_mutex);
 		rnp1 = rnp0;
 	}
 	if (sync_exp_work_done(rsp, rnp1, rdp,
@@ -3868,7 +3868,7 @@ void synchronize_sched_expedited(void)
 	synchronize_sched_expedited_wait(rsp);
 
 	rcu_exp_gp_seq_end(rsp);
-	rt_mutex_unlock(&rnp->exp_funnel_mutex);
+	mutex_unlock(&rnp->exp_funnel_mutex);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
 
@@ -4036,13 +4036,13 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	_rcu_barrier_trace(rsp, "Begin", -1, s);
 
 	/* Take mutex to serialize concurrent rcu_barrier() requests. */
-	rt_mutex_lock(&rsp->barrier_mutex);
+	mutex_lock(&rsp->barrier_mutex);
 
 	/* Did someone else do our work for us? */
 	if (rcu_seq_done(&rsp->barrier_sequence, s)) {
 		_rcu_barrier_trace(rsp, "EarlyExit", -1, rsp->barrier_sequence);
 		smp_mb(); /* caller's subsequent code after above check. */
-		rt_mutex_unlock(&rsp->barrier_mutex);
+		mutex_unlock(&rsp->barrier_mutex);
 		return;
 	}
 
@@ -4107,7 +4107,7 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	rcu_seq_end(&rsp->barrier_sequence);
 
 	/* Other rcu_barrier() invocations can now safely proceed. */
-	rt_mutex_unlock(&rsp->barrier_mutex);
+	mutex_unlock(&rsp->barrier_mutex);
 }
 
 /**
@@ -4168,7 +4168,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 	WARN_ON_ONCE(atomic_read(&rdp->dynticks->dynticks) != 1);
 	rdp->cpu = cpu;
 	rdp->rsp = rsp;
-	rt_mutex_init(&rdp->exp_funnel_mutex);
+	mutex_init(&rdp->exp_funnel_mutex);
 	rcu_boot_init_nocb_percpu_data(rdp);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
@@ -4457,7 +4457,7 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 			rnp->level = i;
 			INIT_LIST_HEAD(&rnp->blkd_tasks);
 			rcu_init_one_nocb(rnp);
-			rt_mutex_init(&rnp->exp_funnel_mutex);
+			mutex_init(&rnp->exp_funnel_mutex);
 			lockdep_set_class_and_name(&rnp->exp_funnel_mutex,
 						   &rcu_exp_class[i], exp[i]);
 		}

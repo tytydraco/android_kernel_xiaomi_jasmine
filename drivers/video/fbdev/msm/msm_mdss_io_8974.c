@@ -500,7 +500,7 @@ static void mdss_dsi_phy_sw_reset_sub(struct mdss_dsi_ctrl_pdata *ctrl)
 	 * sw reset when the other DSI controller is still
 	 * active.
 	 */
-	rt_mutex_lock(&sdata->phy_reg_lock);
+	mutex_lock(&sdata->phy_reg_lock);
 	if ((mdss_dsi_is_hw_config_dual(sdata) &&
 		(octrl && octrl->is_phyreg_enabled))) {
 		/* start phy lane and HW reset */
@@ -526,7 +526,7 @@ static void mdss_dsi_phy_sw_reset_sub(struct mdss_dsi_ctrl_pdata *ctrl)
 			mdss_dsi_ctrl_phy_reset(sctrl);
 
 	}
-	rt_mutex_unlock(&sdata->phy_reg_lock);
+	mutex_unlock(&sdata->phy_reg_lock);
 }
 
 void mdss_dsi_phy_sw_reset(struct mdss_dsi_ctrl_pdata *ctrl)
@@ -1309,7 +1309,7 @@ static void mdss_dsi_phy_regulator_ctrl(struct mdss_dsi_ctrl_pdata *ctrl,
 	sdata = ctrl->shared_data;
 	other_ctrl = mdss_dsi_get_other_ctrl(ctrl);
 
-	rt_mutex_lock(&sdata->phy_reg_lock);
+	mutex_lock(&sdata->phy_reg_lock);
 	if (enable) {
 		if (ctrl->shared_data->phy_rev == DSI_PHY_REV_20) {
 			mdss_dsi_8996_phy_regulator_enable(ctrl);
@@ -1349,7 +1349,7 @@ static void mdss_dsi_phy_regulator_ctrl(struct mdss_dsi_ctrl_pdata *ctrl,
 		}
 		ctrl->is_phyreg_enabled = 0;
 	}
-	rt_mutex_unlock(&sdata->phy_reg_lock);
+	mutex_unlock(&sdata->phy_reg_lock);
 }
 
 static void mdss_dsi_phy_ctrl(struct mdss_dsi_ctrl_pdata *ctrl, bool enable)
@@ -2307,7 +2307,7 @@ error:
 	return rc;
 }
 
-DEFINE_RT_MUTEX(dsi_clk_mutex);
+DEFINE_MUTEX(dsi_clk_mutex);
 
 int mdss_dsi_clk_ctrl(struct mdss_dsi_ctrl_pdata *ctrl, void *clk_handle,
 	enum mdss_dsi_clk_type clk_type, enum mdss_dsi_clk_state clk_state)
@@ -2325,7 +2325,7 @@ int mdss_dsi_clk_ctrl(struct mdss_dsi_ctrl_pdata *ctrl, void *clk_handle,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&dsi_clk_mutex);
+	mutex_lock(&dsi_clk_mutex);
 	/*
 	 * In sync_wait_broadcast mode, we need to enable clocks
 	 * for the other controller as well when enabling clocks
@@ -2440,7 +2440,7 @@ int mdss_dsi_clk_ctrl(struct mdss_dsi_ctrl_pdata *ctrl, void *clk_handle,
 	}
 
 error:
-	rt_mutex_unlock(&dsi_clk_mutex);
+	mutex_unlock(&dsi_clk_mutex);
 	return rc;
 }
 

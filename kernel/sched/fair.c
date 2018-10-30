@@ -11580,7 +11580,7 @@ void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
 	se->parent = parent;
 }
 
-static DEFINE_RT_MUTEX(shares_mutex);
+static DEFINE_MUTEX(shares_mutex);
 
 int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
@@ -11595,7 +11595,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 
 	shares = clamp(shares, scale_load(MIN_SHARES), scale_load(MAX_SHARES));
 
-	rt_mutex_lock(&shares_mutex);
+	mutex_lock(&shares_mutex);
 	if (tg->shares == shares)
 		goto done;
 
@@ -11618,7 +11618,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	}
 
 done:
-	rt_mutex_unlock(&shares_mutex);
+	mutex_unlock(&shares_mutex);
 	return 0;
 }
 #else /* CONFIG_FAIR_GROUP_SCHED */

@@ -33,11 +33,11 @@ static void msm_dba_helper_hdcp_handler(struct work_struct *work)
 
 	dev = container_of(work, struct msm_dba_device_info, hdcp_work);
 
-	rt_mutex_lock(&dev->dev_mutex);
+	mutex_lock(&dev->dev_mutex);
 	if (dev->hdcp_status) {
 		pr_debug("%s[%s:%d] HDCP is authenticated\n", __func__,
 			 dev->chip_name, dev->instance_id);
-		rt_mutex_unlock(&dev->dev_mutex);
+		mutex_unlock(&dev->dev_mutex);
 		return;
 	}
 
@@ -54,7 +54,7 @@ static void msm_dba_helper_hdcp_handler(struct work_struct *work)
 			pr_err("%s[%s:%d] HDCP retry failed\n", __func__,
 			       dev->chip_name, dev->instance_id);
 	}
-	rt_mutex_unlock(&dev->dev_mutex);
+	mutex_unlock(&dev->dev_mutex);
 }
 
 static void msm_dba_helper_issue_cb(struct msm_dba_device_info *dev,
@@ -83,7 +83,7 @@ static irqreturn_t msm_dba_helper_irq_handler(int irq, void *dev)
 	int rc = 0;
 	bool ret;
 
-	rt_mutex_lock(&device->dev_mutex);
+	mutex_lock(&device->dev_mutex);
 	if (device->dev_ops.handle_interrupts) {
 		rc = device->dev_ops.handle_interrupts(device, &mask);
 		if (rc)
@@ -105,7 +105,7 @@ static irqreturn_t msm_dba_helper_irq_handler(int irq, void *dev)
 	if (device->dev_ops.unmask_interrupts)
 		rc = device->dev_ops.unmask_interrupts(device, mask);
 
-	rt_mutex_unlock(&device->dev_mutex);
+	mutex_unlock(&device->dev_mutex);
 	return IRQ_HANDLED;
 }
 
@@ -220,7 +220,7 @@ int msm_dba_helper_power_on(void *client, bool on, u32 flags)
 	}
 
 	device = c->dev;
-	rt_mutex_lock(&device->dev_mutex);
+	mutex_lock(&device->dev_mutex);
 
 	/*
 	 * Power on the device if atleast one client powers on the device. But
@@ -258,7 +258,7 @@ int msm_dba_helper_power_on(void *client, bool on, u32 flags)
 		}
 	}
 
-	rt_mutex_unlock(&device->dev_mutex);
+	mutex_unlock(&device->dev_mutex);
 	return rc;
 }
 
@@ -278,7 +278,7 @@ int msm_dba_helper_video_on(void *client, bool on,
 	}
 
 	device = c->dev;
-	rt_mutex_lock(&device->dev_mutex);
+	mutex_lock(&device->dev_mutex);
 
 	/*
 	 * Video will be turned on if at least one client turns on video. But
@@ -316,7 +316,7 @@ int msm_dba_helper_video_on(void *client, bool on,
 		}
 	}
 
-	rt_mutex_unlock(&device->dev_mutex);
+	mutex_unlock(&device->dev_mutex);
 	return rc;
 }
 
@@ -332,14 +332,14 @@ int msm_dba_helper_interrupts_enable(void *client, bool on,
 	}
 
 	device = c->dev;
-	rt_mutex_lock(&device->dev_mutex);
+	mutex_lock(&device->dev_mutex);
 
 	if (on)
 		c->event_mask = event_mask;
 	else
 		c->event_mask = 0;
 
-	rt_mutex_unlock(&device->dev_mutex);
+	mutex_unlock(&device->dev_mutex);
 	return 0;
 }
 
@@ -353,7 +353,7 @@ int msm_dba_helper_register_irq(struct msm_dba_device_info *dev,
 		return -EINVAL;
 	}
 
-	rt_mutex_lock(&dev->dev_mutex);
+	mutex_lock(&dev->dev_mutex);
 
 	rc = request_threaded_irq(irq, NULL, msm_dba_helper_irq_handler,
 				  irq_flags, dev->chip_name, dev);
@@ -362,7 +362,7 @@ int msm_dba_helper_register_irq(struct msm_dba_device_info *dev,
 		pr_err("%s:%s: Failed to register irq\n", dev->chip_name,
 		       __func__);
 
-	rt_mutex_unlock(&dev->dev_mutex);
+	mutex_unlock(&dev->dev_mutex);
 	return rc;
 }
 
@@ -377,11 +377,11 @@ int msm_dba_helper_get_caps(void *client, struct msm_dba_capabilities *caps)
 	}
 
 	device = c->dev;
-	rt_mutex_lock(&device->dev_mutex);
+	mutex_lock(&device->dev_mutex);
 
 	memcpy(caps, &device->caps, sizeof(*caps));
 
-	rt_mutex_unlock(&device->dev_mutex);
+	mutex_unlock(&device->dev_mutex);
 	return 0;
 }
 
@@ -428,7 +428,7 @@ int msm_dba_helper_force_reset(void *client, u32 flags)
 	}
 
 	device = c->dev;
-	rt_mutex_lock(&device->dev_mutex);
+	mutex_lock(&device->dev_mutex);
 
 	msm_dba_helper_issue_cb(device, c, MSM_DBA_CB_PRE_RESET);
 
@@ -440,6 +440,6 @@ int msm_dba_helper_force_reset(void *client, u32 flags)
 
 	msm_dba_helper_issue_cb(device, c, MSM_DBA_CB_POST_RESET);
 
-	rt_mutex_unlock(&device->dev_mutex);
+	mutex_unlock(&device->dev_mutex);
 	return rc;
 }

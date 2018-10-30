@@ -454,7 +454,7 @@ struct mdss_mdp_ctl_intfs_ops {
 };
 
 struct mdss_mdp_cwb {
-	struct rt_mutex queue_lock;
+	struct mutex queue_lock;
 	struct list_head data_queue;
 	struct list_head cleanup_queue;
 	int valid;
@@ -530,11 +530,11 @@ struct mdss_mdp_ctl {
 	struct mdss_mdp_mixer *mixer_left;
 	struct mdss_mdp_mixer *mixer_right;
 	struct mdss_mdp_cdm *cdm;
-	struct rt_mutex lock;
-	struct rt_mutex offlock;
-	struct rt_mutex flush_lock;
-	struct rt_mutex *shared_lock;
-	struct rt_mutex rsrc_lock;
+	struct mutex lock;
+	struct mutex offlock;
+	struct mutex flush_lock;
+	struct mutex *shared_lock;
+	struct mutex rsrc_lock;
 	spinlock_t spin_lock;
 
 	struct mdss_panel_data *panel_data;
@@ -585,7 +585,7 @@ struct mdss_mdp_ctl {
 	bool switch_with_handoff;
 	struct mdss_mdp_avr_info avr_info;
 	bool commit_in_progress;
-	struct rt_mutex ds_lock;
+	struct mutex ds_lock;
 	bool need_vsync_on;
 };
 
@@ -718,7 +718,7 @@ struct pp_hist_col_info {
 	u32 hist_cnt_time;
 	u32 frame_cnt;
 	u32 data[HIST_V_SIZE];
-	struct rt_mutex hist_mutex;
+	struct mutex hist_mutex;
 	spinlock_t hist_lock;
 	char __iomem *base;
 	u32 intr_shift;
@@ -744,7 +744,7 @@ struct mdss_ad_info {
 	u32 ad_data_mode;
 	struct mdss_ad_init init;
 	struct mdss_ad_cfg cfg;
-	struct rt_mutex lock;
+	struct mutex lock;
 	struct work_struct calc_work;
 	struct msm_fb_data_type *mfd;
 	struct msm_fb_data_type *bl_mfd;
@@ -946,12 +946,12 @@ struct mdss_overlay_private {
 	void *cpu_pm_hdl;
 
 	struct mdss_data_type *mdata;
-	struct rt_mutex ov_lock;
-	struct rt_mutex dfps_lock;
+	struct mutex ov_lock;
+	struct mutex dfps_lock;
 	struct mdss_mdp_ctl *ctl;
 	struct mdss_mdp_wfd *wfd;
 
-	struct rt_mutex list_lock;
+	struct mutex list_lock;
 	struct list_head pipes_used;
 	struct list_head pipes_cleanup;
 	struct list_head pipes_destroy;

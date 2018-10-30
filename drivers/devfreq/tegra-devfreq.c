@@ -372,9 +372,9 @@ static irqreturn_t actmon_thread_isr(int irq, void *data)
 {
 	struct tegra_devfreq *tegra = data;
 
-	rt_mutex_lock(&tegra->devfreq->lock);
+	mutex_lock(&tegra->devfreq->lock);
 	update_devfreq(tegra->devfreq);
-	rt_mutex_unlock(&tegra->devfreq->lock);
+	mutex_unlock(&tegra->devfreq->lock);
 
 	return IRQ_HANDLED;
 }

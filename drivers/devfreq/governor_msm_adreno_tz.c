@@ -490,14 +490,14 @@ static int tz_notify(struct notifier_block *nb, unsigned long type, void *devp)
 	switch (type) {
 	case ADRENO_DEVFREQ_NOTIFY_IDLE:
 	case ADRENO_DEVFREQ_NOTIFY_RETIRE:
-		rt_mutex_lock(&devfreq->lock);
+		mutex_lock(&devfreq->lock);
 		result = update_devfreq(devfreq);
-		rt_mutex_unlock(&devfreq->lock);
+		mutex_unlock(&devfreq->lock);
 		/* Nofifying partner bus governor if any */
 		if (partner_gpu_profile && partner_gpu_profile->bus_devfreq) {
-			rt_mutex_lock(&partner_gpu_profile->bus_devfreq->lock);
+			mutex_lock(&partner_gpu_profile->bus_devfreq->lock);
 			update_devfreq(partner_gpu_profile->bus_devfreq);
-			rt_mutex_unlock(&partner_gpu_profile->bus_devfreq->lock);
+			mutex_unlock(&partner_gpu_profile->bus_devfreq->lock);
 		}
 		break;
 	/* ignored by this governor */

@@ -90,7 +90,7 @@ struct msm_dba_device_info {
 	struct msm_dba_capabilities caps;
 	struct msm_dba_device_ops dev_ops;
 	struct msm_dba_ops client_ops;
-	struct rt_mutex dev_mutex;
+	struct mutex dev_mutex;
 	struct workqueue_struct *hdcp_wq;
 	struct work_struct hdcp_work;
 	struct list_head client_list;

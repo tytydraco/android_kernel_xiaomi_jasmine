@@ -990,20 +990,20 @@ int msm_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	int dsi_on;
 	int ret = -EINVAL;
 
-	rt_mutex_lock(&ctrl->mutex);
+	mutex_lock(&ctrl->mutex);
 	dsi_on = dsi_host_private->dsi_on;
-	rt_mutex_unlock(&ctrl->mutex);
+	mutex_unlock(&ctrl->mutex);
 	if (!dsi_on) {
 		pr_err("try to send DSI commands while dsi is off\n");
 		return ret;
 	}
 
 	if (from_mdp)	/* from mdp kickoff */
-		rt_mutex_lock(&ctrl->cmd_mutex);
+		mutex_lock(&ctrl->cmd_mutex);
 	req = mdss_dsi_cmdlist_get(ctrl, from_mdp);
 
 	if (!req) {
-		rt_mutex_unlock(&ctrl->cmd_mutex);
+		mutex_unlock(&ctrl->cmd_mutex);
 		return ret;
 	}
 	/*
@@ -1030,7 +1030,7 @@ int msm_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	mdp3_res_update(0, 1, MDP3_CLIENT_DMA_P);
 
 	if (from_mdp)	/* from mdp kickoff */
-		rt_mutex_unlock(&ctrl->cmd_mutex);
+		mutex_unlock(&ctrl->cmd_mutex);
 	return 0;
 }
 
@@ -1107,7 +1107,7 @@ static int msm_dsi_on(struct mdss_panel_data *pdata)
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	rt_mutex_lock(&ctrl_pdata->mutex);
+	mutex_lock(&ctrl_pdata->mutex);
 
 
 	if (!pdata->panel_info.dynamic_switch_pending) {
@@ -1218,7 +1218,7 @@ error_vreg:
 				ctrl_pdata->power_data[i].num_vreg, 0);
 	}
 
-	rt_mutex_unlock(&ctrl_pdata->mutex);
+	mutex_unlock(&ctrl_pdata->mutex);
 	return ret;
 }
 
@@ -1237,7 +1237,7 @@ static int msm_dsi_off(struct mdss_panel_data *pdata)
 				panel_data);
 
 	pr_debug("msm_dsi_off\n");
-	rt_mutex_lock(&ctrl_pdata->mutex);
+	mutex_lock(&ctrl_pdata->mutex);
 	msm_dsi_clear_irq(ctrl_pdata, ctrl_pdata->dsi_irq_mask);
 	msm_dsi_controller_cfg(0);
 	msm_dsi_clk_set_rate(DSI_ESC_CLK_RATE, 0, 0, 0);
@@ -1259,7 +1259,7 @@ static int msm_dsi_off(struct mdss_panel_data *pdata)
 	dsi_host_private->clk_count = 0;
 	dsi_host_private->dsi_on = 0;
 
-	rt_mutex_unlock(&ctrl_pdata->mutex);
+	mutex_unlock(&ctrl_pdata->mutex);
 
 	return ret;
 }
@@ -1283,7 +1283,7 @@ static int msm_dsi_cont_on(struct mdss_panel_data *pdata)
 				panel_data);
 
 	pinfo = &pdata->panel_info;
-	rt_mutex_lock(&ctrl_pdata->mutex);
+	mutex_lock(&ctrl_pdata->mutex);
 	for (i = 0; !ret && (i < DSI_MAX_PM); i++) {
 		ret = msm_dss_enable_vreg(
 			ctrl_pdata->power_data[i].vreg_config,
@@ -1298,7 +1298,7 @@ static int msm_dsi_cont_on(struct mdss_panel_data *pdata)
 	ret = mdss_dsi_panel_reset(pdata, 1);
 	if (ret) {
 		pr_err("%s: Panel reset failed\n", __func__);
-		rt_mutex_unlock(&ctrl_pdata->mutex);
+		mutex_unlock(&ctrl_pdata->mutex);
 		return ret;
 	}
 
@@ -1317,7 +1317,7 @@ error_vreg:
 				ctrl_pdata->power_data[i].num_vreg, 0);
 	}
 
-	rt_mutex_unlock(&ctrl_pdata->mutex);
+	mutex_unlock(&ctrl_pdata->mutex);
 	return ret;
 }
 
@@ -1406,7 +1406,7 @@ static int msm_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		return 0;
 	}
 
-	rt_mutex_lock(&ctrl_pdata->cmd_mutex);
+	mutex_lock(&ctrl_pdata->cmd_mutex);
 	msm_dsi_clk_ctrl(&ctrl_pdata->panel_data, 1);
 	msm_dsi_cmd_mdp_busy(ctrl_pdata);
 	msm_dsi_set_irq(ctrl_pdata, DSI_INTR_BTA_DONE_MASK);
@@ -1420,7 +1420,7 @@ static int msm_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 									msecs_to_jiffies(100));
 	msm_dsi_clear_irq(ctrl_pdata, DSI_INTR_BTA_DONE_MASK);
 	msm_dsi_clk_ctrl(&ctrl_pdata->panel_data, 0);
-	rt_mutex_unlock(&ctrl_pdata->cmd_mutex);
+	mutex_unlock(&ctrl_pdata->cmd_mutex);
 
 	if (ret <= 0)
 		pr_err("%s: DSI BTA error: %i\n", __func__, __LINE__);
@@ -1573,7 +1573,7 @@ static int msm_dsi_clk_ctrl(struct mdss_panel_data *pdata, int enable)
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-	rt_mutex_lock(&ctrl_pdata->mutex);
+	mutex_lock(&ctrl_pdata->mutex);
 
 	if (enable) {
 		dsi_host_private->clk_count++;
@@ -1596,7 +1596,7 @@ static int msm_dsi_clk_ctrl(struct mdss_panel_data *pdata, int enable)
 			msm_dsi_ahb_ctrl(0);
 		}
 	}
-	rt_mutex_unlock(&ctrl_pdata->mutex);
+	mutex_unlock(&ctrl_pdata->mutex);
 	return 0;
 }
 
@@ -1608,8 +1608,8 @@ void msm_dsi_ctrl_init(struct mdss_dsi_ctrl_pdata *ctrl)
 	init_completion(&ctrl->video_comp);
 	spin_lock_init(&ctrl->irq_lock);
 	spin_lock_init(&ctrl->mdp_lock);
-	rt_mutex_init(&ctrl->mutex);
-	rt_mutex_init(&ctrl->cmd_mutex);
+	mutex_init(&ctrl->mutex);
+	mutex_init(&ctrl->cmd_mutex);
 	complete(&ctrl->mdp_comp);
 	dsi_buf_alloc(&ctrl->tx_buf, SZ_4K);
 	dsi_buf_alloc(&ctrl->rx_buf, SZ_4K);

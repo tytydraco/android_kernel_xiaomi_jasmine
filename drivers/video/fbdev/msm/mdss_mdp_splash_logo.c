@@ -357,15 +357,15 @@ static struct mdss_mdp_pipe *mdss_mdp_splash_get_pipe(
 		return NULL;
 	}
 
-	rt_mutex_lock(&mdp5_data->list_lock);
+	mutex_lock(&mdp5_data->list_lock);
 	buf = mdss_mdp_overlay_buf_alloc(mfd, pipe);
 	if (!buf) {
 		pr_err("unable to allocate memory for splash buffer\n");
 		mdss_mdp_pipe_unmap(pipe);
-		rt_mutex_unlock(&mdp5_data->list_lock);
+		mutex_unlock(&mdp5_data->list_lock);
 		return NULL;
 	}
-	rt_mutex_unlock(&mdp5_data->list_lock);
+	mutex_unlock(&mdp5_data->list_lock);
 
 	buf->p[0].addr = mfd->splash_info.iova;
 	buf->p[0].len = image_size;
@@ -400,7 +400,7 @@ static int mdss_mdp_splash_kickoff(struct msm_fb_data_type *mfd,
 	if (!mdp5_data || !mdp5_data->ctl)
 		return -EINVAL;
 
-	if (rt_mutex_lock_interruptible(&mdp5_data->ov_lock))
+	if (mutex_lock_interruptible(&mdp5_data->ov_lock))
 		return -EINVAL;
 
 	ret = mdss_mdp_overlay_start(mfd);
@@ -480,7 +480,7 @@ static int mdss_mdp_splash_kickoff(struct msm_fb_data_type *mfd,
 		}
 		sinfo->pipe_ndx[1] = pipe->ndx;
 	}
-	rt_mutex_unlock(&mdp5_data->ov_lock);
+	mutex_unlock(&mdp5_data->ov_lock);
 
 	ret = mfd->mdp.kickoff_fnc(mfd, NULL);
 	if (ret) {
@@ -495,7 +495,7 @@ end:
 	kfree(req);
 	sinfo->pipe_ndx[0] = INVALID_PIPE_INDEX;
 	sinfo->pipe_ndx[1] = INVALID_PIPE_INDEX;
-	rt_mutex_unlock(&mdp5_data->ov_lock);
+	mutex_unlock(&mdp5_data->ov_lock);
 	return ret;
 }
 
@@ -611,10 +611,10 @@ static int mdss_mdp_splash_thread(void *data)
 	}
 	unlock_fb_info(mfd->fbi);
 
-	rt_mutex_lock(&mfd->bl_lock);
+	mutex_lock(&mfd->bl_lock);
 	mfd->allow_bl_update = true;
 	mdss_fb_set_backlight(mfd, mfd->panel_info->bl_max >> 1);
-	rt_mutex_unlock(&mfd->bl_lock);
+	mutex_unlock(&mfd->bl_lock);
 
 	init_completion(&mfd->splash_info.frame_done);
 

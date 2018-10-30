@@ -39,7 +39,7 @@ static struct mdss_mdp_cdm *mdss_mdp_cdm_alloc(struct mdss_data_type *mdata)
 	struct mdss_mdp_cdm *cdm = NULL;
 	u32 i = 0;
 
-	rt_mutex_lock(&mdata->cdm_lock);
+	mutex_lock(&mdata->cdm_lock);
 
 	for (i = 0; i < mdata->ncdm; i++) {
 		cdm = mdata->cdm_off + i;
@@ -52,7 +52,7 @@ static struct mdss_mdp_cdm *mdss_mdp_cdm_alloc(struct mdss_data_type *mdata)
 		cdm = NULL;
 	}
 
-	rt_mutex_unlock(&mdata->cdm_lock);
+	mutex_unlock(&mdata->cdm_lock);
 
 	return cdm;
 }
@@ -333,7 +333,7 @@ int mdss_mdp_cdm_setup(struct mdss_mdp_cdm *cdm, struct mdp_cdm_cfg *data)
 	}
 
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON);
-	rt_mutex_lock(&cdm->lock);
+	mutex_lock(&cdm->lock);
 	/* Setup CSC block */
 	rc = mdss_mdp_cdm_csc_setup(cdm, data);
 	if (rc) {
@@ -358,7 +358,7 @@ int mdss_mdp_cdm_setup(struct mdss_mdp_cdm *cdm, struct mdp_cdm_cfg *data)
 	memcpy(&cdm->setup, data, sizeof(struct mdp_cdm_cfg));
 
 fail:
-	rt_mutex_unlock(&cdm->lock);
+	mutex_unlock(&cdm->lock);
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF);
 	return rc;
 }
@@ -378,14 +378,14 @@ int mdss_mdp_cdm_destroy(struct mdss_mdp_cdm *cdm)
 	}
 
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON);
-	rt_mutex_lock(&cdm->lock);
+	mutex_lock(&cdm->lock);
 	/* Disable HDMI packer */
 	writel_relaxed(0x0, cdm->base + MDSS_MDP_REG_CDM_HDMI_PACK_OP_MODE);
 
 	/* Put CDM in bypass */
 	writel_relaxed(0x0, cdm->mdata->mdp_base + MDSS_MDP_MDP_OUT_CTL_0);
 
-	rt_mutex_unlock(&cdm->lock);
+	mutex_unlock(&cdm->lock);
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF);
 
 	kref_put(&cdm->kref, mdss_mdp_cdm_free);

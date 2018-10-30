@@ -51,7 +51,7 @@ struct mdss_rot_entry_cb_intf {
 };
 
 struct mdss_rot_timeline {
-	struct rt_mutex lock;
+	struct mutex lock;
 	struct sw_sync_timeline *timeline;
 	u32 next_value;
 	char fence_name[32];
@@ -73,7 +73,7 @@ struct mdss_rot_queue {
 	struct workqueue_struct *rot_work_queue;
 	struct mdss_rot_timeline timeline;
 
-	struct rt_mutex hw_lock;
+	struct mutex hw_lock;
 	struct mdss_rot_hw_resource *hw;
 };
 
@@ -116,7 +116,7 @@ struct mdss_rot_perf {
 	struct mdp_rotation_config config;
 	unsigned long clk_rate;
 	u64 bw;
-	struct rt_mutex work_dis_lock;
+	struct mutex work_dis_lock;
 	u32 *work_distribution;
 	int last_wb_idx; /* last known wb index, used when above count is 0 */
 };
@@ -124,10 +124,10 @@ struct mdss_rot_perf {
 struct mdss_rot_file_private {
 	struct list_head list;
 
-	struct rt_mutex req_lock;
+	struct mutex req_lock;
 	struct list_head req_list;
 
-	struct rt_mutex perf_lock;
+	struct mutex perf_lock;
 	struct list_head perf_list;
 
 	struct file *file;
@@ -141,7 +141,7 @@ struct mdss_rot_bus_data_type {
 };
 
 struct mdss_rot_mgr {
-	struct rt_mutex lock;
+	struct mutex lock;
 
 	atomic_t device_suspended;
 
@@ -161,14 +161,14 @@ struct mdss_rot_mgr {
 	int queue_count;
 	struct mdss_rot_queue *queues;
 
-	struct rt_mutex file_lock;
+	struct mutex file_lock;
 	/*
 	 * managing all the open file sessions to bw calculations,
 	 * and resource clean up during suspend
 	 */
 	struct list_head file_list;
 
-	struct rt_mutex bus_lock;
+	struct mutex bus_lock;
 	u64 pending_close_bw_vote;
 	struct mdss_rot_bus_data_type data_bus;
 	struct mdss_rot_bus_data_type reg_bus;
@@ -177,7 +177,7 @@ struct mdss_rot_mgr {
 	struct dss_module_power module_power;
 	bool regulator_enable;
 
-	struct rt_mutex clk_lock;
+	struct mutex clk_lock;
 	int res_ref_cnt;
 	struct clk *rot_clk[MDSS_CLK_ROTATOR_END_IDX];
 	int rot_enable_clk_cnt;

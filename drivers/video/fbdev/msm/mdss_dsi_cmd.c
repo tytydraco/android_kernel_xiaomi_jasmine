@@ -730,14 +730,14 @@ struct dcs_cmd_req *mdss_dsi_cmdlist_get(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct dcs_cmd_list *clist;
 	struct dcs_cmd_req *req = NULL;
 
-	rt_mutex_lock(&ctrl->cmdlist_mutex);
+	mutex_lock(&ctrl->cmdlist_mutex);
 	clist = &ctrl->cmdlist;
 	if (clist->get != clist->put) {
 		req = &clist->list[clist->get];
 		/*dont let commit thread steal ESD thread's
 		command*/
 		if (from_mdp && (req->flags & CMD_REQ_COMMIT)) {
-			rt_mutex_unlock(&ctrl->cmdlist_mutex);
+			mutex_unlock(&ctrl->cmdlist_mutex);
 			return NULL;
 		}
 		clist->get++;
@@ -746,7 +746,7 @@ struct dcs_cmd_req *mdss_dsi_cmdlist_get(struct mdss_dsi_ctrl_pdata *ctrl,
 		pr_debug("%s: tot=%d put=%d get=%d\n", __func__,
 		clist->tot, clist->put, clist->get);
 	}
-	rt_mutex_unlock(&ctrl->cmdlist_mutex);
+	mutex_unlock(&ctrl->cmdlist_mutex);
 	return req;
 }
 
@@ -757,8 +757,8 @@ int mdss_dsi_cmdlist_put(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct dcs_cmd_list *clist;
 	int ret = 0;
 
-	rt_mutex_lock(&ctrl->cmd_mutex);
-	rt_mutex_lock(&ctrl->cmdlist_mutex);
+	mutex_lock(&ctrl->cmd_mutex);
+	mutex_lock(&ctrl->cmdlist_mutex);
 	clist = &ctrl->cmdlist;
 	req = &clist->list[clist->put];
 	*req = *cmdreq;
@@ -777,7 +777,7 @@ int mdss_dsi_cmdlist_put(struct mdss_dsi_ctrl_pdata *ctrl,
 	pr_debug("%s: tot=%d put=%d get=%d\n", __func__,
 		clist->tot, clist->put, clist->get);
 
-	rt_mutex_unlock(&ctrl->cmdlist_mutex);
+	mutex_unlock(&ctrl->cmdlist_mutex);
 
 	if (req->flags & CMD_REQ_COMMIT) {
 		if (!ctrl->cmdlist_commit)
@@ -785,7 +785,7 @@ int mdss_dsi_cmdlist_put(struct mdss_dsi_ctrl_pdata *ctrl,
 		else
 			ret = ctrl->cmdlist_commit(ctrl, 0);
 	}
-	rt_mutex_unlock(&ctrl->cmd_mutex);
+	mutex_unlock(&ctrl->cmd_mutex);
 
 	return ret;
 }

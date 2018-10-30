@@ -52,7 +52,7 @@ struct sugov_policy {
 	/* The next fields are only needed if fast switch cannot be used. */
 	struct irq_work irq_work;
 	struct kthread_work work;
-	struct rt_mutex work_lock;
+	struct mutex work_lock;
 	struct kthread_worker worker;
 	struct task_struct *thread;
 	bool work_in_progress;
@@ -373,10 +373,10 @@ static void sugov_work(struct kthread_work *work)
 {
 	struct sugov_policy *sg_policy = container_of(work, struct sugov_policy, work);
 
-	rt_mutex_lock(&sg_policy->work_lock);
+	mutex_lock(&sg_policy->work_lock);
 	__cpufreq_driver_target(sg_policy->policy, sg_policy->next_freq,
 				CPUFREQ_RELATION_L);
-	rt_mutex_unlock(&sg_policy->work_lock);
+	mutex_unlock(&sg_policy->work_lock);
 
 	sg_policy->work_in_progress = false;
 }
@@ -406,21 +406,21 @@ static void sugov_irq_work(struct irq_work *irq_work)
 /************************** sysfs interface ************************/
 
 static struct sugov_tunables *global_tunables;
-static DEFINE_RT_MUTEX(global_tunables_lock);
+static DEFINE_MUTEX(global_tunables_lock);
 
 static inline struct sugov_tunables *to_sugov_tunables(struct gov_attr_set *attr_set)
 {
 	return container_of(attr_set, struct sugov_tunables, attr_set);
 }
 
-static DEFINE_RT_MUTEX(min_rate_lock);
+static DEFINE_MUTEX(min_rate_lock);
 
 static void update_min_rate_limit_us(struct sugov_policy *sg_policy)
 {
-	rt_mutex_lock(&min_rate_lock);
+	mutex_lock(&min_rate_lock);
 	sg_policy->min_rate_limit_ns = min(sg_policy->up_rate_delay_ns,
 					   sg_policy->down_rate_delay_ns);
-	rt_mutex_unlock(&min_rate_lock);
+	mutex_unlock(&min_rate_lock);
 }
 
 static ssize_t up_rate_limit_us_show(struct gov_attr_set *attr_set, char *buf)
@@ -546,7 +546,7 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 	sg_policy->thread = thread;
 	kthread_bind_mask(thread, policy->related_cpus);
 	init_irq_work(&sg_policy->irq_work, sugov_irq_work);
-	rt_mutex_init(&sg_policy->work_lock);
+	mutex_init(&sg_policy->work_lock);
 
 	wake_up_process(thread);
 
@@ -561,7 +561,7 @@ static void sugov_kthread_stop(struct sugov_policy *sg_policy)
 
 	flush_kthread_worker(&sg_policy->worker);
 	kthread_stop(sg_policy->thread);
-	rt_mutex_destroy(&sg_policy->work_lock);
+	mutex_destroy(&sg_policy->work_lock);
 }
 
 static struct sugov_tunables *sugov_tunables_alloc(struct sugov_policy *sg_policy)
@@ -608,7 +608,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 	if (ret)
 		goto free_sg_policy;
 
-	rt_mutex_lock(&global_tunables_lock);
+	mutex_lock(&global_tunables_lock);
 
 	if (global_tunables) {
 		if (WARN_ON(have_governor_per_policy())) {
@@ -646,7 +646,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 		goto fail;
 
 out:
-	rt_mutex_unlock(&global_tunables_lock);
+	mutex_unlock(&global_tunables_lock);
 	return 0;
 
 fail:
@@ -657,7 +657,7 @@ stop_kthread:
 	sugov_kthread_stop(sg_policy);
 
 free_sg_policy:
-	rt_mutex_unlock(&global_tunables_lock);
+	mutex_unlock(&global_tunables_lock);
 
 	sugov_policy_free(sg_policy);
 
@@ -674,14 +674,14 @@ static int sugov_exit(struct cpufreq_policy *policy)
 	struct sugov_tunables *tunables = sg_policy->tunables;
 	unsigned int count;
 
-	rt_mutex_lock(&global_tunables_lock);
+	mutex_lock(&global_tunables_lock);
 
 	count = gov_attr_set_put(&tunables->attr_set, &sg_policy->tunables_hook);
 	policy->governor_data = NULL;
 	if (!count)
 		sugov_tunables_free(tunables);
 
-	rt_mutex_unlock(&global_tunables_lock);
+	mutex_unlock(&global_tunables_lock);
 
 	sugov_kthread_stop(sg_policy);
 	sugov_policy_free(sg_policy);
@@ -743,9 +743,9 @@ static int sugov_limits(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy = policy->governor_data;
 
 	if (!policy->fast_switch_enabled) {
-		rt_mutex_lock(&sg_policy->work_lock);
+		mutex_lock(&sg_policy->work_lock);
 		cpufreq_policy_apply_limits(policy);
-		rt_mutex_unlock(&sg_policy->work_lock);
+		mutex_unlock(&sg_policy->work_lock);
 	}
 
 	sg_policy->need_freq_update = true;

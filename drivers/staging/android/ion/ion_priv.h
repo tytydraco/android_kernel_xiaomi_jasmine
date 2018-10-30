@@ -85,7 +85,7 @@ struct ion_buffer {
 		void *priv_virt;
 		ion_phys_addr_t priv_phys;
 	};
-	struct rt_mutex lock;
+	struct mutex lock;
 	int kmap_cnt;
 	void *vaddr;
 	struct sg_table *sg_table;
@@ -110,7 +110,7 @@ void ion_buffer_destroy(struct ion_buffer *buffer);
 struct ion_device {
 	struct miscdevice dev;
 	struct rb_root buffers;
-	struct rt_mutex buffer_lock;
+	struct mutex buffer_lock;
 	struct rw_semaphore lock;
 	struct plist_head heaps;
 	long (*custom_ioctl)(struct ion_client *client, unsigned int cmd,
@@ -134,7 +134,7 @@ struct ion_device {
  * @task:		used for debugging
  *
  * A client represents a list of buffers this client may access.
- * The rt_mutex stored here is used to protect both handles tree
+ * The mutex stored here is used to protect both handles tree
  * as well as the handles themselves, and should be held while modifying either.
  */
 struct ion_client {
@@ -142,7 +142,7 @@ struct ion_client {
 	struct ion_device *dev;
 	struct rb_root handles;
 	struct idr idr;
-	struct rt_mutex lock;
+	struct mutex lock;
 	char *name;
 	char *display_name;
 	int display_serial;
@@ -509,7 +509,7 @@ struct ion_page_pool {
 	int low_count;
 	struct list_head high_items;
 	struct list_head low_items;
-	struct rt_mutex mutex;
+	struct mutex mutex;
 	struct device *dev;
 	gfp_t gfp_mask;
 	unsigned int order;

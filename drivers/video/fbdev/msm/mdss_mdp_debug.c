@@ -1925,10 +1925,10 @@ static void __dump_pipe(struct seq_file *s, struct mdss_mdp_pipe *pipe,
 
 	seq_puts(s, "Data:\n");
 
-	rt_mutex_lock(&mdp5_data->list_lock);
+	mutex_lock(&mdp5_data->list_lock);
 	list_for_each_entry(buf, &pipe->buf_queue, pipe_list)
 		__print_buf(s, buf, false);
-	rt_mutex_unlock(&mdp5_data->list_lock);
+	mutex_unlock(&mdp5_data->list_lock);
 }
 
 static void __dump_mixer(struct seq_file *s, struct mdss_mdp_mixer *mixer,
@@ -2086,7 +2086,7 @@ static void __dump_buf_data(struct seq_file *s, struct msm_fb_data_type *mfd)
 
 	seq_printf(s, "List of buffers for fb%d\n", mfd->index);
 
-	rt_mutex_lock(&mdp5_data->list_lock);
+	mutex_lock(&mdp5_data->list_lock);
 	if (!list_empty(&mdp5_data->bufs_used)) {
 		seq_puts(s, " Buffers used:\n");
 		list_for_each_entry(buf, &mdp5_data->bufs_used, buf_list)
@@ -2110,7 +2110,7 @@ static void __dump_buf_data(struct seq_file *s, struct msm_fb_data_type *mfd)
 			i++;
 		}
 	}
-	rt_mutex_unlock(&mdp5_data->list_lock);
+	mutex_unlock(&mdp5_data->list_lock);
 }
 
 static int __dump_buffers(struct seq_file *s, struct mdss_data_type *mdata)

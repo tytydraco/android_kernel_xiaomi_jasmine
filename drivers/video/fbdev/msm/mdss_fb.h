@@ -162,7 +162,7 @@ struct disp_info_notify {
 	int type;
 	struct timer_list timer;
 	struct completion comp;
-	struct rt_mutex lock;
+	struct mutex lock;
 	int value;
 	int is_suspend;
 	int ref_count;
@@ -184,7 +184,7 @@ struct msm_sync_pt_data {
 	bool flushed;
 	bool async_wait_fences;
 
-	struct rt_mutex sync_mutex;
+	struct mutex sync_mutex;
 	struct notifier_block notifier;
 
 	struct sync_fence *(*get_retire_fence)
@@ -319,8 +319,8 @@ struct msm_fb_data_type {
 	bool allow_bl_update;
 	u32 bl_level_scaled;
 	u32 bl_level_usr;
-	struct rt_mutex bl_lock;
-	struct rt_mutex mdss_sysfs_lock;
+	struct mutex bl_lock;
+	struct mutex mdss_sysfs_lock;
 	bool ipc_resume;
 
 	struct platform_device *pdev;
@@ -375,26 +375,26 @@ struct msm_fb_data_type {
 	enum dyn_mode_switch_state switch_state;
 	u32 switch_new_mode;
 	bool pending_switch;
-	struct rt_mutex switch_lock;
+	struct mutex switch_lock;
 	struct input_handler *input_handler;
 };
 
 static inline void mdss_fb_update_notify_update(struct msm_fb_data_type *mfd)
 {
 	int needs_complete = 0;
-	rt_mutex_lock(&mfd->update.lock);
+	mutex_lock(&mfd->update.lock);
 	mfd->update.value = mfd->update.type;
 	needs_complete = mfd->update.value == NOTIFY_TYPE_UPDATE;
-	rt_mutex_unlock(&mfd->update.lock);
+	mutex_unlock(&mfd->update.lock);
 	if (needs_complete) {
 		complete(&mfd->update.comp);
-		rt_mutex_lock(&mfd->no_update.lock);
+		mutex_lock(&mfd->no_update.lock);
 		if (mfd->no_update.timer.function)
 			del_timer(&(mfd->no_update.timer));
 
 		mfd->no_update.timer.expires = jiffies + msecs_to_jiffies(2000);
 		add_timer(&mfd->no_update.timer);
-		rt_mutex_unlock(&mfd->no_update.lock);
+		mutex_unlock(&mfd->no_update.lock);
 	}
 }
 

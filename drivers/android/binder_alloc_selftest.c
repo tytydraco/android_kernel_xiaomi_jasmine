@@ -266,12 +266,12 @@ void binder_selftest_alloc(struct binder_alloc *alloc)
 
 	if (!binder_selftest_run)
 		return;
-	rt_mutex_lock(&binder_selftest_lock);
+	mutex_lock(&binder_selftest_lock);
 	if (!binder_selftest_run || !alloc->vma)
 		goto done;
 	binder_selftest_alloc_offset(alloc, end_offset, 0);
 	binder_selftest_run = false;
 
 done:
-	rt_mutex_unlock(&binder_selftest_lock);
+	mutex_unlock(&binder_selftest_lock);
 }

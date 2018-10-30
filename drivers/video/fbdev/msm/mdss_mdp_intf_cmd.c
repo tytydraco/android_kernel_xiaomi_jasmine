@@ -35,9 +35,9 @@
 #define INPUT_EVENT_HANDLER_DELAY_USECS (16000 * 4)
 #define AUTOREFRESH_MAX_FRAME_CNT 6
 
-static DEFINE_RT_MUTEX(cmd_clk_mtx);
+static DEFINE_MUTEX(cmd_clk_mtx);
 
-static DEFINE_RT_MUTEX(cmd_off_mtx);
+static DEFINE_MUTEX(cmd_off_mtx);
 
 enum mdss_mdp_cmd_autorefresh_state {
 	MDP_AUTOREFRESH_OFF,
@@ -74,9 +74,9 @@ struct mdss_mdp_cmd_ctx {
 	int panel_power_state;
 	atomic_t koff_cnt;
 	u32 intf_stopped;
-	struct rt_mutex mdp_rdptr_lock;
-	struct rt_mutex mdp_wrptr_lock;
-	struct rt_mutex clk_mtx;
+	struct mutex mdp_rdptr_lock;
+	struct mutex mdp_wrptr_lock;
+	struct mutex clk_mtx;
 	spinlock_t clk_lock;
 	spinlock_t koff_lock;
 	spinlock_t ctlstart_lock;
@@ -92,7 +92,7 @@ struct mdss_mdp_cmd_ctx {
 	 * While autorefresh is on, partial update is not supported. So
 	 * autorefresh state machine is always maintained through master ctx.
 	 */
-	struct rt_mutex autorefresh_lock;
+	struct mutex autorefresh_lock;
 	struct completion autorefresh_ppdone;
 	enum mdss_mdp_cmd_autorefresh_state autorefresh_state;
 	int autorefresh_frame_cnt;
@@ -802,7 +802,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 					__func__);
 		}
 
-		rt_mutex_lock(&ctl->rsrc_lock);
+		mutex_lock(&ctl->rsrc_lock);
 		MDSS_XLOG(ctl->num, mdp5_data->resources_state, sw_event, 0x11);
 		/* Transition OFF->ON || GATE->ON (enable clocks) */
 		if ((mdp5_data->resources_state == MDP_RSRC_CTL_STATE_OFF) ||
@@ -855,7 +855,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 				__func__, get_sw_event_name(sw_event));
 			BUG();
 		}
-		rt_mutex_unlock(&ctl->rsrc_lock);
+		mutex_unlock(&ctl->rsrc_lock);
 		break;
 	case MDP_RSRC_CTL_EVENT_PP_DONE:
 		if (mdp5_data->resources_state != MDP_RSRC_CTL_STATE_ON) {
@@ -922,12 +922,12 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 		if (sctl)
 			mdss_mdp_cmd_wait4pingpong(sctl, NULL);
 
-		rt_mutex_lock(&ctx->autorefresh_lock);
+		mutex_lock(&ctx->autorefresh_lock);
 		if (ctx->autorefresh_state != MDP_AUTOREFRESH_OFF) {
 			pr_debug("move autorefresh to disable state\n");
 			mdss_mdp_disable_autorefresh(ctl, sctl);
 		}
-		rt_mutex_unlock(&ctx->autorefresh_lock);
+		mutex_unlock(&ctx->autorefresh_lock);
 
 		/*
 		 * If a pp_done happened just before the stop,
@@ -956,7 +956,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 					__func__);
 		}
 
-		rt_mutex_lock(&ctl->rsrc_lock);
+		mutex_lock(&ctl->rsrc_lock);
 		MDSS_XLOG(ctl->num, mdp5_data->resources_state, sw_event, 0x33);
 		if ((mdp5_data->resources_state == MDP_RSRC_CTL_STATE_ON) ||
 				(mdp5_data->resources_state
@@ -985,7 +985,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 			/* update the state, now we are in off */
 			mdp5_data->resources_state = MDP_RSRC_CTL_STATE_OFF;
 		}
-		rt_mutex_unlock(&ctl->rsrc_lock);
+		mutex_unlock(&ctl->rsrc_lock);
 		break;
 	case MDP_RSRC_CTL_EVENT_EARLY_WAKE_UP:
 		/*
@@ -1017,7 +1017,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 			schedule_off = true;
 		}
 
-		rt_mutex_lock(&ctl->rsrc_lock);
+		mutex_lock(&ctl->rsrc_lock);
 		MDSS_XLOG(ctl->num, mdp5_data->resources_state, sw_event,
 			schedule_off, 0x44);
 		if (mdp5_data->resources_state == MDP_RSRC_CTL_STATE_OFF) {
@@ -1066,7 +1066,7 @@ int mdss_mdp_resource_control(struct mdss_mdp_ctl *ctl, u32 sw_event)
 				      CMD_MODE_IDLE_TIMEOUT);
 			pr_debug("off work scheduled\n");
 		}
-		rt_mutex_unlock(&ctl->rsrc_lock);
+		mutex_unlock(&ctl->rsrc_lock);
 		break;
 	default:
 		pr_warn("%s unexpected event (%d)\n", __func__, sw_event);
@@ -1087,10 +1087,10 @@ static bool mdss_mdp_cmd_is_autorefresh_enabled(struct mdss_mdp_ctl *mctl)
 	if (!ctx || !ctx->ctl)
 		return 0;
 
-	rt_mutex_lock(&ctx->autorefresh_lock);
+	mutex_lock(&ctx->autorefresh_lock);
 	if (ctx->autorefresh_state == MDP_AUTOREFRESH_ON)
 		enabled = true;
-	rt_mutex_unlock(&ctx->autorefresh_lock);
+	mutex_unlock(&ctx->autorefresh_lock);
 
 	return enabled;
 }
@@ -1102,7 +1102,7 @@ static inline void mdss_mdp_cmd_clk_on(struct mdss_mdp_cmd_ctx *ctx)
 	pr_debug("%pS-->%s: task:%s ctx%d\n", __builtin_return_address(0),
 		__func__, current->group_leader->comm, ctx->current_pp_num);
 
-	rt_mutex_lock(&ctx->clk_mtx);
+	mutex_lock(&ctx->clk_mtx);
 	MDSS_XLOG(ctx->current_pp_num, atomic_read(&ctx->koff_cnt),
 		mdata->bus_ref_cnt);
 
@@ -1110,7 +1110,7 @@ static inline void mdss_mdp_cmd_clk_on(struct mdss_mdp_cmd_ctx *ctx)
 
 	mdss_mdp_hist_intr_setup(&mdata->hist_intr, MDSS_IRQ_RESUME);
 
-	rt_mutex_unlock(&ctx->clk_mtx);
+	mutex_unlock(&ctx->clk_mtx);
 }
 
 static inline void mdss_mdp_cmd_clk_off(struct mdss_mdp_cmd_ctx *ctx)
@@ -1121,7 +1121,7 @@ static inline void mdss_mdp_cmd_clk_off(struct mdss_mdp_cmd_ctx *ctx)
 	pr_debug("%pS-->%s: task:%s ctx%d\n", __builtin_return_address(0),
 		__func__, current->group_leader->comm, ctx->current_pp_num);
 
-	rt_mutex_lock(&ctx->clk_mtx);
+	mutex_lock(&ctx->clk_mtx);
 	MDSS_XLOG(ctx->current_pp_num, atomic_read(&ctx->koff_cnt),
 		mdata->bus_ref_cnt);
 
@@ -1145,7 +1145,7 @@ static inline void mdss_mdp_cmd_clk_off(struct mdss_mdp_cmd_ctx *ctx)
 
 	mdss_bus_bandwidth_ctrl(false);
 
-	rt_mutex_unlock(&ctx->clk_mtx);
+	mutex_unlock(&ctx->clk_mtx);
 }
 
 static void mdss_mdp_cmd_readptr_done(void *arg)
@@ -1431,7 +1431,7 @@ static int mdss_mdp_setup_lineptr(struct mdss_mdp_cmd_ctx *ctx,
 {
 	int changed = 0;
 
-	rt_mutex_lock(&ctx->mdp_wrptr_lock);
+	mutex_lock(&ctx->mdp_wrptr_lock);
 
 	if (enable) {
 		if (ctx->lineptr_irq_cnt == 0)
@@ -1478,7 +1478,7 @@ static int mdss_mdp_setup_lineptr(struct mdss_mdp_cmd_ctx *ctx,
 		}
 	}
 
-	rt_mutex_unlock(&ctx->mdp_wrptr_lock);
+	mutex_unlock(&ctx->mdp_wrptr_lock);
 	return ctx->lineptr_irq_cnt;
 }
 
@@ -1489,7 +1489,7 @@ static int mdss_mdp_cmd_add_lineptr_handler(struct mdss_mdp_ctl *ctl,
 	unsigned long flags;
 	int ret = 0;
 
-	rt_mutex_lock(&cmd_off_mtx);
+	mutex_lock(&cmd_off_mtx);
 	ctx = (struct mdss_mdp_cmd_ctx *) ctl->intf_ctx[MASTER_CTX];
 	if (!ctx || !ctl->is_master) {
 		ret = -EINVAL;
@@ -1509,15 +1509,15 @@ static int mdss_mdp_cmd_add_lineptr_handler(struct mdss_mdp_ctl *ctl,
 	spin_unlock_irqrestore(&ctx->clk_lock, flags);
 
 	if (ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY)
-		rt_mutex_lock(&cmd_clk_mtx);
+		mutex_lock(&cmd_clk_mtx);
 
 	mdss_mdp_setup_lineptr(ctx, true);
 	ctx->lineptr_enabled = true;
 
 	if (ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY)
-		rt_mutex_unlock(&cmd_clk_mtx);
+		mutex_unlock(&cmd_clk_mtx);
 done:
-	rt_mutex_unlock(&cmd_off_mtx);
+	mutex_unlock(&cmd_off_mtx);
 
 	return ret;
 }
@@ -1678,11 +1678,11 @@ static void clk_ctrl_delayed_off_work(struct work_struct *work)
 		get_clk_pwr_state_name
 		(mdp5_data->resources_state));
 
-	rt_mutex_lock(&ctl->rsrc_lock);
+	mutex_lock(&ctl->rsrc_lock);
 	MDSS_XLOG(ctl->num, mdp5_data->resources_state, XLOG_FUNC_ENTRY);
 
 	if (ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY) {
-		rt_mutex_lock(&cmd_clk_mtx);
+		mutex_lock(&cmd_clk_mtx);
 
 		if (mdss_mdp_get_split_display_ctls(&ctl, &sctl)) {
 			/* error when getting both controllers, just returnr */
@@ -1699,7 +1699,7 @@ static void clk_ctrl_delayed_off_work(struct work_struct *work)
 			goto exit;
 		}
 	} else if (is_pingpong_split(ctl->mfd)) {
-		rt_mutex_lock(&cmd_clk_mtx);
+		mutex_lock(&cmd_clk_mtx);
 		sctx = (struct mdss_mdp_cmd_ctx *) ctl->intf_ctx[SLAVE_CTX];
 		if (!sctx) {
 			pr_err("invalid sctx\n");
@@ -1744,10 +1744,10 @@ exit:
 	/* do this at the end, so we can also protect the global power state*/
 	if ((ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY) ||
 	    is_pingpong_split(ctl->mfd))
-		rt_mutex_unlock(&cmd_clk_mtx);
+		mutex_unlock(&cmd_clk_mtx);
 
 	MDSS_XLOG(ctl->num, mdp5_data->resources_state, XLOG_FUNC_EXIT);
-	rt_mutex_unlock(&ctl->rsrc_lock);
+	mutex_unlock(&ctl->rsrc_lock);
 
 	ATRACE_END(__func__);
 }
@@ -1783,12 +1783,12 @@ static void clk_ctrl_gate_work(struct work_struct *work)
 		ctl->num, get_clk_pwr_state_name
 		(mdp5_data->resources_state));
 
-	rt_mutex_lock(&ctl->rsrc_lock);
+	mutex_lock(&ctl->rsrc_lock);
 	MDSS_XLOG(ctl->num, mdp5_data->resources_state, XLOG_FUNC_ENTRY);
 
 
 	if (ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY) {
-		rt_mutex_lock(&cmd_clk_mtx);
+		mutex_lock(&cmd_clk_mtx);
 
 		if (mdss_mdp_get_split_display_ctls(&ctl, &sctl)) {
 			/* error when getting both controllers, just return */
@@ -1806,7 +1806,7 @@ static void clk_ctrl_gate_work(struct work_struct *work)
 			goto exit;
 		}
 	} else if (is_pingpong_split(ctl->mfd)) {
-		rt_mutex_lock(&cmd_clk_mtx);
+		mutex_lock(&cmd_clk_mtx);
 		sctx = (struct mdss_mdp_cmd_ctx *) ctl->intf_ctx[SLAVE_CTX];
 		if (!sctx) {
 			pr_err("invalid sctx\n");
@@ -1855,10 +1855,10 @@ exit:
 	/* unlock mutex needed for split display */
 	if ((ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY) ||
 	    is_pingpong_split(ctl->mfd))
-		rt_mutex_unlock(&cmd_clk_mtx);
+		mutex_unlock(&cmd_clk_mtx);
 
 	MDSS_XLOG(ctl->num, mdp5_data->resources_state, XLOG_FUNC_EXIT);
-	rt_mutex_unlock(&ctl->rsrc_lock);
+	mutex_unlock(&ctl->rsrc_lock);
 
 	ATRACE_END(__func__);
 }
@@ -1868,7 +1868,7 @@ static int mdss_mdp_setup_vsync(struct mdss_mdp_cmd_ctx *ctx,
 {
 	int changed = 0;
 
-	rt_mutex_lock(&ctx->mdp_rdptr_lock);
+	mutex_lock(&ctx->mdp_rdptr_lock);
 
 	if (enable) {
 		if (ctx->vsync_irq_cnt == 0)
@@ -1915,7 +1915,7 @@ static int mdss_mdp_setup_vsync(struct mdss_mdp_cmd_ctx *ctx,
 		}
 	}
 
-	rt_mutex_unlock(&ctx->mdp_rdptr_lock);
+	mutex_unlock(&ctx->mdp_rdptr_lock);
 	return ctx->vsync_irq_cnt;
 }
 
@@ -1928,7 +1928,7 @@ static int mdss_mdp_cmd_add_vsync_handler(struct mdss_mdp_ctl *ctl,
 	bool enable_rdptr = false;
 	int ret = 0;
 
-	rt_mutex_lock(&cmd_off_mtx);
+	mutex_lock(&cmd_off_mtx);
 	ctx = (struct mdss_mdp_cmd_ctx *) ctl->intf_ctx[MASTER_CTX];
 	if (!ctx) {
 		pr_err("%s: invalid ctx\n", __func__);
@@ -1955,17 +1955,17 @@ static int mdss_mdp_cmd_add_vsync_handler(struct mdss_mdp_ctl *ctl,
 
 	if (enable_rdptr) {
 		if (ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY)
-			rt_mutex_lock(&cmd_clk_mtx);
+			mutex_lock(&cmd_clk_mtx);
 
 		/* enable rd_ptr interrupt and clocks */
 		mdss_mdp_setup_vsync(ctx, true);
 
 		if (ctl->mfd->split_mode == MDP_DUAL_LM_DUAL_DISPLAY)
-			rt_mutex_unlock(&cmd_clk_mtx);
+			mutex_unlock(&cmd_clk_mtx);
 	}
 
 done:
-	rt_mutex_unlock(&cmd_off_mtx);
+	mutex_unlock(&cmd_off_mtx);
 
 	return ret;
 }
@@ -2375,7 +2375,7 @@ void mdss_mdp_cmd_panel_disable_cfg(struct mdss_mdp_ctl *ctl,
 	struct mdss_mdp_cmd_ctx *ctx, *sctx = NULL;
 
 	pinfo = &ctl->panel_data->panel_info;
-	rt_mutex_lock(&ctl->offlock);
+	mutex_lock(&ctl->offlock);
 
 	if ((pinfo->sim_panel_mode == SIM_MODE) ||
 		((!ctl->panel_data->panel_disable_mode) &&
@@ -2443,7 +2443,7 @@ void mdss_mdp_cmd_panel_disable_cfg(struct mdss_mdp_ctl *ctl,
 	}
 
 exit:
-	rt_mutex_unlock(&ctl->offlock);
+	mutex_unlock(&ctl->offlock);
 }
 
 /*
@@ -2484,7 +2484,7 @@ int mdss_mdp_cmd_set_autorefresh_mode(struct mdss_mdp_ctl *mctl, int frame_cnt)
 		return -EPERM;
 	}
 
-	rt_mutex_lock(&ctx->autorefresh_lock);
+	mutex_lock(&ctx->autorefresh_lock);
 
 	if (frame_cnt == ctx->autorefresh_frame_cnt) {
 		pr_debug("No change to the refresh count\n");
@@ -2562,7 +2562,7 @@ int mdss_mdp_cmd_set_autorefresh_mode(struct mdss_mdp_ctl *mctl, int frame_cnt)
 		ctx->autorefresh_frame_cnt);
 
 exit:
-	rt_mutex_unlock(&ctx->autorefresh_lock);
+	mutex_unlock(&ctx->autorefresh_lock);
 	return rc;
 }
 
@@ -2575,9 +2575,9 @@ int mdss_mdp_cmd_get_autorefresh_mode(struct mdss_mdp_ctl *mctl)
 	if (!ctx || !ctx->ctl)
 		return 0;
 
-	rt_mutex_lock(&ctx->autorefresh_lock);
+	mutex_lock(&ctx->autorefresh_lock);
 	autorefresh_frame_cnt = ctx->autorefresh_frame_cnt;
-	rt_mutex_unlock(&ctx->autorefresh_lock);
+	mutex_unlock(&ctx->autorefresh_lock);
 
 	return ctx->autorefresh_frame_cnt;
 }
@@ -2591,7 +2591,7 @@ static void mdss_mdp_cmd_pre_programming(struct mdss_mdp_ctl *mctl)
 	if (!mctl->is_master)
 		return;
 
-	rt_mutex_lock(&ctx->autorefresh_lock);
+	mutex_lock(&ctx->autorefresh_lock);
 
 	autorefresh_state = ctx->autorefresh_state;
 	MDSS_XLOG(autorefresh_state);
@@ -2611,7 +2611,7 @@ static void mdss_mdp_cmd_pre_programming(struct mdss_mdp_ctl *mctl)
 		ctx->ignore_external_te = true;
 
 	}
-	rt_mutex_unlock(&ctx->autorefresh_lock);
+	mutex_unlock(&ctx->autorefresh_lock);
 }
 
 /* this function assumes that autorefresh_lock is held by the caller  */
@@ -3106,7 +3106,7 @@ static int mdss_mdp_cmd_kickoff(struct mdss_mdp_ctl *ctl, void *arg)
 
 	mdss_mdp_cmd_set_sync_ctx(ctl, sctl);
 
-	rt_mutex_lock(&ctx->autorefresh_lock);
+	mutex_lock(&ctx->autorefresh_lock);
 	if (ctx->autorefresh_state == MDP_AUTOREFRESH_OFF_REQUESTED) {
 		pr_debug("%s: disable autorefresh ctl%d\n", __func__, ctl->num);
 		mdss_mdp_disable_autorefresh(ctl, sctl);
@@ -3151,7 +3151,7 @@ static int mdss_mdp_cmd_kickoff(struct mdss_mdp_ctl *ctl, void *arg)
 		mdss_mdp_cmd_wait4_autorefresh_done(ctl);
 
 	mb();
-	rt_mutex_unlock(&ctx->autorefresh_lock);
+	mutex_unlock(&ctx->autorefresh_lock);
 
 	MDSS_XLOG(ctl->num, ctx->current_pp_num,
 		sctx ? sctx->current_pp_num : -1, atomic_read(&ctx->koff_cnt));
@@ -3366,8 +3366,8 @@ int mdss_mdp_cmd_stop(struct mdss_mdp_ctl *ctl, int panel_power_state)
 
 	MDSS_XLOG(ctx->panel_power_state, panel_power_state);
 
-	rt_mutex_lock(&ctl->offlock);
-	rt_mutex_lock(&cmd_off_mtx);
+	mutex_lock(&ctl->offlock);
+	mutex_lock(&cmd_off_mtx);
 	if (mdss_panel_is_power_off(panel_power_state)) {
 		/* Transition to display off */
 		send_panel_events = true;
@@ -3513,8 +3513,8 @@ end:
 	}
 
 	MDSS_XLOG(ctl->num, atomic_read(&ctx->koff_cnt), XLOG_FUNC_EXIT);
-	rt_mutex_unlock(&cmd_off_mtx);
-	rt_mutex_unlock(&ctl->offlock);
+	mutex_unlock(&cmd_off_mtx);
+	mutex_unlock(&ctl->offlock);
 	pr_debug("%s:-\n", __func__);
 
 	return ret;
@@ -3586,7 +3586,7 @@ static int mdss_mdp_cmd_ctx_setup(struct mdss_mdp_ctl *ctl,
 	 * initialization of the the mutex and the autorefresh
 	 * sysfs.
 	 */
-	rt_mutex_init(&ctx->autorefresh_lock);
+	mutex_init(&ctx->autorefresh_lock);
 
 	ctx->ctl = ctl;
 	ctx->default_pp_num = default_pp_num;
@@ -3605,9 +3605,9 @@ static int mdss_mdp_cmd_ctx_setup(struct mdss_mdp_ctl *ctl,
 	spin_lock_init(&ctx->clk_lock);
 	spin_lock_init(&ctx->koff_lock);
 	spin_lock_init(&ctx->ctlstart_lock);
-	rt_mutex_init(&ctx->clk_mtx);
-	rt_mutex_init(&ctx->mdp_rdptr_lock);
-	rt_mutex_init(&ctx->mdp_wrptr_lock);
+	mutex_init(&ctx->clk_mtx);
+	mutex_init(&ctx->mdp_rdptr_lock);
+	mutex_init(&ctx->mdp_wrptr_lock);
 	INIT_WORK(&ctx->gate_clk_work, clk_ctrl_gate_work);
 	INIT_DELAYED_WORK(&ctx->delayed_off_clk_work,
 		clk_ctrl_delayed_off_work);

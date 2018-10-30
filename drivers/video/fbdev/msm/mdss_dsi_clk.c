@@ -47,7 +47,7 @@ struct mdss_dsi_clk_mngr {
 	pre_clockon_cb pre_clkon_cb;
 
 	struct list_head client_list;
-	struct rt_mutex clk_mutex;
+	struct mutex clk_mutex;
 
 	void *priv_data;
 };
@@ -731,7 +731,7 @@ void *mdss_dsi_clk_register(void *clk_mngr, struct mdss_dsi_clk_client *client)
 
 	pr_debug("%s: ENTER\n", mngr->name);
 
-	rt_mutex_lock(&mngr->clk_mutex);
+	mutex_lock(&mngr->clk_mutex);
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c) {
@@ -747,7 +747,7 @@ void *mdss_dsi_clk_register(void *clk_mngr, struct mdss_dsi_clk_client *client)
 	pr_debug("%s: Added new client (%s)\n", mngr->name, c->name);
 	handle = c;
 error:
-	rt_mutex_unlock(&mngr->clk_mutex);
+	mutex_unlock(&mngr->clk_mutex);
 	pr_debug("%s: EXIT, rc = %ld\n", mngr->name, PTR_ERR(handle));
 	return handle;
 }
@@ -768,7 +768,7 @@ int mdss_dsi_clk_deregister(void *client)
 
 	mngr = c->mngr;
 	pr_debug("%s: ENTER\n", mngr->name);
-	rt_mutex_lock(&mngr->clk_mutex);
+	mutex_lock(&mngr->clk_mutex);
 	c->core_clk_state = MDSS_DSI_CLK_OFF;
 	c->link_clk_state = MDSS_DSI_CLK_OFF;
 
@@ -790,7 +790,7 @@ int mdss_dsi_clk_deregister(void *client)
 	}
 
 error:
-	rt_mutex_unlock(&mngr->clk_mutex);
+	mutex_unlock(&mngr->clk_mutex);
 	pr_debug("%s: EXIT, rc = %d\n", mngr->name, rc);
 	return rc;
 }
@@ -808,9 +808,9 @@ bool is_dsi_clk_in_ecg_state(void *client)
 
 	mngr = c->mngr;
 
-	rt_mutex_lock(&mngr->clk_mutex);
+	mutex_lock(&mngr->clk_mutex);
 	is_ecg = (c->core_clk_state == MDSS_DSI_CLK_EARLY_GATE);
-	rt_mutex_unlock(&mngr->clk_mutex);
+	mutex_unlock(&mngr->clk_mutex);
 
 end:
 	return is_ecg;
@@ -832,7 +832,7 @@ int mdss_dsi_clk_req_state(void *client, enum mdss_dsi_clk_type clk,
 	}
 
 	mngr = c->mngr;
-	rt_mutex_lock(&mngr->clk_mutex);
+	mutex_lock(&mngr->clk_mutex);
 
 	pr_debug("[%s]%s: CLK=%d, new_state=%d, core=%d, linkl=%d\n",
 	       c->name, mngr->name, clk, state, c->core_clk_state,
@@ -912,7 +912,7 @@ int mdss_dsi_clk_req_state(void *client, enum mdss_dsi_clk_type clk,
 			pr_err("Failed to adjust clock state rc = %d\n", rc);
 	}
 
-	rt_mutex_unlock(&mngr->clk_mutex);
+	mutex_unlock(&mngr->clk_mutex);
 	return rc;
 }
 
@@ -930,14 +930,14 @@ int mdss_dsi_clk_set_link_rate(void *client, enum mdss_dsi_link_clk_type clk,
 
 	mngr = c->mngr;
 	pr_debug("%s: ENTER\n", mngr->name);
-	rt_mutex_lock(&mngr->clk_mutex);
+	mutex_lock(&mngr->clk_mutex);
 
 	rc = dsi_set_clk_rate(mngr, clk, rate, flags);
 	if (rc)
 		pr_err("Failed to set rate for clk %d, rate = %d, rc = %d\n",
 		       clk, rate, rc);
 
-	rt_mutex_unlock(&mngr->clk_mutex);
+	mutex_unlock(&mngr->clk_mutex);
 	pr_debug("%s: EXIT, rc = %d\n", mngr->name, rc);
 	return rc;
 }
@@ -957,7 +957,7 @@ void *mdss_dsi_clk_init(struct mdss_dsi_clk_info *info)
 		goto error;
 	}
 
-	rt_mutex_init(&mngr->clk_mutex);
+	mutex_init(&mngr->clk_mutex);
 	memcpy(&mngr->core_clks.clks, &info->core_clks, sizeof(struct
 						 mdss_dsi_core_clk_info));
 	memcpy(&mngr->link_clks.clks, &info->link_clks, sizeof(struct
@@ -996,7 +996,7 @@ int mdss_dsi_clk_deinit(void *clk_mngr)
 	}
 
 	pr_debug("%s: ENTER\n", mngr->name);
-	rt_mutex_lock(&mngr->clk_mutex);
+	mutex_lock(&mngr->clk_mutex);
 
 	list_for_each_safe(position, tmp, &mngr->client_list) {
 		node = list_entry(position, struct mdss_dsi_clk_client_info,
@@ -1010,7 +1010,7 @@ int mdss_dsi_clk_deinit(void *clk_mngr)
 	if (rc)
 		pr_err("failed to disable all clocks\n");
 	mdss_reg_bus_vote_client_destroy(mngr->reg_bus_clt);
-	rt_mutex_unlock(&mngr->clk_mutex);
+	mutex_unlock(&mngr->clk_mutex);
 	pr_debug("%s: EXIT, rc = %d\n", mngr->name, rc);
 	kfree(mngr);
 	return rc;
@@ -1029,7 +1029,7 @@ int mdss_dsi_clk_force_toggle(void *client, u32 clk)
 	}
 
 	mngr = c->mngr;
-	rt_mutex_lock(&mngr->clk_mutex);
+	mutex_lock(&mngr->clk_mutex);
 
 	if ((clk & MDSS_DSI_CORE_CLK) &&
 	    (mngr->core_clks.current_clk_state == MDSS_DSI_CLK_ON)) {
@@ -1070,6 +1070,6 @@ int mdss_dsi_clk_force_toggle(void *client, u32 clk)
 	}
 
 error:
-	rt_mutex_unlock(&mngr->clk_mutex);
+	mutex_unlock(&mngr->clk_mutex);
 	return rc;
 }

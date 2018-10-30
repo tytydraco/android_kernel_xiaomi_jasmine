@@ -101,8 +101,8 @@ struct ppp_status {
 	bool wait_for_pop;
 	struct completion ppp_comp;
 	struct completion pop_q_comp;
-	struct rt_mutex req_mutex; /* Protect request queue */
-	struct rt_mutex config_ppp_mutex; /* Only one client configure register */
+	struct mutex req_mutex; /* Protect request queue */
+	struct mutex config_ppp_mutex; /* Only one client configure register */
 	struct msm_fb_data_type *mfd;
 
 	struct work_struct blit_work;
@@ -1323,11 +1323,11 @@ static void mdp3_free_bw_wq_handler(struct work_struct *work)
 {
 	struct msm_fb_data_type *mfd = ppp_stat->mfd;
 
-	rt_mutex_lock(&ppp_stat->config_ppp_mutex);
+	mutex_lock(&ppp_stat->config_ppp_mutex);
 	if (ppp_stat->bw_on) {
 		mdp3_ppp_turnon(mfd, 0);
 	}
-	rt_mutex_unlock(&ppp_stat->config_ppp_mutex);
+	mutex_unlock(&ppp_stat->config_ppp_mutex);
 }
 
 static bool is_hw_workaround_needed(struct mdp_blit_req req)
@@ -1495,17 +1495,17 @@ static void mdp3_ppp_blit_wq_handler(struct work_struct *work)
 	bool smart_blit = false;
 	int smart_blit_fg_index = -1;
 
-	rt_mutex_lock(&ppp_stat->config_ppp_mutex);
+	mutex_lock(&ppp_stat->config_ppp_mutex);
 	req = mdp3_ppp_next_req(&ppp_stat->req_q);
 	if (!req) {
-		rt_mutex_unlock(&ppp_stat->config_ppp_mutex);
+		mutex_unlock(&ppp_stat->config_ppp_mutex);
 		return;
 	}
 
 	if (!ppp_stat->bw_on) {
 		mdp3_ppp_turnon(mfd, 1);
 		if (rc < 0) {
-			rt_mutex_unlock(&ppp_stat->config_ppp_mutex);
+			mutex_unlock(&ppp_stat->config_ppp_mutex);
 			pr_err("%s: Enable ppp resources failed\n", __func__);
 			return;
 		}
@@ -1562,17 +1562,17 @@ static void mdp3_ppp_blit_wq_handler(struct work_struct *work)
 		}
 		ATRACE_END("mdp3_ppp_start");
 		/* Signal to release fence */
-		rt_mutex_lock(&ppp_stat->req_mutex);
+		mutex_lock(&ppp_stat->req_mutex);
 		mdp3_ppp_signal_timeline(req);
 		mdp3_ppp_req_pop(&ppp_stat->req_q);
 		req = mdp3_ppp_next_req(&ppp_stat->req_q);
 		if (ppp_stat->wait_for_pop)
 			complete(&ppp_stat->pop_q_comp);
-		rt_mutex_unlock(&ppp_stat->req_mutex);
+		mutex_unlock(&ppp_stat->req_mutex);
 	}
 	mod_timer(&ppp_stat->free_bw_timer, jiffies +
 		msecs_to_jiffies(MDP_RELEASE_BW_TIMEOUT));
-	rt_mutex_unlock(&ppp_stat->config_ppp_mutex);
+	mutex_unlock(&ppp_stat->config_ppp_mutex);
 }
 
 int mdp3_ppp_parse_req(void __user *p,
@@ -1585,10 +1585,10 @@ int mdp3_ppp_parse_req(void __user *p,
 	int count, rc, idx, i;
 	count = req_list_header->count;
 
-	rt_mutex_lock(&ppp_stat->req_mutex);
+	mutex_lock(&ppp_stat->req_mutex);
 	while (req_q->count >= MDP3_PPP_MAX_LIST_REQ) {
 		ppp_stat->wait_for_pop = true;
-		rt_mutex_unlock(&ppp_stat->req_mutex);
+		mutex_unlock(&ppp_stat->req_mutex);
 		rc = wait_for_completion_timeout(
 		   &ppp_stat->pop_q_comp, msecs_to_jiffies(5000));
 		if (rc == 0) {
@@ -1597,7 +1597,7 @@ int mdp3_ppp_parse_req(void __user *p,
 				   __func__);
 			return -EBUSY;
 		}
-		rt_mutex_lock(&ppp_stat->req_mutex);
+		mutex_lock(&ppp_stat->req_mutex);
 		ppp_stat->wait_for_pop = false;
 	}
 	idx = req_q->push_idx;
@@ -1605,14 +1605,14 @@ int mdp3_ppp_parse_req(void __user *p,
 
 	if (copy_from_user(&req->req_list, p,
 			sizeof(struct mdp_blit_req) * count)) {
-		rt_mutex_unlock(&ppp_stat->req_mutex);
+		mutex_unlock(&ppp_stat->req_mutex);
 		return -EFAULT;
 	}
 
 	rc = mdp3_ppp_handle_buf_sync(req, &req_list_header->sync);
 	if (rc < 0) {
 		pr_err("%s: Failed create sync point\n", __func__);
-		rt_mutex_unlock(&ppp_stat->req_mutex);
+		mutex_unlock(&ppp_stat->req_mutex);
 		return rc;
 	}
 	req->count = count;
@@ -1654,7 +1654,7 @@ int mdp3_ppp_parse_req(void __user *p,
 	}
 
 	mdp3_ppp_req_push(req_q, req);
-	rt_mutex_unlock(&ppp_stat->req_mutex);
+	mutex_unlock(&ppp_stat->req_mutex);
 	schedule_work(&ppp_stat->blit_work);
 	if (!async) {
 		/* wait for release fence */
@@ -1676,7 +1676,7 @@ parse_err_1:
 		mdp3_put_img(&req->dst_data[i], MDP3_CLIENT_PPP);
 	}
 	mdp3_ppp_deinit_buf_sync(req);
-	rt_mutex_unlock(&ppp_stat->req_mutex);
+	mutex_unlock(&ppp_stat->req_mutex);
 	return rc;
 }
 
@@ -1701,8 +1701,8 @@ int mdp3_ppp_res_init(struct msm_fb_data_type *mfd)
 	INIT_WORK(&ppp_stat->blit_work, mdp3_ppp_blit_wq_handler);
 	INIT_WORK(&ppp_stat->free_bw_work, mdp3_free_bw_wq_handler);
 	init_completion(&ppp_stat->pop_q_comp);
-	rt_mutex_init(&ppp_stat->req_mutex);
-	rt_mutex_init(&ppp_stat->config_ppp_mutex);
+	mutex_init(&ppp_stat->req_mutex);
+	mutex_init(&ppp_stat->config_ppp_mutex);
 	init_timer(&ppp_stat->free_bw_timer);
 	ppp_stat->free_bw_timer.function = mdp3_free_fw_timer_func;
 	ppp_stat->free_bw_timer.data = 0;

@@ -222,7 +222,7 @@ static int dp_aux_write_cmds(struct mdss_dp_drv_pdata *ep,
 	struct edp_buf *tp;
 	int len, ret;
 
-	rt_mutex_lock(&ep->aux_mutex);
+	mutex_lock(&ep->aux_mutex);
 	ep->aux_cmd_busy = 1;
 
 	tp = &ep->txp;
@@ -262,7 +262,7 @@ static int dp_aux_write_cmds(struct mdss_dp_drv_pdata *ep,
 		ret = ep->aux_error_num;
 
 	ep->aux_cmd_busy = 0;
-	rt_mutex_unlock(&ep->aux_mutex);
+	mutex_unlock(&ep->aux_mutex);
 	return  ret;
 }
 
@@ -275,7 +275,7 @@ static int dp_aux_read_cmds(struct mdss_dp_drv_pdata *ep,
 	int len, ret;
 	u32 data;
 
-	rt_mutex_lock(&ep->aux_mutex);
+	mutex_lock(&ep->aux_mutex);
 	ep->aux_cmd_busy = 1;
 
 	tp = &ep->txp;
@@ -331,7 +331,7 @@ static int dp_aux_read_cmds(struct mdss_dp_drv_pdata *ep,
 
 end:
 	ep->aux_cmd_busy = 0;
-	rt_mutex_unlock(&ep->aux_mutex);
+	mutex_unlock(&ep->aux_mutex);
 
 	return ret;
 }
@@ -405,9 +405,9 @@ retry:
 	do {
 		struct edp_cmd cmd1 = *cmd;
 
-		rt_mutex_lock(&dp->attention_lock);
+		mutex_lock(&dp->attention_lock);
 		connected = dp->cable_connected;
-		rt_mutex_unlock(&dp->attention_lock);
+		mutex_unlock(&dp->attention_lock);
 
 		if (!connected) {
 			pr_err("dp cable disconnected\n");
@@ -998,9 +998,9 @@ int mdss_dp_edid_read(struct mdss_dp_drv_pdata *dp)
 		u8 segment;
 		u8 edid_buf[EDID_BLOCK_SIZE] = {0};
 
-		rt_mutex_lock(&dp->attention_lock);
+		mutex_lock(&dp->attention_lock);
 		connected = dp->cable_connected;
-		rt_mutex_unlock(&dp->attention_lock);
+		mutex_unlock(&dp->attention_lock);
 
 		if (!connected) {
 			pr_err("DP sink not connected\n");

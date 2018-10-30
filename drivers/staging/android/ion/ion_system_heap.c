@@ -64,7 +64,7 @@ struct ion_system_heap {
 	struct ion_page_pool **cached_pools;
 	struct ion_page_pool **secure_pools[VMID_LAST];
 	/* Prevents unnecessary page splitting */
-	struct rt_mutex split_page_mutex;
+	struct mutex split_page_mutex;
 };
 
 struct page_info {
@@ -185,7 +185,7 @@ static struct page *split_page_from_secure_pool(struct ion_system_heap *heap,
 	struct page *page;
 	unsigned int order;
 
-	rt_mutex_lock(&heap->split_page_mutex);
+	mutex_lock(&heap->split_page_mutex);
 
 	/*
 	 * Someone may have just split a page and returned the unused portion
@@ -217,7 +217,7 @@ static struct page *split_page_from_secure_pool(struct ion_system_heap *heap,
 		}
 	}
 got_page:
-	rt_mutex_unlock(&heap->split_page_mutex);
+	mutex_unlock(&heap->split_page_mutex);
 
 	return page;
 }
@@ -827,7 +827,7 @@ struct ion_heap *ion_system_heap_create(struct ion_platform_heap *data)
 	if (ion_system_heap_create_pools(dev, heap->cached_pools))
 		goto err_create_cached_pools;
 
-	rt_mutex_init(&heap->split_page_mutex);
+	mutex_init(&heap->split_page_mutex);
 
 	heap->heap.debug_show = ion_system_heap_debug_show;
 	return &heap->heap;

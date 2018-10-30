@@ -562,7 +562,7 @@ struct mdss_dp_drv_pdata {
 	bool dp_initialized;
 	struct msm_ext_disp_init_data ext_audio_data;
 
-	struct rt_mutex emutex;
+	struct mutex emutex;
 	int clk_cnt;
 	int cont_splash;
 	bool inited;
@@ -637,10 +637,10 @@ struct mdss_dp_drv_pdata {
 	struct completion idle_comp;
 	struct completion video_comp;
 	struct completion notification_comp;
-	struct rt_mutex aux_mutex;
-	struct rt_mutex train_mutex;
-	struct rt_mutex attention_lock;
-	struct rt_mutex hdcp_mutex;
+	struct mutex aux_mutex;
+	struct mutex train_mutex;
+	struct mutex attention_lock;
+	struct mutex hdcp_mutex;
 	bool cable_connected;
 	u32 s3d_mode;
 	u32 aux_cmd_busy;

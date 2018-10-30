@@ -273,7 +273,7 @@ struct mdp3_dma {
 	int cc_vect_sel;
 
 	struct work_struct underrun_work;
-	struct rt_mutex pp_lock;
+	struct mutex pp_lock;
 
 	struct mdp3_dma_lut_config lut_config;
 	struct mdp3_dma_histogram_config histogram_config;
