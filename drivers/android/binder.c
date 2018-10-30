@@ -4172,13 +4172,13 @@ static int binder_ioctl_get_node_info_for_ref(struct binder_proc *proc,
 	}
 
 	/* This ioctl may only be used by the context manager */
-	rt_mutex_lock(&context->context_mgr_node_lock);
+	mutex_lock(&context->context_mgr_node_lock);
 	if (!context->binder_context_mgr_node ||
 		context->binder_context_mgr_node->proc != proc) {
-		rt_mutex_unlock(&context->context_mgr_node_lock);
+		mutex_unlock(&context->context_mgr_node_lock);
 		return -EPERM;
 	}
-	rt_mutex_unlock(&context->context_mgr_node_lock);
+	mutex_unlock(&context->context_mgr_node_lock);
 
 	node = binder_get_node_from_ref(proc, handle, true, NULL);
 	if (!node)
