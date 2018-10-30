@@ -194,7 +194,7 @@ void cpu_input_boost_kick_max(unsigned int duration_ms)
 
 static void input_boost_worker(struct work_struct *work)
 {
-	if (unlikely(input_boost_ms == 0))
+	if (input_boost_ms == 0)
 		return;
 
 	struct boost_drv *b = container_of(work, typeof(*b), input_boost);
