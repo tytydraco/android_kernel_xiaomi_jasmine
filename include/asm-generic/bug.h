@@ -141,6 +141,8 @@ extern void warn_slowpath_null(const char *file, const int line);
 #define BUG() do {} while (1)
 #endif
 
+#define __WARN_printf(...) do {} while (0)
+
 #ifndef HAVE_ARCH_BUG_ON
 #define BUG_ON(condition) do { if (condition) ; } while (0)
 #endif
