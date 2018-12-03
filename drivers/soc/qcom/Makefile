@@ -5,9 +5,14 @@ CFLAGS_scm.o :=$(call as-instr,.arch_extension sec,-DREQUIRES_SEC=1)
 ccflags-$(CONFIG_MSM_QBT1000) += -Idrivers/misc/
 
 obj-$(CONFIG_MSM_INRUSH_CURRENT_MITIGATION) += inrush-current-mitigation.o
-obj-$(CONFIG_MSM_SMEM)	+=	msm_smem.o smem_debug.o
-obj-$(CONFIG_MSM_SMD)	+= 	msm_smd.o smd_debug.o smd_private.o smd_init_dt.o smsm_debug.o
-obj-$(CONFIG_MSM_GLINK)	+=	glink.o glink_debugfs.o glink_ssr.o
+obj-$(CONFIG_MSM_SMEM)	+=	msm_smem.o
+obj-$(CONFIG_MSM_SMD)	+= 	msm_smd.o smd_private.o smd_init_dt.o
+obj-$(CONFIG_MSM_GLINK)	+=	glink.o glink_ssr.o
+ifdef CONFIG_DEBUG_FS
+obj-$(CONFIG_MSM_SMEM)	+=	smem_debug.o
+obj-$(CONFIG_MSM_SMD)	+=	smd_debug.o smsm_debug.o
+obj-$(CONFIG_MSM_GLINK)	+=	glink_debugfs.o
+endif
 obj-$(CONFIG_MSM_GLINK_LOOPBACK_SERVER)	+=	glink_loopback_server.o
 obj-$(CONFIG_MSM_GLINK_SMD_XPRT)	+=	glink_smd_xprt.o
 obj-$(CONFIG_MSM_GLINK_SMEM_NATIVE_XPRT)+=	glink_smem_native_xprt.o
@@ -15,7 +20,10 @@ obj-$(CONFIG_MSM_GLINK_SPI_XPRT)	+=	glink_spi_xprt.o
 obj-$(CONFIG_MSM_SMEM_LOGGING)	+=	smem_log.o
 obj-$(CONFIG_MSM_SYSMON_GLINK_COMM)	+= sysmon-glink.o sysmon-qmi.o
 obj-$(CONFIG_ARCH_MSM8996) +=	kryo-l2-accessors.o
-obj-$(CONFIG_MSM_SMP2P)	+=	smp2p.o smp2p_loopback.o smp2p_debug.o smp2p_sleepstate.o
+obj-$(CONFIG_MSM_SMP2P)	+=	smp2p.o smp2p_loopback.o smp2p_sleepstate.o
+ifdef CONFIG_DEBUG_FS
+obj-$(CONFIG_MSM_SMP2P)	+= 	smp2p_debug.o
+endif
 obj-$(CONFIG_MSM_QMI_INTERFACE)	+=	qmi_interface.o
 obj-$(CONFIG_MSM_RPM_SMD)	+=	rpm-smd.o
 obj-$(CONFIG_MSM_HVC) += hvc.o
