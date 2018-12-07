@@ -671,7 +671,7 @@ else
 	KBUILD_CFLAGS += -mtune=cortex-a73.cortex-a53 -mcpu=cortex-a73.cortex-a53 
 endif
 
-ifneq ($(cc-name),clang)
+ifeq ($(cc-name),gcc)
 	KBUILD_CFLAGS += -fgraphite-identity -fbranch-target-load-optimize -fipa-pta -fisolate-erroneous-paths-attribute -flive-range-shrinkage -floop-nest-optimize -fgcse-las -fgcse-after-reload -ftracer -fvariable-expansion-in-unroller
 endif
 
