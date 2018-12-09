@@ -34,6 +34,9 @@
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
+bool ESD_TE_status = false;
+bool tianma_jdi_flag = 0;
+
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	if (ctrl->pwm_pmi)

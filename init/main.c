@@ -89,6 +89,10 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 #include <soc/qcom/boot_stats.h>
+
+int fpsensor = 1;
+bool is_poweroff_charge = false;
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -534,6 +538,15 @@ asmlinkage __visible void __init start_kernel(void)
 	page_alloc_init();
 
 	pr_notice("Kernel command line: %s\n", boot_command_line);
+
+	if (!strstr(boot_command_line,"androidboot.fpsensor=fpc")) {
+		fpsensor = 2;
+	}
+
+	if (strstr(boot_command_line,"androidboot.mode=charger")) {
+		is_poweroff_charge = true;
+	}
+	
 	parse_early_param();
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
