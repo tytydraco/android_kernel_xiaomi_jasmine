@@ -2248,7 +2248,7 @@
 			<&clock_rpmcc QSEECOM_CE1_CLK>,
 			<&clock_rpmcc QSEECOM_CE1_CLK>;
 		qcom,ce-opp-freq = <171430000>;
-		qcom,qsee-reentrancy-support = <0>;
+		qcom,qsee-reentrancy-support = <2>;
 	};
 
 	qcom_cedev: qcedev@1de0000{
