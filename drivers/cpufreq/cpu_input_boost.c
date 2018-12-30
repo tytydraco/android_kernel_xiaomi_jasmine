@@ -46,9 +46,20 @@ struct boost_drv {
 	atomic_t max_boost_dur;
 	atomic_t general_boost_dur;
 	atomic_t state;
+	atomic64_t prev_input_jiffies;
 };
 
 static struct boost_drv *boost_drv_g __read_mostly;
+
+bool cpu_input_boost_within_timeout(unsigned int input_boost_timeout) {
+	struct boost_drv *b = boost_drv_g;
+
+	if (!b)
+		return false;
+
+	return time_before(jiffies, atomic_read(&b->prev_input_jiffies)
+		+ msecs_to_jiffies(input_boost_timeout));
+}
 
 static u32 get_boost_freq(struct boost_drv *b, u32 cpu, u32 state)
 {
@@ -315,6 +326,7 @@ static void cpu_input_boost_input_event(struct input_handle *handle,
 	if (!(state & SCREEN_AWAKE))
 		return;
 
+	atomic64_set(&b->prev_input_jiffies, jiffies);
 	queue_work(b->wq, &b->input_boost);
 }
 
