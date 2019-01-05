@@ -83,7 +83,7 @@
  */
 #define MDP_TIME_PERIOD_CALC_FPS_US	1000000
 
-static unsigned int cpu_input_boost_mdss_timeout = 5000;
+static unsigned int cpu_input_boost_mdss_timeout = CONFIG_CPU_INPUT_BOOST_MDSS_TIMEOUT;
 module_param(cpu_input_boost_mdss_timeout, uint, 0644);
 
 static struct fb_info *fbi_list[MAX_FBI_LIST];
