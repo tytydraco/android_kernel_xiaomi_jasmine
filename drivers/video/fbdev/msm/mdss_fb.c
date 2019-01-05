@@ -83,6 +83,9 @@
  */
 #define MDP_TIME_PERIOD_CALC_FPS_US	1000000
 
+static unsigned int cpu_input_boost_mdss_timeout = 5000;
+module_param(cpu_input_boost_mdss_timeout, uint, 0644);
+
 static struct fb_info *fbi_list[MAX_FBI_LIST];
 static int fbi_list_index;
 
@@ -5053,7 +5056,7 @@ int mdss_fb_do_ioctl(struct fb_info *info, unsigned int cmd,
 		ret = mdss_fb_mode_switch(mfd, dsi_mode);
 		break;
 	case MSMFB_ATOMIC_COMMIT:
-		if (cpu_input_boost_within_timeout(5000))
+		if (cpu_input_boost_within_timeout(cpu_input_boost_mdss_timeout))
 			cpu_general_boost_kick(64);
 		ret = mdss_fb_atomic_commit_ioctl(info, argp, file);
 		break;
