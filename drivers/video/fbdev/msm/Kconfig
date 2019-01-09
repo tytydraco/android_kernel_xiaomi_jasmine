@@ -129,4 +129,12 @@ config FB_MSM_MDSS_KCAL_CTRL
 	  Enable sysfs for post-processing control of mdss-mdp5 display
 	  controllers in MDSS.
 
+config CPU_INPUT_BOOST_MDSS_TIMEOUT
+	depends on FB_MSM_MDSS
+	int "MDSS general boost interaction timeout"
+	default "5000"
+	help
+	  Timeout in milliseconds to prevent general boosting on MDSS frame
+	  updates when interaction does not occur within this value.
+
 endif
