@@ -771,44 +771,6 @@ static int max989xx_calib_get(uint32_t *calib_value, int ch)
 	return found;
 }
 
-#ifdef CONFIG_KERNEL_CUSTOM_FACTORY
-static int max989xx_calib_save (uint32_t calib_value, int ch)
-{
-	struct file *pfile = NULL;
-	mm_segment_t old_fs;
-	int ret = 0;
-	loff_t pos = 0;
-	const char *filename = NULL;
-
-	if (ch == MAX98927L)
-		filename = CALIBRATE_FILE_L;
-	else if (ch == MAX98927R)
-		filename = CALIBRATE_FILE_R;
-	else {
-		pr_err("%s: invalid ch: %d\n", __func__, ch);
-		return -EPERM;
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	pfile = filp_open(filename, O_RDWR | O_CREAT, 0666);
-	if (!IS_ERR(pfile)) {
-		pr_info("%s: save %s, calib_value=%d\n",
-			__func__, filename, calib_value);
-		vfs_write(pfile, (char *)&calib_value, sizeof(uint32_t), &pos);
-		filp_close(pfile, NULL);
-	} else {
-		pr_info("%s: %s open failed! \n", __func__, filename);
-		ret = -1;
-	}
-
-	set_fs(old_fs);
-
-	return ret;
-}
-#endif
-
 static inline bool rdc_check_valid(uint32_t rdc, int ch)
 {
 	int rdc_min, rdc_max;
@@ -862,10 +824,6 @@ static ssize_t max989xx_dbgfs_calibrate_read(struct file *file,
 			max98927_set_calib_status(true, MAX98927L);
 
 		max98927->ref_RDC[0] = impedance_l;
-#ifdef CONFIG_KERNEL_CUSTOM_FACTORY
-		if (max989xx_calib_save(impedance_l, MAX98927L))
-			max98927_set_calib_status(false, MAX98927L);
-#endif
 		if (max98927->mono_stereo == 3) {
 			if (!rdc_check_valid(impedance_r, MAX98927R)) {
 				impedance_r = SPK_MUTE_VALUE;
@@ -875,10 +833,6 @@ static ssize_t max989xx_dbgfs_calibrate_read(struct file *file,
 				max98927_set_calib_status(true, MAX98927R);
 
 			max98927->ref_RDC[1] = impedance_r;
-#ifdef CONFIG_KERNEL_CUSTOM_FACTORY
-			if (max989xx_calib_save(impedance_r, MAX98927R))
-				max98927_set_calib_status(false, MAX98927R);
-#endif
 		}
 
 		afe_dsm_set_calib((uint8_t *)(payload));
