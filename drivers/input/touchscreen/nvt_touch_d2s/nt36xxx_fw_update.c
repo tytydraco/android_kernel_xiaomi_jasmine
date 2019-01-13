@@ -33,7 +33,6 @@
 #define BLOCK_64KB_NUM 4
 
 const struct firmware *fw_entry = NULL;
-extern bool tianma_jdi_flag;
 
 
 /*******************************************************
