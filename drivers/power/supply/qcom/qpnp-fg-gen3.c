@@ -657,25 +657,8 @@ static int fg_get_battery_temp(struct fg_chip *chip, int *val)
 	temp = (temp - 273) * 10;
 		pr_err("LCT TEMP=%d\n", temp);
 
-#if defined(CONFIG_KERNEL_CUSTOM_E7T)
-	if (temp < -40){
-		switch (temp){
-		case -50:
-			temp = -70;
-			break;
-		case -60:
-			temp = -80;
-			break;
-		case -70:
-			temp = -90;
-			break;
-		case -80:
-			temp = -100;
-			break;
-#else
 	if (temp < -80){
 		switch (temp){
-#endif
 		case -90:
 			temp = -110;
 			break;
@@ -815,9 +798,7 @@ static int fg_get_msoc_raw(struct fg_chip *chip, int *val)
 
 #define FULL_CAPACITY	100
 #define FULL_SOC_RAW	255
-#if defined(CONFIG_KERNEL_CUSTOM_D2S) || defined(CONFIG_KERNEL_CUSTOM_F7A)
 #define FULL_SOC_REPORT_THR 250
-#endif
 
 static int fg_get_msoc(struct fg_chip *chip, int *msoc)
 {
@@ -826,7 +807,6 @@ static int fg_get_msoc(struct fg_chip *chip, int *msoc)
 	rc = fg_get_msoc_raw(chip, msoc);
 	if (rc < 0)
 		return rc;
-#if defined(CONFIG_KERNEL_CUSTOM_D2S) || defined(CONFIG_KERNEL_CUSTOM_F7A)
 	/*
        * To have better endpoints for 0 and 100, it is good to tune the
        * calculation discarding values 0 and 255 while rounding off. Rest
@@ -848,21 +828,6 @@ static int fg_get_msoc(struct fg_chip *chip, int *msoc)
 			  *msoc = DIV_ROUND_CLOSEST((*msoc - 1) * (FULL_CAPACITY - 2),
 					          FULL_SOC_RAW - 2) + 1;
       }
-#else
-	/*
-	 * To have better endpoints for 0 and 100, it is good to tune the
-	 * calculation discarding values 0 and 255 while rounding off. Rest
-	 * of the values 1-254 will be scaled to 1-99. DIV_ROUND_UP will not
-	 * be suitable here as it rounds up any value higher than 252 to 100.
-	 */
-	if (*msoc == FULL_SOC_RAW)
-		*msoc = 100;
-	else if (*msoc == 0)
-		*msoc = 0;
-	else
-		*msoc = DIV_ROUND_CLOSEST((*msoc - 1) * (FULL_CAPACITY - 2),
-				FULL_SOC_RAW - 2) + 1;
-#endif
 	return 0;
 }
 
@@ -2256,22 +2221,10 @@ static int fg_adjust_recharge_voltage(struct fg_chip *chip)
 	recharge_volt_mv = chip->dt.recharge_volt_thr_mv;
 
 	/* Lower the recharge voltage in soft JEITA */
-#if defined(CONFIG_KERNEL_CUSTOM_E7S)
-	if (chip->health == POWER_SUPPLY_HEALTH_WARM)
-		recharge_volt_mv = 4050;
-	if (chip->health == POWER_SUPPLY_HEALTH_COOL)
-		recharge_volt_mv = 4250;
-#elif defined(CONFIG_KERNEL_CUSTOM_E7T)
-if (chip->health == POWER_SUPPLY_HEALTH_WARM)
-	recharge_volt_mv = 4050;
-if (chip->health == POWER_SUPPLY_HEALTH_COOL)
-	recharge_volt_mv = 4250;
-#else
 	if (chip->health == POWER_SUPPLY_HEALTH_WARM)
 		recharge_volt_mv = 4050;
 	 if (chip->health == POWER_SUPPLY_HEALTH_COOL)
 			  recharge_volt_mv = 4250 ;
-#endif
 
 	rc = fg_set_recharge_voltage(chip, recharge_volt_mv);
 	if (rc < 0) {
@@ -2834,9 +2787,7 @@ static void status_change_work(struct work_struct *work)
 			struct fg_chip, status_change_work);
 	union power_supply_propval prop = {0, };
 	int rc, batt_temp;
-	#if defined(CONFIG_KERNEL_CUSTOM_D2S) || defined(CONFIG_KERNEL_CUSTOM_F7A)
 	int msoc;
-	#endif
 
 	if (!batt_psy_initialized(chip)) {
 		fg_dbg(chip, FG_STATUS, "Charger not available?!\n");
@@ -2869,7 +2820,6 @@ static void status_change_work(struct work_struct *work)
 	chip->charge_done = prop.intval;
 	fg_cycle_counter_update(chip);
 	fg_cap_learning_update(chip);
-#if defined(CONFIG_KERNEL_CUSTOM_D2S) || defined(CONFIG_KERNEL_CUSTOM_F7A)
 	if (chip->charge_done && !chip->report_full) {
 					 chip->report_full = true;
 			 } else if (!chip->charge_done && chip->report_full) {
@@ -2879,7 +2829,6 @@ static void status_change_work(struct work_struct *work)
 					 if (msoc < FULL_SOC_REPORT_THR - 4)
 							 chip->report_full = false;
 			 }
-#endif
 	rc = fg_charge_full_update(chip);
 	if (rc < 0)
 		pr_err("Error in charge_full_update, rc=%d\n", rc);
