@@ -218,12 +218,6 @@ config ARM64_DMA_USE_IOMMU
 	select ARM_HAS_SG_CHAIN
 	select NEED_SG_DMA_LENGTH
 
-config KERNEL_CUSTOM_D2S
-    default n
-        bool "Custom for hardware D2S_pcb"
-	    help
-	            Custom for D2S_pcb.
-
 if ARM64_DMA_USE_IOMMU
 
 config ARM64_DMA_IOMMU_ALIGNMENT

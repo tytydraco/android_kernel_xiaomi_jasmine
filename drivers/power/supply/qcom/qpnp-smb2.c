@@ -36,26 +36,13 @@
 
 union power_supply_propval lct_therm_lvl_reserved;
 union power_supply_propval lct_therm_level;
-#if defined(CONFIG_KERNEL_CUSTOM_D2S) || defined(CONFIG_KERNEL_CUSTOM_F7A)
 union power_supply_propval lct_therm_call_level = {4,};
-#elif defined(CONFIG_KERNEL_CUSTOM_E7T)
-union power_supply_propval lct_therm_call_level = {5,};
-#else
-union power_supply_propval lct_therm_call_level = {3,};
-#endif
-#if defined(CONFIG_KERNEL_CUSTOM_E7T)
-union power_supply_propval lct_therm_globe_level = {1,};
-union power_supply_propval lct_therm_india_level = {2,};
-#else
 union power_supply_propval lct_therm_globe_level = {2,};
 union power_supply_propval lct_therm_india_level = {1,};
-#endif
 
 bool lct_backlight_off;
 int LctIsInCall = 0;
-#if defined(CONFIG_KERNEL_CUSTOM_D2S)
 int LctIsInVideo = 0;
-#endif
 int LctThermal = 0;
 extern int hwc_check_india;
 extern int hwc_check_global;
@@ -317,9 +304,6 @@ static int smb2_parse_dt(struct smb2 *chip)
 	if (rc < 0)
 		chip->dt.wipower_max_uw = -EINVAL;
 
-#if (defined(CONFIG_KERNEL_CUSTOM_E7S) || defined(CONFIG_KERNEL_CUSTOM_E7T))
-	if (hwc_check_india == 1){
-#endif
 	if (of_find_property(node, "qcom,thermal-mitigation", &byte_len)) {
 		chg->thermal_mitigation = devm_kzalloc(chg->dev, byte_len,
 			GFP_KERNEL);
@@ -338,29 +322,6 @@ static int smb2_parse_dt(struct smb2 *chip)
 			return rc;
 		}
 	}
-#if (defined(CONFIG_KERNEL_CUSTOM_E7S) || defined(CONFIG_KERNEL_CUSTOM_E7T))
-	}
-	else {
-		if (of_find_property(node, "qcom,thermal-mitigation-china", &byte_len)) {
-			chg->thermal_mitigation = devm_kzalloc(chg->dev, byte_len,
-				GFP_KERNEL);
-
-			if (chg->thermal_mitigation == NULL)
-				return -ENOMEM;
-
-			chg->thermal_levels = byte_len / sizeof(u32);
-				rc = of_property_read_u32_array(node,
-						"qcom,thermal-mitigation-china",
-						chg->thermal_mitigation,
-						chg->thermal_levels);
-			if (rc < 0) {
-				dev_err(chg->dev,
-					"Couldn't read threm limits rc = %d\n", rc);
-				return rc;
-			}
-		}
-	}
-#endif
 	of_property_read_u32(node, "qcom,float-option", &chip->dt.float_option);
 	if (chip->dt.float_option < 0 || chip->dt.float_option > 4) {
 		pr_err("qcom,float-option is out of range [0, 4]\n");
@@ -1679,26 +1640,6 @@ static int smb2_init_hw(struct smb2 *chip)
 	vote(chg->hvdcp_enable_votable, MICRO_USB_VOTER,
 			chg->micro_usb_mode, 0);
 
-#if (defined(CONFIG_KERNEL_CUSTOM_E7S) || defined(CONFIG_KERNEL_CUSTOM_E7T))
-
-	/* Operate the QC2.0 in 5V/9V mode i.e. Disable 12V */
-		rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
-					                            PULSE_COUNT_QC2P0_12V | PULSE_COUNT_QC2P0_9V,
-					                            PULSE_COUNT_QC2P0_9V);
-		if (rc < 0) {
-				dev_err(chg->dev,
-					    "Couldn't configure QC2.0 to 9V rc=%d\n", rc);
-				return rc;
-		}
-		/* Operate the QC3.0 to limit vbus to 8.0v*/
-		rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
-					                    PULSE_COUNT_QC3P0_MASK, 0xf);
-		if (rc < 0) {
-				dev_err(chg->dev,
-					    "Couldn't configure QC3.0 to 7.6V rc=%d\n", rc);
-				return rc;
-		}
-#else
 	/* Operate the QC2.0 in 5V/9V mode i.e. Disable 12V */
 	rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
 						PULSE_COUNT_QC2P0_12V | PULSE_COUNT_QC2P0_9V,
@@ -1716,7 +1657,6 @@ static int smb2_init_hw(struct smb2 *chip)
 			"Couldn't configure QC3.0 to 6.6V rc=%d\n", rc);
 		return rc;
 	}
-#endif
 	/*
 	 * AICL configuration:
 	 * start from min and AICL ADC disable
@@ -2404,7 +2344,6 @@ static void smb2_create_debugfs(struct smb2 *chip)
 #endif
 
 #ifdef THERMAL_CONFIG_FB
-#if defined(CONFIG_KERNEL_CUSTOM_D2S)
 static ssize_t lct_thermal_video_status_show(struct device *dev,
 					struct device_attribute *attr, char *buf)
 {
@@ -2425,7 +2364,6 @@ static ssize_t lct_thermal_video_status_store(struct device *dev,
 
 	return retval;
 }
-#endif
 
 static ssize_t lct_thermal_call_status_show(struct device *dev,
 					struct device_attribute *attr, char *buf)
@@ -2450,10 +2388,8 @@ static ssize_t lct_thermal_call_status_store(struct device *dev,
 static struct device_attribute attrs2[] = {
 	__ATTR(thermalcall, S_IRUGO | S_IWUSR,
 			lct_thermal_call_status_show, lct_thermal_call_status_store),
-#if defined(CONFIG_KERNEL_CUSTOM_D2S)
 	__ATTR(thermalvideo, S_IRUGO | S_IWUSR,
 			lct_thermal_video_status_show, lct_thermal_video_status_store),
-#endif
 };
 
 static void thermal_fb_notifier_resume_work(struct work_struct *work)
@@ -2461,32 +2397,6 @@ static void thermal_fb_notifier_resume_work(struct work_struct *work)
 	struct smb_charger *chg = container_of(work, struct smb_charger, fb_notify_work);
 
 	LctThermal = 1;
-#if defined(CONFIG_KERNEL_CUSTOM_E7S)
-	if ((lct_backlight_off) && (LctIsInCall == 0) /*&& (hwc_check_india == 1)*/)
-	{
-		if (chg->pl.psy) {
-			if (lct_therm_lvl_reserved.intval >= 1)
-				smblib_set_prop_system_temp_level(chg, &lct_therm_india_level);
-			else
-				smblib_set_prop_system_temp_level(chg, &lct_therm_level);
-		}
-		else {
-			if (lct_therm_lvl_reserved.intval >= 2)
-				smblib_set_prop_system_temp_level(chg, &lct_therm_globe_level);
-		}
-	}
-	else if (LctIsInCall == 1)
-		smblib_set_prop_system_temp_level(chg, &lct_therm_call_level);
-	else
-		smblib_set_prop_system_temp_level(chg, &lct_therm_lvl_reserved);
-	LctThermal = 0;
-#elif defined(CONFIG_KERNEL_CUSTOM_E7T)
-	if (LctIsInCall == 1)
-		smblib_set_prop_system_temp_level(chg, &lct_therm_call_level);
-	else
-		smblib_set_prop_system_temp_level(chg, &lct_therm_lvl_reserved);
-	LctThermal = 0;
-#elif defined(CONFIG_KERNEL_CUSTOM_D2S)
 	if ((lct_backlight_off) && (LctIsInCall == 0))
 	{
 		if (lct_therm_lvl_reserved.intval >= 2)
@@ -2499,36 +2409,6 @@ static void thermal_fb_notifier_resume_work(struct work_struct *work)
 	else
 		smblib_set_prop_system_temp_level(chg, &lct_therm_lvl_reserved);
 	LctThermal = 0;
-#elif  defined(CONFIG_KERNEL_CUSTOM_F7A)
-		if ((lct_backlight_off) && (LctIsInCall == 0))
-		{
-			if (lct_therm_lvl_reserved.intval >= 2)
-			smblib_set_prop_system_temp_level(chg, &lct_therm_globe_level);
-		else
-			smblib_set_prop_system_temp_level(chg, &lct_therm_lvl_reserved);
-		}
-		else if (LctIsInCall == 1)
-			smblib_set_prop_system_temp_level(chg, &lct_therm_call_level);
-		else
-			smblib_set_prop_system_temp_level(chg, &lct_therm_lvl_reserved);
-		LctThermal = 0;
-
-#else
-	if ((lct_backlight_off) && (LctIsInCall == 0) && (hwc_check_india == 0))
-		smblib_set_prop_system_temp_level(chg, &lct_therm_level);
-	else if ((lct_backlight_off) && (LctIsInCall == 0) && (hwc_check_india == 1))
-	{
-		if (lct_therm_lvl_reserved.intval >= 1)
-			smblib_set_prop_system_temp_level(chg, &lct_therm_india_level);
-		else
-			smblib_set_prop_system_temp_level(chg, &lct_therm_level);
-	}
-	else if (LctIsInCall == 1)
-		smblib_set_prop_system_temp_level(chg, &lct_therm_call_level);
-	else
-		smblib_set_prop_system_temp_level(chg, &lct_therm_lvl_reserved);
-	LctThermal = 0;
-#endif
 }
 
 /* frame buffer notifier block control the suspend/resume procedure */
