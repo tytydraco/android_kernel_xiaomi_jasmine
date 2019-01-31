@@ -180,6 +180,7 @@
 		qcom,mdss-dsi-panel-max-error-count = <3>;
 
 		qcom,ulps-enabled;
+		qcom,suspend-ulps-enabled;
 		qcom,partial-update-enabled;
 		qcom,panel-roi-alignment = <2 2 4 2 1080 2>;
 	};
