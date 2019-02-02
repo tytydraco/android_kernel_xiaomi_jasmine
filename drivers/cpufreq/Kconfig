@@ -274,30 +274,6 @@ config WAKE_BOOST_DURATION_MS
 	help
 	  Wake boost duration in milliseconds.
 
-config INPUT_BOOST_FREQ_LP
-	int "Low-power cluster input boost freq"
-	default "0"
-	help
-	  Input boost frequency for the low-power CPU cluster.
-
-config INPUT_BOOST_FREQ_PERF
-	int "Performance cluster input boost freq"
-	default "0"
-	help
-	  Input boost frequency for the performance CPU cluster.
-
-config GENERAL_BOOST_FREQ_LP
-	int "Low-power cluster general boost freq"
-	default "0"
-	help
-	  General boost frequency for the low-power CPU cluster.
-
-config GENERAL_BOOST_FREQ_PERF
-	int "Performance cluster general boost freq"
-	default "0"
-	help
-	  General boost frequency for the performance CPU cluster.
-
 config INPUT_BOOST_STUNE_LEVEL
 	int "Foreground app schedtune input boost level"
 	depends on DYNAMIC_STUNE_BOOST
