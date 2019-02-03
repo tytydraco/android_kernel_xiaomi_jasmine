@@ -647,15 +647,12 @@ static int fg_get_battery_temp(struct fg_chip *chip, int *val)
 			BATT_INFO_BATT_TEMP_LSB(chip), rc);
 		return rc;
 	}
-		pr_err("addr=0x%04x,buf1=%04x buf0=%04x\n",
-			BATT_INFO_BATT_TEMP_LSB(chip), buf[1], buf[0]);
 	temp = ((buf[1] & BATT_TEMP_MSB_MASK) << 8) |
 		(buf[0] & BATT_TEMP_LSB_MASK);
 	temp = DIV_ROUND_CLOSEST(temp, 4);
 
 	/* Value is in Kelvin; Convert it to deciDegC */
 	temp = (temp - 273) * 10;
-		pr_err("LCT TEMP=%d\n", temp);
 
 	if (temp < -80){
 		switch (temp){
