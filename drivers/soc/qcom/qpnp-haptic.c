@@ -31,6 +31,7 @@
 #include <linux/qpnp-misc.h>
 #include <linux/qpnp/qpnp-haptic.h>
 #include <linux/qpnp/qpnp-revid.h>
+#include <linux/kthread.h>
 #include "../../staging/android/timed_output.h"
 
 #define QPNP_HAP_STATUS(b)		(b + 0x0A)
@@ -346,17 +347,19 @@ struct qpnp_hap {
 	struct hrtimer			hap_timer;
 	struct hrtimer			auto_res_err_poll_timer;
 	struct timed_output_dev		timed_dev;
-	struct work_struct		work;
+	struct kthread_worker		vibe_kworker;
+	struct task_struct		*vibe_worker_thread;
+	struct kthread_work		work;
 	struct delayed_work		sc_work;
 	struct hrtimer			hap_test_timer;
-	struct work_struct		test_work;
+	struct kthread_work		test_work;
 	struct qpnp_pwm_info		pwm_info;
 	struct qpnp_hap_lra_ares_cfg	ares_cfg;
 	struct mutex			lock;
 	struct mutex			wf_lock;
 	spinlock_t			bus_lock;
 	spinlock_t			td_lock;
-	struct work_struct		td_work;
+	struct kthread_work		td_work;
 	struct completion		completion;
 	enum qpnp_hap_mode		play_mode;
 	u32				misc_clk_trim_error_reg;
@@ -2247,7 +2250,7 @@ static int qpnp_hap_auto_mode_config(struct qpnp_hap *hap, int time_ms)
 	return 0;
 }
 
-static void qpnp_timed_enable_worker(struct work_struct *work)
+static void qpnp_timed_enable_worker(struct kthread_work *work)
 {
 	struct qpnp_hap *hap = container_of(work, struct qpnp_hap,
 					 td_work);
@@ -2311,7 +2314,7 @@ static void qpnp_timed_enable_worker(struct work_struct *work)
 	}
 
 	mutex_unlock(&hap->lock);
-	schedule_work(&hap->work);
+	queue_kthread_work(&hap->vibe_kworker, &hap->work);
 }
 
 /* enable interface from timed output class */
@@ -2324,7 +2327,7 @@ static void qpnp_hap_td_enable(struct timed_output_dev *dev, int time_ms)
 	hap->td_time_ms = time_ms;
 	spin_unlock(&hap->td_lock);
 
-	schedule_work(&hap->td_work);
+	queue_kthread_work(&hap->vibe_kworker, &hap->td_work);
 }
 
 /* play pwm bytes */
@@ -2389,7 +2392,7 @@ int qpnp_hap_play_byte(u8 data, bool on)
 EXPORT_SYMBOL(qpnp_hap_play_byte);
 
 /* worker to opeate haptics */
-static void qpnp_hap_worker(struct work_struct *work)
+static void qpnp_hap_worker(struct kthread_work *work)
 {
 	struct qpnp_hap *hap = container_of(work, struct qpnp_hap,
 					 work);
@@ -2449,7 +2452,7 @@ static enum hrtimer_restart qpnp_hap_timer(struct hrtimer *timer)
 							 hap_timer);
 
 	hap->state = 0;
-	schedule_work(&hap->work);
+	queue_kthread_work(&hap->vibe_kworker, &hap->work);
 
 	return HRTIMER_NORESTART;
 }
@@ -2472,7 +2475,7 @@ static int qpnp_haptic_suspend(struct device *dev)
 	struct qpnp_hap *hap = dev_get_drvdata(dev);
 
 	hrtimer_cancel(&hap->hap_timer);
-	cancel_work_sync(&hap->work);
+	kthread_cancel_work_sync(&hap->work);
 	/* turn-off haptic */
 	qpnp_hap_set(hap, false);
 
@@ -3016,10 +3019,11 @@ static int qpnp_hap_get_pmic_revid(struct qpnp_hap *hap)
 
 static int qpnp_haptic_probe(struct platform_device *pdev)
 {
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 2 };
 	struct qpnp_hap *hap;
 	unsigned int base;
 	struct regulator *vcc_pon;
-	int rc, i;
+	int rc, i, ret;
 
 	hap = devm_kzalloc(&pdev->dev, sizeof(*hap), GFP_KERNEL);
 	if (!hap)
@@ -3064,10 +3068,25 @@ static int qpnp_haptic_probe(struct platform_device *pdev)
 	mutex_init(&hap->lock);
 	mutex_init(&hap->wf_lock);
 	spin_lock_init(&hap->td_lock);
-	INIT_WORK(&hap->work, qpnp_hap_worker);
+
+	init_kthread_worker(&hap->vibe_kworker);
+	hap->vibe_worker_thread = kthread_run(kthread_worker_fn,
+						  &hap->vibe_kworker,
+						  "vibe_thread");
+	if (IS_ERR(hap->vibe_worker_thread)) {
+		ret = PTR_ERR(hap->vibe_worker_thread);
+		pr_err("Failed to start kworker, err: %d\n", ret);
+		return rc;
+	}
+
+	ret = sched_setscheduler(hap->vibe_worker_thread, SCHED_FIFO, &param);
+	if (ret)
+		pr_err("Failed to set SCHED_FIFO on kworker, err: %d\n", ret);
+
+	init_kthread_work(&hap->work, qpnp_hap_worker);
 	INIT_DELAYED_WORK(&hap->sc_work, qpnp_handle_sc_irq);
 	init_completion(&hap->completion);
-	INIT_WORK(&hap->td_work, qpnp_timed_enable_worker);
+	init_kthread_work(&hap->td_work, qpnp_timed_enable_worker);
 
 	hrtimer_init(&hap->hap_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hap->hap_timer.function = qpnp_hap_timer;
@@ -3118,7 +3137,7 @@ sysfs_fail:
 				&qpnp_hap_attrs[i].attr);
 	timed_output_dev_unregister(&hap->timed_dev);
 timed_output_fail:
-	cancel_work_sync(&hap->work);
+	kthread_cancel_work_sync(&hap->work);
 	hrtimer_cancel(&hap->auto_res_err_poll_timer);
 	hrtimer_cancel(&hap->hap_timer);
 	mutex_destroy(&hap->lock);
@@ -3136,7 +3155,7 @@ static int qpnp_haptic_remove(struct platform_device *pdev)
 		sysfs_remove_file(&hap->timed_dev.dev->kobj,
 				&qpnp_hap_attrs[i].attr);
 
-	cancel_work_sync(&hap->work);
+	kthread_cancel_work_sync(&hap->work);
 	hrtimer_cancel(&hap->auto_res_err_poll_timer);
 	hrtimer_cancel(&hap->hap_timer);
 	timed_output_dev_unregister(&hap->timed_dev);
