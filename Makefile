@@ -663,7 +663,7 @@ endif
 endif
 endif
 
-KBUILD_CFLAGS += -ffast-math -funsafe-math-optimizations -fno-signed-zeros -freciprocal-math -ffp-contract=fast -funroll-loops -fwrapv
+KBUILD_CFLAGS += -ffast-math -funsafe-math-optimizations -fno-signed-zeros -freciprocal-math -ffp-contract=fast -funroll-loops
 
 ifeq ($(cc-name),clang)
 	KBUILD_CFLAGS += -mtune=cortex-a53
