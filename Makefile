@@ -655,24 +655,14 @@ else
 ifdef CONFIG_PROFILE_ALL_BRANCHES
 	KBUILD_CFLAGS	+= -O2
 else
-ifeq ($(cc-name),clang)
 	KBUILD_CFLAGS   += -O3
-else
-	KBUILD_CFLAGS   += -Ofast
 endif
 endif
-endif
-
-KBUILD_CFLAGS += -ffast-math -funsafe-math-optimizations -fno-signed-zeros -freciprocal-math -ffp-contract=fast
 
 ifeq ($(cc-name),clang)
 	KBUILD_CFLAGS += -mtune=cortex-a53
 else
 	KBUILD_CFLAGS += -mtune=cortex-a73.cortex-a53 -mcpu=cortex-a73.cortex-a53 
-endif
-
-ifeq ($(cc-name),gcc)
-	KBUILD_CFLAGS += -fgraphite-identity -fbranch-target-load-optimize -fipa-pta -fisolate-erroneous-paths-attribute -flive-range-shrinkage -floop-nest-optimize -fgcse-las -fgcse-after-reload -ftracer -fvariable-expansion-in-unroller
 endif
 
 # Tell gcc to never replace conditional load with a non-conditional one
