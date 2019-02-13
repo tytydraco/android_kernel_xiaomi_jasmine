@@ -305,13 +305,9 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-ifeq ($(cc-name),clang)
-	HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -std=gnu89
-	HOSTCXXFLAGS = -O3
-else
-	HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -std=gnu89
-	HOSTCXXFLAGS = -Ofast
-endif
+HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = -O3
+
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
 
@@ -653,17 +649,13 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= $(call cc-option,-Oz,-Os)
 else
 ifdef CONFIG_PROFILE_ALL_BRANCHES
-	KBUILD_CFLAGS	+= -O2
+KBUILD_CFLAGS	+= -O2
 else
-	KBUILD_CFLAGS   += -O3
+KBUILD_CFLAGS   += -O3
 endif
 endif
 
-ifeq ($(cc-name),clang)
-	KBUILD_CFLAGS += -mtune=cortex-a53
-else
-	KBUILD_CFLAGS += -mtune=cortex-a73.cortex-a53 -mcpu=cortex-a73.cortex-a53 
-endif
+KBUILD_CFLAGS += -mtune=cortex-a73.cortex-a53 -mcpu=cortex-a73.cortex-a53
 
 # Tell gcc to never replace conditional load with a non-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
