@@ -4338,7 +4338,9 @@ static int ipa3_post_init(const struct ipa3_plat_drv_res *resource_p,
 		IPADBG("teth_bridge initialized");
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	ipa3_debugfs_init();
+#endif
 
 	result = ipa3_uc_interface_init();
 	if (result)

@@ -48,6 +48,28 @@
 
 #define MAX_SUPPORTED_INSTANCES 16
 
+#ifndef CONFIG_DEBUG_KERNEL
+int msm_vidc_debug = 0;
+EXPORT_SYMBOL(msm_vidc_debug);
+
+int msm_vidc_debug_out = VIDC_OUT_PRINTK;
+EXPORT_SYMBOL(msm_vidc_debug_out);
+
+int msm_vidc_fw_debug = 0x18;
+int msm_vidc_fw_debug_mode = 1;
+int msm_vidc_fw_low_power_mode = 1;
+int msm_vidc_hw_rsp_timeout = 2000;
+bool msm_vidc_fw_coverage = false;
+bool msm_vidc_vpe_csc_601_to_709 = false;
+bool msm_vidc_dec_dcvs_mode = true;
+bool msm_vidc_enc_dcvs_mode = true;
+bool msm_vidc_sys_idle_indicator = false;
+int msm_vidc_firmware_unload_delay = 15000;
+bool msm_vidc_thermal_mitigation_disabled = false;
+bool msm_vidc_bitrate_clock_scaling = true;
+bool msm_vidc_debug_timeout = false;
+#endif
+
 const char *const mpeg_video_vidc_extradata[] = {
 	"Extradata none",
 	"Extradata MB Quantization",
