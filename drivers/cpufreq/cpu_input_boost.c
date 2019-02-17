@@ -21,11 +21,10 @@ module_param_named(dynamic_stune_boost, input_stune_boost, int, 0644);
 module_param(general_stune_boost, int, 0644);
 
 /* Available bits for boost_drv state */
-#define SCREEN_AWAKE		BIT(0)
-#define INPUT_BOOST		BIT(1)
-#define GENERAL_BOOST		BIT(2)
-#define INPUT_STUNE_BOOST	BIT(3)
-#define GENERAL_STUNE_BOOST	BIT(4)
+#define INPUT_BOOST		BIT(0)
+#define GENERAL_BOOST		BIT(1)
+#define INPUT_STUNE_BOOST	BIT(2)
+#define GENERAL_STUNE_BOOST	BIT(3)
 
 struct boost_drv {
 	struct workqueue_struct *wq;
@@ -209,11 +208,8 @@ static int fb_notifier_cb(struct notifier_block *nb,
 	if (action != FB_EARLY_EVENT_BLANK)
 		return NOTIFY_OK;
 
-	/* Boost when the screen turns on and unboost when it turns off */
-	if (*blank == FB_BLANK_UNBLANK) {
-		set_boost_bit(b, SCREEN_AWAKE);
-	} else {
-		clear_boost_bit(b, SCREEN_AWAKE);
+	/* Unboost when the screen turns off */
+	if (*blank != FB_BLANK_UNBLANK) {
 		unboost_all_cpus(b);
 	}
 
@@ -228,9 +224,6 @@ static void cpu_input_boost_input_event(struct input_handle *handle,
 	u32 state;
 
 	state = get_boost_state(b);
-
-	if (!(state & SCREEN_AWAKE))
-		return;
 
 	atomic64_set(&b->prev_input_jiffies, jiffies);
 	queue_work(b->wq, &b->input_boost);
