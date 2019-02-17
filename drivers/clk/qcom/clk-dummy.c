@@ -67,7 +67,9 @@ struct clk_ops clk_dummy_ops = {
 	.round_rate = dummy_clk_round_rate,
 	.recalc_rate = dummy_clk_recalc_rate,
 	.set_flags = dummy_clk_set_flags,
+#ifdef CONFIG_DEBUG_FS
 	.debug_init = clk_debug_measure_add,
+#endif
 };
 EXPORT_SYMBOL_GPL(clk_dummy_ops);
 

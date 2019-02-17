@@ -13,7 +13,8 @@ clk-qcom-y += clk-regmap-mux-div.o
 clk-qcom-$(CONFIG_KRAIT_CLOCKS) += clk-krait.o
 clk-qcom-y += clk-hfpll.o
 clk-qcom-y += reset.o clk-voter.o
-clk-qcom-y += clk-dummy.o clk-debug.o
+clk-qcom-y += clk-dummy.o
+clk-qcom-$(CONFIG_DEBUG_FS) += clk-debug.o
 clk-qcom-$(CONFIG_QCOM_GDSC) += gdsc.o gdsc-regulator.o
 
 obj-$(CONFIG_APQ_GCC_8084) += gcc-apq8084.o
