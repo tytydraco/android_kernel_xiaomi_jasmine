@@ -716,6 +716,9 @@ config QCOM_TLB_EL2_HANDLER
 source kernel/Kconfig.preempt
 source kernel/Kconfig.hz
 
+config ARCH_SUPPORTS_OPTIMIZED_INLINING
+	def_bool y
+
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
