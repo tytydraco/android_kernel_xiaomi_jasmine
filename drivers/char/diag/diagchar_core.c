@@ -34,7 +34,9 @@
 #include "diagfwd.h"
 #include "diagfwd_cntl.h"
 #include "diag_dci.h"
+#ifdef CONFIG_DEBUG_FS
 #include "diag_debugfs.h"
+#endif
 #include "diag_masks.h"
 #include "diagfwd_bridge.h"
 #include "diag_usb.h"
@@ -3648,10 +3650,12 @@ static void diag_debug_init(void)
 				DIAG_DEBUG_USERSPACE | DIAG_DEBUG_BRIDGE;
 }
 #else
+#ifdef CONFIG_DEBUG_FS
 static void diag_debug_init(void)
 {
 
 }
+#endif
 #endif
 
 static int diag_real_time_info_init(void)
@@ -3874,7 +3878,9 @@ static int __init diagchar_init(void)
 			diag_update_md_client_work_fn);
 	diag_ws_init();
 	diag_stats_init();
+#ifdef CONFIG_DEBUG_FS
 	diag_debug_init();
+#endif
 	diag_md_session_init();
 
 	driver->incoming_pkt.capacity = DIAG_MAX_REQ_SIZE;
@@ -3890,9 +3896,11 @@ static int __init diagchar_init(void)
 	ret = diag_real_time_info_init();
 	if (ret)
 		goto fail;
+#ifdef CONFIG_DEBUG_FS
 	ret = diag_debugfs_init();
 	if (ret)
 		goto fail;
+#endif
 	ret = diag_masks_init();
 	if (ret)
 		goto fail;
@@ -3938,7 +3946,9 @@ static int __init diagchar_init(void)
 
 fail:
 	pr_err("diagchar is not initialized, ret: %d\n", ret);
+#ifdef CONFIG_DEBUG_FS
 	diag_debugfs_cleanup();
+#endif
 	diagchar_cleanup();
 	diag_mux_exit();
 	diagfwd_peripheral_exit();
@@ -3962,7 +3972,9 @@ static void diagchar_exit(void)
 	diag_masks_exit();
 	diag_md_session_exit();
 	diag_remote_exit();
+#ifdef CONFIG_DEBUG_FS
 	diag_debugfs_cleanup();
+#endif
 	diagchar_cleanup();
 	printk(KERN_INFO "done diagchar exit\n");
 }
