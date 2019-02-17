@@ -2968,6 +2968,7 @@ static const char *const debug_mux_parent_names[] = {
 	"perfcl_clk",
 };
 
+#ifdef CONFIG_DEBUG_FS
 static struct clk_debug_mux gcc_debug_mux = {
 	.priv = &debug_mux_priv,
 	.en_mask = BIT(16),
@@ -3249,6 +3250,7 @@ static struct clk_debug_mux gcc_debug_mux = {
 		.flags = CLK_IS_MEASURE,
 	},
 };
+#endif
 
 static const struct of_device_id clk_debug_match_table[] = {
 	{ .compatible = "qcom,gcc-debug-sdm660" },
@@ -3266,7 +3268,9 @@ static int clk_debug_660_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get debug offset.\n");
 		return -EINVAL;
 	}
+#ifdef CONFIG_DEBUG_FS
 	gcc_debug_mux.debug_offset = res->start;
+#endif
 
 	clk = devm_clk_get(&pdev->dev, "xo_clk_src");
 	if (IS_ERR(clk)) {
@@ -3289,6 +3293,7 @@ static int clk_debug_660_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	gcc_debug_mux.num_parent_regmap =  count;
 
 	gcc_debug_mux.regmap = devm_kzalloc(&pdev->dev,
@@ -3347,6 +3352,7 @@ static int clk_debug_660_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Could not register Measure clock\n");
 	else
 		dev_info(&pdev->dev, "Registered debug mux successfully\n");
+#endif
 
 	return ret;
 }

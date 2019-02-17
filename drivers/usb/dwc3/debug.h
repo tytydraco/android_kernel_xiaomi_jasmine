@@ -214,7 +214,11 @@ static inline const char *dwc3_gadget_event_type_string(u8 event)
 	}
 }
 
+#ifdef CONFIG_DEBUG_KERNEL
 void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...);
+#else
+static inline void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...) {}
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 extern void dbg_event(u8, const char*, int);

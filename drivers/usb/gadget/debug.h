@@ -23,8 +23,13 @@
 extern unsigned int enable_event_log;
 extern void put_timestamp(char *tbuf);
 extern void add_event_to_buf(char *tbuf);
+#ifdef CONFIG_DEBUG_FS
 extern int debug_debugfs_init(void);
 extern void debug_debugfs_exit(void);
+#else
+static inline int debug_debugfs_init(void) { return 0; };
+static inline void debug_debugfs_exit(void) {};
+#endif
 
 #define LOGLEVEL_NONE 8
 #define LOGLEVEL_DEBUG 7
