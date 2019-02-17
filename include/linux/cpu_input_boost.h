@@ -10,6 +10,10 @@ bool cpu_input_boost_within_timeout(unsigned int input_boost_timeout);
 void cpu_input_boost_kick(void);
 void cpu_general_boost_kick(unsigned int duration_ms);
 #else
+static inline bool cpu_input_boost_within_timeout(unsigned int input_boost_timeout)
+{
+	return false;
+}
 static inline void cpu_input_boost_kick(void)
 {
 }
