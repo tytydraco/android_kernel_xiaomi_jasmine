@@ -67,7 +67,7 @@ static int lpm_wa_cx_unvote_init(struct platform_device *pdev)
 	INIT_WORK(&dummy_vote_work, send_dummy_cx_vote);
 
 	lpm_wa_wq = alloc_workqueue("lpm-wa",
-				WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI, 1);
+				WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 
 	return ret;
 }
