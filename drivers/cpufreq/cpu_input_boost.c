@@ -21,10 +21,8 @@ module_param_named(dynamic_stune_boost, input_stune_boost, int, 0644);
 module_param(general_stune_boost, int, 0644);
 
 /* Available bits for boost_drv state */
-#define INPUT_BOOST		BIT(0)
-#define GENERAL_BOOST		BIT(1)
-#define INPUT_STUNE_BOOST	BIT(2)
-#define GENERAL_STUNE_BOOST	BIT(3)
+#define INPUT_STUNE_BOOST	BIT(0)
+#define GENERAL_STUNE_BOOST	BIT(1)
 
 struct boost_drv {
 	struct workqueue_struct *wq;
@@ -92,8 +90,6 @@ static void unboost_all_cpus(struct boost_drv *b)
 	if (!cancel_delayed_work_sync(&b->input_unboost))
 		return;
 
-	clear_boost_bit(b, INPUT_BOOST | GENERAL_BOOST);
-
 	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
 	clear_stune_boost(b, state, GENERAL_STUNE_BOOST, b->general_stune_slot);
 }
@@ -139,7 +135,7 @@ void cpu_general_boost_kick(unsigned int duration_ms)
 	if (!b)
 		return;
 
-	if (get_boost_state(b) & INPUT_BOOST)
+	if (get_boost_state(b) & INPUT_STUNE_BOOST)
 		return;
 
 	__cpu_general_boost_kick(b, duration_ms);
@@ -151,8 +147,6 @@ static void input_boost_worker(struct work_struct *work)
 	u32 state = get_boost_state(b);
 
 	if (!cancel_delayed_work_sync(&b->input_unboost)) {
-		set_boost_bit(b, INPUT_BOOST);
-
 		set_stune_boost(b, state, INPUT_STUNE_BOOST, input_stune_boost,
 			&b->input_stune_slot);
 	}
@@ -167,8 +161,6 @@ static void general_boost_worker(struct work_struct *work)
 	u32 state = get_boost_state(b);
 
 	if (!cancel_delayed_work_sync(&b->general_unboost)) {
-		set_boost_bit(b, GENERAL_BOOST);
-
 		set_stune_boost(b, state, GENERAL_STUNE_BOOST, general_stune_boost,
 			&b->general_stune_slot);
 	}
@@ -183,7 +175,6 @@ static void input_unboost_worker(struct work_struct *work)
 		container_of(to_delayed_work(work), typeof(*b), input_unboost);
 	u32 state = get_boost_state(b);
 
-	clear_boost_bit(b, INPUT_BOOST);
 	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
 }
 
@@ -193,7 +184,6 @@ static void general_unboost_worker(struct work_struct *work)
 		container_of(to_delayed_work(work), typeof(*b), general_unboost);
 	u32 state = get_boost_state(b);
 
-	clear_boost_bit(b, GENERAL_BOOST);
 	clear_stune_boost(b, state, GENERAL_STUNE_BOOST, b->general_stune_slot);
 }
 
