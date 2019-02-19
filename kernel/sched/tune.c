@@ -1047,29 +1047,35 @@ exit:
 static int max_active_boost(struct schedtune *st)
 {
 	struct boost_slot *slot;
-	int max_boost;
+	int max_boost, min_boost, boost_default;
 
 	mutex_lock(&boost_slot_mutex);
 	mutex_lock(&stune_boost_mutex);
 
-	/* Set initial value to default boost */
-	max_boost = st->boost_default;
+	/* Set initial values to default boosts */
+	max_boost = min_boost = boost_default = st->boost_default;
 
 	/* Check for active boosts */
 	if (list_empty(&(st->active_boost_slots.list))) {
 		goto exit;
 	}
 
-	/* Get largest boost value */
+	/* Get largest and smallest boost values */
 	list_for_each_entry(slot, &(st->active_boost_slots.list), list) {
 		int boost = st->slot_boost[slot->idx];
 		if (boost > max_boost)
 			max_boost = boost;
+		if (boost < min_boost)
+			min_boost = boost;
 	}
 
 exit:
 	mutex_unlock(&stune_boost_mutex);
 	mutex_unlock(&boost_slot_mutex);
+
+	/* If the largest boost value is the default, return the lowest boost value instead */
+	if (max_boost == boost_default)
+		return min_boost;
 
 	return max_boost;
 }
@@ -1085,9 +1091,9 @@ static int _do_stune_boost(struct schedtune *st, int boost, int *slot)
 	if (ret)
 		return -EINVAL;
 
-	/* Boost if new value is greater than current */
+	/* Boost if new value should be prioritized over the current */
 	mutex_lock(&stune_boost_mutex);
-	if (boost > st->boost)
+	if ((boost > 0 && boost > st->boost) || (boost < 0 && boost < st->boost && st->boost <= 0))
 		ret = dynamic_boost(st, boost);
 	mutex_unlock(&stune_boost_mutex);
 
