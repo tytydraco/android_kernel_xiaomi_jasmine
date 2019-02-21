@@ -91,7 +91,8 @@ static void unboost_all_cpus(struct boost_drv *b)
 {
 	u32 state = get_boost_state(b);
 
-	if (!cancel_delayed_work_sync(&b->input_unboost))
+	if (!cancel_delayed_work_sync(&b->input_unboost) &&
+		!cancel_delayed_work_sync(&b->general_unboost))
 		return;
 
 	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
