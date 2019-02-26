@@ -11,7 +11,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -32,9 +31,6 @@
 #define DEFAULT_MDP_TRANSFER_TIME 14000
 
 #define VSYNC_DELAY msecs_to_jiffies(17)
-
-static unsigned int brightness_floor = 16; /* 16 is Android's default lowest user-controlled brightness */
-module_param(brightness_floor, uint, 0644);
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
@@ -860,13 +856,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
 	}
-
-	/*
-	 * Use the minimum possible brightness when bl_level
-	 * is less than or equal to the floor value.
-	 */
-	if (brightness_floor && bl_level <= brightness_floor && bl_level != 0)
-		bl_level = pdata->panel_info.bl_min;
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
