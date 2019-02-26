@@ -27,6 +27,10 @@ module_param(suspend_stune_boost, int, 0644);
 #define GENERAL_STUNE_BOOST	BIT(1)
 #define SUSPEND_STUNE_BOOST	BIT(2)
 
+#define ST_TOP_APP		BIT(0)
+#define ST_FOREGROUND		BIT(1)
+#define ST_BACKGROUND		BIT(2)
+
 struct boost_drv {
 	struct workqueue_struct *wq;
 	struct work_struct input_boost;
@@ -70,19 +74,33 @@ static void clear_boost_bit(struct boost_drv *b, u32 state)
 	atomic_andnot(state, &b->state);
 }
 
-static void set_stune_boost(struct boost_drv *b, u32 state, u32 bit, int level,
+static void set_stune_boost(struct boost_drv *b, u32 state, u32 bit, u32 st, int level,
 			    int *slot)
 {
 	if (level && !(state & bit)) {
-		if (!do_stune_boost("top-app", level, slot))
+		if ((st & ST_TOP_APP) && !do_stune_boost("top-app", level, slot))
+			set_boost_bit(b, bit);
+
+		if ((st & ST_FOREGROUND) && !do_stune_boost("foreground", level, slot))
+			set_boost_bit(b, bit);
+
+		if ((st & ST_BACKGROUND) && !do_stune_boost("background", level, slot))
 			set_boost_bit(b, bit);
 	}
 }
 
-static void clear_stune_boost(struct boost_drv *b, u32 state, u32 bit, int slot)
+static void clear_stune_boost(struct boost_drv *b, u32 state, u32 bit, u32 st, int slot)
 {
 	if (state & bit) {
-		reset_stune_boost("top-app", slot);
+		if (st & ST_TOP_APP)
+			reset_stune_boost("top-app", slot);
+
+		if (st & ST_TOP_APP)
+			reset_stune_boost("foreground", slot);
+
+		if (st & ST_TOP_APP)
+			reset_stune_boost("background", slot);
+
 		clear_boost_bit(b, bit);
 	}
 }
@@ -95,9 +113,9 @@ static void unboost_all_cpus(struct boost_drv *b)
 		!cancel_delayed_work_sync(&b->general_unboost))
 		return;
 
-	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
-	clear_stune_boost(b, state, GENERAL_STUNE_BOOST, b->general_stune_slot);
-	clear_stune_boost(b, state, SUSPEND_STUNE_BOOST, b->suspend_stune_slot);
+	clear_stune_boost(b, state, INPUT_STUNE_BOOST, ST_TOP_APP | ST_FOREGROUND | ST_BACKGROUND, b->input_stune_slot);
+	clear_stune_boost(b, state, GENERAL_STUNE_BOOST, ST_TOP_APP | ST_FOREGROUND | ST_BACKGROUND, b->general_stune_slot);
+	clear_stune_boost(b, state, SUSPEND_STUNE_BOOST, ST_TOP_APP | ST_FOREGROUND | ST_BACKGROUND, b->suspend_stune_slot);
 }
 
 void cpu_input_boost_kick(void)
@@ -153,7 +171,7 @@ static void input_boost_worker(struct work_struct *work)
 	u32 state = get_boost_state(b);
 
 	if (!cancel_delayed_work_sync(&b->input_unboost)) {
-		set_stune_boost(b, state, INPUT_STUNE_BOOST, input_stune_boost,
+		set_stune_boost(b, state, INPUT_STUNE_BOOST, ST_TOP_APP, input_stune_boost,
 			&b->input_stune_slot);
 	}
 
@@ -167,7 +185,7 @@ static void general_boost_worker(struct work_struct *work)
 	u32 state = get_boost_state(b);
 
 	if (!cancel_delayed_work_sync(&b->general_unboost)) {
-		set_stune_boost(b, state, GENERAL_STUNE_BOOST, general_stune_boost,
+		set_stune_boost(b, state, GENERAL_STUNE_BOOST, ST_TOP_APP, general_stune_boost,
 			&b->general_stune_slot);
 	}
 
@@ -181,7 +199,7 @@ static void input_unboost_worker(struct work_struct *work)
 		container_of(to_delayed_work(work), typeof(*b), input_unboost);
 	u32 state = get_boost_state(b);
 
-	clear_stune_boost(b, state, INPUT_STUNE_BOOST, b->input_stune_slot);
+	clear_stune_boost(b, state, INPUT_STUNE_BOOST, ST_TOP_APP, b->input_stune_slot);
 }
 
 static void general_unboost_worker(struct work_struct *work)
@@ -190,7 +208,7 @@ static void general_unboost_worker(struct work_struct *work)
 		container_of(to_delayed_work(work), typeof(*b), general_unboost);
 	u32 state = get_boost_state(b);
 
-	clear_stune_boost(b, state, GENERAL_STUNE_BOOST, b->general_stune_slot);
+	clear_stune_boost(b, state, GENERAL_STUNE_BOOST, ST_TOP_APP, b->general_stune_slot);
 }
 
 static int fb_notifier_cb(struct notifier_block *nb,
@@ -207,10 +225,10 @@ static int fb_notifier_cb(struct notifier_block *nb,
 
 	/* Unboost when the screen turns off */
 	if (*blank == FB_BLANK_UNBLANK) {
-		clear_stune_boost(b, state, SUSPEND_STUNE_BOOST, b->suspend_stune_slot);
+		clear_stune_boost(b, state, SUSPEND_STUNE_BOOST, ST_TOP_APP | ST_FOREGROUND | ST_BACKGROUND, b->suspend_stune_slot);
 	} else {	
 		unboost_all_cpus(b);
-		set_stune_boost(b, state, SUSPEND_STUNE_BOOST, suspend_stune_boost,
+		set_stune_boost(b, state, SUSPEND_STUNE_BOOST, ST_TOP_APP | ST_FOREGROUND | ST_BACKGROUND, suspend_stune_boost,
 			&b->suspend_stune_slot);
 	}
 
