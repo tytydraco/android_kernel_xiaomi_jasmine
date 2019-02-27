@@ -26,19 +26,17 @@ module_param(general_stune_boost, int, 0644);
 
 #define ST_NUM_SLOTS		(3)
 
-#define ST_BIT_TOP_APP		BIT(0)
-#define ST_BIT_FOREGROUND	BIT(1)
-#define ST_BIT_BACKGROUND	BIT(2)
+#define ST_SLOT_TOP_APP		(0)
+#define ST_SLOT_FOREGROUND	(1)
+#define ST_SLOT_BACKGROUND	(2)
+
+#define ST_BIT_TOP_APP		BIT(ST_SLOT_TOP_APP)
+#define ST_BIT_FOREGROUND	BIT(ST_SLOT_FOREGROUND)
+#define ST_BIT_BACKGROUND	BIT(ST_SLOT_BACKGROUND)
 
 #define ST_NAME_TOP_APP		"top-app"
 #define ST_NAME_FOREGROUND	"foreground"
 #define ST_NAME_BACKGROUND	"background"
-
-enum {
-	ST_SLOT_TOP_APP,
-	ST_SLOT_FOREGROUND,
-	ST_SLOT_BACKGROUND,
-};
 
 struct boost_drv {
 	struct workqueue_struct *wq;
