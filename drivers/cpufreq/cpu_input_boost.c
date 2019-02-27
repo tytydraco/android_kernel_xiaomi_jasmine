@@ -66,14 +66,22 @@ static void clear_boost_bit(struct boost_drv *b, u32 state)
 	atomic_andnot(state, &b->state);
 }
 
+static bool __set_stune_boost(int level, int *slot) {
+	return do_stune_boost("top-app", level, slot);
+}
+
 static void set_stune_boost(struct boost_drv *b, u32 bit, int level, int *slot)
 {
 	u32 state = get_boost_state(b);
 
 	if (level && !(state & bit)) {
-		if (!do_stune_boost("top-app", level, slot))
+		if (!__set_stune_boost(level, slot))
 			set_boost_bit(b, bit);
 	}
+}
+
+static void __clear_stune_boost(int slot) {
+	reset_stune_boost("top-app", slot);
 }
 
 static void clear_stune_boost(struct boost_drv *b, u32 bit, int slot)
@@ -81,7 +89,7 @@ static void clear_stune_boost(struct boost_drv *b, u32 bit, int slot)
 	u32 state = get_boost_state(b);
 
 	if (state & bit) {
-		reset_stune_boost("top-app", slot);
+		__clear_stune_boost(slot);
 		clear_boost_bit(b, bit);
 	}
 }
