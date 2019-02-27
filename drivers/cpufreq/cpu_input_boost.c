@@ -26,13 +26,13 @@ module_param(general_stune_boost, int, 0644);
 
 #define ST_NUM_SLOTS		(3)
 
-#define ST_SLOT_TOP_APP		(0)
-#define ST_SLOT_FOREGROUND	(1)
-#define ST_SLOT_BACKGROUND	(2)
+#define ST_IDX_TOP_APP		(0)
+#define ST_IDX_FOREGROUND	(1)
+#define ST_IDX_BACKGROUND	(2)
 
-#define ST_BIT_TOP_APP		BIT(ST_SLOT_TOP_APP)
-#define ST_BIT_FOREGROUND	BIT(ST_SLOT_FOREGROUND)
-#define ST_BIT_BACKGROUND	BIT(ST_SLOT_BACKGROUND)
+#define ST_BIT_TOP_APP		BIT(ST_IDX_TOP_APP)
+#define ST_BIT_FOREGROUND	BIT(ST_IDX_FOREGROUND)
+#define ST_BIT_BACKGROUND	BIT(ST_IDX_BACKGROUND)
 
 #define ST_NAME_TOP_APP		"top-app"
 #define ST_NAME_FOREGROUND	"foreground"
@@ -89,13 +89,13 @@ static void set_stune_boost(struct boost_drv *b, u32 bit, int level, u32 st, int
 	u32 state = get_boost_state(b);
 
 	if (level && !(state & bit)) {
-		if ((st & ST_BIT_TOP_APP) && !__set_stune_boost(ST_NAME_TOP_APP, level, slots[ST_SLOT_TOP_APP]))
+		if ((st & ST_BIT_TOP_APP) && !__set_stune_boost(ST_NAME_TOP_APP, level, slots[ST_IDX_TOP_APP]))
 			set_boost_bit(b, bit);
 
-		if ((st & ST_BIT_FOREGROUND) && !__set_stune_boost(ST_NAME_FOREGROUND, level, slots[ST_SLOT_FOREGROUND]))
+		if ((st & ST_BIT_FOREGROUND) && !__set_stune_boost(ST_NAME_FOREGROUND, level, slots[ST_IDX_FOREGROUND]))
 			set_boost_bit(b, bit);
 
-		if ((st & ST_BIT_BACKGROUND) && !__set_stune_boost(ST_NAME_BACKGROUND, level, slots[ST_SLOT_BACKGROUND]))
+		if ((st & ST_BIT_BACKGROUND) && !__set_stune_boost(ST_NAME_BACKGROUND, level, slots[ST_IDX_BACKGROUND]))
 			set_boost_bit(b, bit);
 	}
 }
@@ -112,13 +112,13 @@ static void clear_stune_boost(struct boost_drv *b, u32 bit, u32 st, int slots[ST
 	if (state ^ bit)
 		return;
 
-	if ((st & ST_BIT_TOP_APP) && __clear_stune_boost(ST_NAME_TOP_APP, slots[ST_SLOT_TOP_APP]))
+	if ((st & ST_BIT_TOP_APP) && __clear_stune_boost(ST_NAME_TOP_APP, slots[ST_IDX_TOP_APP]))
 		clear = true;
 
-	if ((st & ST_BIT_FOREGROUND) && __clear_stune_boost(ST_NAME_FOREGROUND, slots[ST_SLOT_FOREGROUND]))
+	if ((st & ST_BIT_FOREGROUND) && __clear_stune_boost(ST_NAME_FOREGROUND, slots[ST_IDX_FOREGROUND]))
 		clear = true;
 
-	if ((st & ST_BIT_BACKGROUND) && __clear_stune_boost(ST_NAME_TOP_APP, slots[ST_SLOT_BACKGROUND]))
+	if ((st & ST_BIT_BACKGROUND) && __clear_stune_boost(ST_NAME_TOP_APP, slots[ST_IDX_BACKGROUND]))
 		clear = true;
 
 	if (clear)
