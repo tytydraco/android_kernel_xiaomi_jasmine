@@ -15,17 +15,14 @@
 static __read_mostly unsigned short input_boost_duration = CONFIG_INPUT_BOOST_DURATION_MS;
 static __read_mostly int input_stune_boost = CONFIG_INPUT_BOOST_STUNE_LEVEL;
 static __read_mostly int general_stune_boost = CONFIG_GENERAL_BOOST_STUNE_LEVEL;
-static __read_mostly int suspend_stune_boost = CONFIG_SUSPEND_BOOST_STUNE_LEVEL;
 
 module_param(input_boost_duration, short, 0644);
 module_param_named(dynamic_stune_boost, input_stune_boost, int, 0644);
 module_param(general_stune_boost, int, 0644);
-module_param(suspend_stune_boost, int, 0644);
 
 /* Available bits for boost_drv state */
 #define INPUT_STUNE_BOOST	BIT(0)
 #define GENERAL_STUNE_BOOST	BIT(1)
-#define SUSPEND_STUNE_BOOST	BIT(2)
 
 struct boost_drv {
 	struct workqueue_struct *wq;
@@ -40,7 +37,6 @@ struct boost_drv {
 	atomic64_t prev_input_jiffies;
 	int input_stune_slot;
 	int general_stune_slot;
-	int suspend_stune_slot;
 };
 
 static struct boost_drv *boost_drv_g __read_mostly;
@@ -98,7 +94,6 @@ static void unboost_all_cpus(struct boost_drv *b)
 
 	clear_stune_boost(b, INPUT_STUNE_BOOST, b->input_stune_slot);
 	clear_stune_boost(b, GENERAL_STUNE_BOOST, b->general_stune_slot);
-	clear_stune_boost(b, SUSPEND_STUNE_BOOST, b->suspend_stune_slot);
 }
 
 void cpu_input_boost_kick(void)
@@ -202,12 +197,8 @@ static int fb_notifier_cb(struct notifier_block *nb,
 		return NOTIFY_OK;
 
 	/* Unboost when the screen turns off */
-	if (*blank == FB_BLANK_UNBLANK) {
-		clear_stune_boost(b, SUSPEND_STUNE_BOOST, b->suspend_stune_slot);
-	} else {	
+	if (*blank != FB_BLANK_UNBLANK) {
 		unboost_all_cpus(b);
-		set_stune_boost(b, SUSPEND_STUNE_BOOST, suspend_stune_boost,
-			&b->suspend_stune_slot);
 	}
 
 	return NOTIFY_OK;
