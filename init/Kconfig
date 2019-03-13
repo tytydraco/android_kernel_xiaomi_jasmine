@@ -793,7 +793,7 @@ config RCU_NOCB_CPU_ALL
 endchoice
 
 config RCU_EXPEDITE_BOOT
-	bool
+	bool "Expedite RCU grace periods during boot"
 	default n
 	help
 	  This option enables expedited grace periods at boot time,
