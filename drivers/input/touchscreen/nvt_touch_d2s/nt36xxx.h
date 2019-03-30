@@ -35,7 +35,7 @@
 #define TOUCH_DEFAULT_MAX_HEIGHT 2160
 #define TOUCH_MAX_FINGER_NUM 10
 #define TOUCH_FORCE_NUM 1000
-#define WAKEUP_GESTURE 1
+#define WAKEUP_GESTURE 0
 #define BOOT_UPDATE_FIRMWARE 1
 #define BOOT_UPDATE_FIRMWARE_NAME_TIANMA "novatek/tianma_nt36672_miui_d2s.bin"
 #define BOOT_UPDATE_FIRMWARE_NAME_JDI "novatek/jdi_nt36672_miui_d2s.bin"
