@@ -22,9 +22,6 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/regulator/consumer.h>
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 
 #define tianma_jdi_flag 0
 #define NVT_DEBUG 1
@@ -106,11 +103,7 @@ struct nvt_ts_data {
 	struct delayed_work nvt_fwu_work;
 	uint16_t addr;
 	int8_t phys[32];
-#if defined(CONFIG_FB)
 	struct notifier_block fb_notif;
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-	struct early_suspend early_suspend;
-#endif
 	struct regulator *vcc_i2c;
 	uint8_t fw_ver;
 	uint8_t x_num;
