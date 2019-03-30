@@ -51,7 +51,6 @@
 #define TOUCH_FORCE_NUM 1000
 
 
-#define MT_PROTOCOL_B 1
 #define WAKEUP_GESTURE 1
 #if WAKEUP_GESTURE
 extern const uint16_t gesture_key_array[];
