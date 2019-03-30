@@ -503,7 +503,6 @@ info_retry:
 
 	buf[0] = EVENT_MAP_FWINFO;
 	CTP_I2C_READ(ts->client, I2C_FW_Address, buf, 17);
-	ts->fw_ver = buf[1];
 	ts->x_num = buf[3];
 	ts->y_num = buf[4];
 	ts->abs_x_max = (uint16_t)((buf[5] << 8) | buf[6]);
@@ -511,7 +510,6 @@ info_retry:
 
 
 	if ((buf[1] + buf[2]) != 0xFF) {
-		ts->fw_ver = 0;
 		ts->x_num = 18;
 		ts->y_num = 32;
 		ts->abs_x_max = TOUCH_DEFAULT_MAX_WIDTH;
@@ -867,8 +865,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 #if WAKEUP_GESTURE
 	int32_t retry = 0;
 #endif
-	char fw_version[64];
-
 	ts = kmalloc(sizeof(struct nvt_ts_data), GFP_KERNEL);
 	if (ts == NULL) {
 		return -ENOMEM;
@@ -1003,13 +999,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	queue_delayed_work(nvt_fwu_wq, &ts->nvt_fwu_work, msecs_to_jiffies(14000));
 #endif
 
-	if (tianma_jdi_flag == 0) {
-		memset(fw_version, 0, sizeof(fw_version));
-		sprintf(fw_version, "[FW]0x%02x,[IC]nvt36672", ts->fw_ver);
-	} else {
-		memset(fw_version, 0, sizeof(fw_version));
-		sprintf(fw_version, "[FW]0x%02x,[IC]nvt36672", ts->fw_ver);
-	}
 	ts->fb_notif.notifier_call = fb_notifier_callback;
 	ret = fb_register_client(&ts->fb_notif);
 	if (ret) {
