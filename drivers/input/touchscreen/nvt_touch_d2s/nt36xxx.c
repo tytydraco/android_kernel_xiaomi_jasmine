@@ -866,6 +866,7 @@ static int32_t nvt_ts_suspend(struct device *dev)
 	mutex_lock(&ts->lock);
 	bTouchIsAwake = 0;
 
+#if WAKEUP_GESTURE
 	if (enable_gesture_mode){
 		buf[0] = EVENT_MAP_HOST_CMD;
 		buf[1] = 0x13;
@@ -873,11 +874,14 @@ static int32_t nvt_ts_suspend(struct device *dev)
 		enable_irq_wake(ts->client->irq);
 
 	} else {
+#endif
 		disable_irq(ts->client->irq);
 		buf[0] = EVENT_MAP_HOST_CMD;
 		buf[1] = 0x11;
 		CTP_I2C_WRITE(ts->client, I2C_FW_Address, buf, 2);
+#if WAKEUP_GESTURE
 	}
+#endif
 
 	for (i = 0; i < ts->max_touch_num; i++) {
 		input_mt_slot(ts->input_dev, i);
@@ -889,7 +893,9 @@ static int32_t nvt_ts_suspend(struct device *dev)
 	input_sync(ts->input_dev);
 
 	msleep(50);
+#if WAKEUP_GESTURE
 	suspend_state = true;
+#endif
 	mutex_unlock(&ts->lock);
 
 	return 0;
@@ -903,6 +909,8 @@ static int32_t nvt_ts_resume(struct device *dev)
 	mutex_lock(&ts->lock);
 	nvt_bootloader_reset();
 	nvt_check_fw_reset_state(RESET_STATE_REK);
+
+#if WAKEUP_GESTURE
 	if (delay_gesture)
 		enable_gesture_mode = !enable_gesture_mode;
 
@@ -911,11 +919,16 @@ static int32_t nvt_ts_resume(struct device *dev)
 
 	if (delay_gesture)
 		enable_gesture_mode = !enable_gesture_mode;
+#else
+	enable_irq(ts->client->irq);
+#endif
 
 	bTouchIsAwake = 1;
 	mutex_unlock(&ts->lock);
+#if WAKEUP_GESTURE
 	suspend_state = false;
 	delay_gesture = false;
+#endif
 	return 0;
 }
 
