@@ -22,7 +22,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/proc_fs.h>
 #include <asm/uaccess.h>
 #include <linux/input/mt.h>
 #include <linux/wakelock.h>
@@ -558,157 +557,6 @@ info_retry:
 
 	return ret;
 }
-
-/*******************************************************
-  Create Device Node (Proc Entry)
-*******************************************************/
-#if NVT_TOUCH_PROC
-static struct proc_dir_entry *NVT_proc_entry;
-#define DEVICE_NAME	"NVTflash"
-
-/*******************************************************
-Description:
-	Novatek touchscreen /proc/NVTflash read function.
-
-return:
-	Executive outcomes. 2---succeed. -5,-14---failed.
-*******************************************************/
-static ssize_t nvt_flash_read(struct file *file, char __user *buff, size_t count, loff_t *offp)
-{
-	uint8_t str[68] = {0};
-	int32_t ret = -1;
-	int32_t retries = 0;
-	int8_t i2c_wr = 0;
-
-	if (count > sizeof(str)) {
-		NVT_ERR("error count=%zu\n", count);
-		return -EFAULT;
-	}
-
-	if (copy_from_user(str, buff, count)) {
-		NVT_ERR("copy from user error\n");
-		return -EFAULT;
-	}
-
-	i2c_wr = str[0] >> 7;
-
-	if (i2c_wr == 0) {
-		while (retries < 20) {
-			ret = CTP_I2C_WRITE(ts->client, (str[0] & 0x7F), &str[2], str[1]);
-			if (ret == 1)
-				break;
-			else
-				NVT_ERR("error, retries=%d, ret=%d\n", retries, ret);
-
-			retries++;
-		}
-
-		if (unlikely(retries == 20)) {
-			NVT_ERR("error, ret = %d\n", ret);
-			return -EIO;
-		}
-
-		return ret;
-	} else if (i2c_wr == 1) {
-		while (retries < 20) {
-			ret = CTP_I2C_READ(ts->client, (str[0] & 0x7F), &str[2], str[1]);
-			if (ret == 2)
-				break;
-			else
-				NVT_ERR("error, retries=%d, ret=%d\n", retries, ret);
-
-			retries++;
-		}
-
-
-		if (retries < 20) {
-			if (copy_to_user(buff, str, count))
-				return -EFAULT;
-		}
-
-		if (unlikely(retries == 20)) {
-			NVT_ERR("error, ret = %d\n", ret);
-			return -EIO;
-		}
-
-		return ret;
-	} else {
-		NVT_ERR("Call error, str[0]=%d\n", str[0]);
-		return -EFAULT;
-	}
-}
-
-/*******************************************************
-Description:
-	Novatek touchscreen /proc/NVTflash open function.
-
-return:
-	Executive outcomes. 0---succeed. -12---failed.
-*******************************************************/
-static int32_t nvt_flash_open(struct inode *inode, struct file *file)
-{
-	struct nvt_flash_data *dev;
-
-	dev = kmalloc(sizeof(struct nvt_flash_data), GFP_KERNEL);
-	if (dev == NULL) {
-		NVT_ERR("Failed to allocate memory for nvt flash data\n");
-		return -ENOMEM;
-	}
-
-	rwlock_init(&dev->lock);
-	file->private_data = dev;
-
-	return 0;
-}
-
-/*******************************************************
-Description:
-	Novatek touchscreen /proc/NVTflash close function.
-
-return:
-	Executive outcomes. 0---succeed.
-*******************************************************/
-static int32_t nvt_flash_close(struct inode *inode, struct file *file)
-{
-	struct nvt_flash_data *dev = file->private_data;
-
-	if (dev)
-		kfree(dev);
-
-	return 0;
-}
-
-static const struct file_operations nvt_flash_fops = {
-	.owner = THIS_MODULE,
-	.open = nvt_flash_open,
-	.release = nvt_flash_close,
-	.read = nvt_flash_read,
-};
-
-/*******************************************************
-Description:
-	Novatek touchscreen /proc/NVTflash initial function.
-
-return:
-	Executive outcomes. 0---succeed. -12---failed.
-*******************************************************/
-static int32_t nvt_flash_proc_init(void)
-{
-	NVT_proc_entry = proc_create(DEVICE_NAME, 0444, NULL, &nvt_flash_fops);
-	if (NVT_proc_entry == NULL) {
-		NVT_ERR("Failed!\n");
-		return -ENOMEM;
-	} else {
-		NVT_LOG("Succeeded!\n");
-	}
-
-	NVT_LOG("============================================================\n");
-	NVT_LOG("Create /proc/NVTflash\n");
-	NVT_LOG("============================================================\n");
-
-	return 0;
-}
-#endif
 
 #if WAKEUP_GESTURE
 #define GESTURE_WORD_C          12
@@ -1251,14 +1099,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	queue_delayed_work(nvt_fwu_wq, &ts->nvt_fwu_work, msecs_to_jiffies(14000));
 #endif
 
-#if NVT_TOUCH_PROC
-	ret = nvt_flash_proc_init();
-	if (ret != 0) {
-		NVT_ERR("nvt flash proc init failed. ret=%d\n", ret);
-		goto err_init_NVT_ts;
-	}
-#endif
-
 	if (tianma_jdi_flag == 0) {
 		memset(fw_version, 0, sizeof(fw_version));
 		sprintf(fw_version, "[FW]0x%02x,[IC]nvt36672", ts->fw_ver);
@@ -1295,9 +1135,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 err_register_fb_notif_failed:
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 err_register_early_suspend_failed:
-#endif
-#if (NVT_TOUCH_PROC)
-err_init_NVT_ts:
 #endif
 	free_irq(client->irq, ts);
 #if BOOT_UPDATE_FIRMWARE

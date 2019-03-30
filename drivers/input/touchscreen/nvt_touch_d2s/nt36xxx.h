@@ -63,7 +63,6 @@
 #define TOUCH_FORCE_NUM 1000
 
 
-#define NVT_TOUCH_PROC 1
 #define MT_PROTOCOL_B 1
 #define WAKEUP_GESTURE 1
 #if WAKEUP_GESTURE
@@ -129,13 +128,6 @@ struct nvt_ts_data {
 	uint8_t carrier_system;
 	uint16_t nvt_pid;
 };
-
-#if NVT_TOUCH_PROC
-struct nvt_flash_data{
-	rwlock_t lock;
-	struct i2c_client *client;
-};
-#endif
 
 typedef enum {
 	RESET_STATE_INIT = 0xA0,
