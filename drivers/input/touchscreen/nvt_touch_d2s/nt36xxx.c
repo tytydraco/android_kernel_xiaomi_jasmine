@@ -38,10 +38,6 @@
 
 #include "nt36xxx.h"
 
-#if NVT_TOUCH_EXT_PROC
-extern int32_t nvt_extra_proc_init(void);
-#endif
-
 struct nvt_ts_data *ts;
 
 static struct workqueue_struct *nvt_wq;
@@ -1263,14 +1259,6 @@ static int32_t nvt_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	}
 #endif
 
-#if NVT_TOUCH_EXT_PROC
-	ret = nvt_extra_proc_init();
-	if (ret != 0) {
-		NVT_ERR("nvt extra proc init failed. ret=%d\n", ret);
-		goto err_init_NVT_ts;
-	}
-#endif
-
 	if (tianma_jdi_flag == 0) {
 		memset(fw_version, 0, sizeof(fw_version));
 		sprintf(fw_version, "[FW]0x%02x,[IC]nvt36672", ts->fw_ver);
@@ -1308,7 +1296,7 @@ err_register_fb_notif_failed:
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 err_register_early_suspend_failed:
 #endif
-#if (NVT_TOUCH_PROC || NVT_TOUCH_EXT_PROC)
+#if (NVT_TOUCH_PROC)
 err_init_NVT_ts:
 #endif
 	free_irq(client->irq, ts);
