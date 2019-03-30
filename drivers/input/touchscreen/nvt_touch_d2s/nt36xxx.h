@@ -24,41 +24,25 @@
 #include <linux/regulator/consumer.h>
 
 #define tianma_jdi_flag 0
-
-
 #define NVTTOUCH_INT_PIN 943
-
-
-
-
-
 #define INT_TRIGGER_TYPE IRQ_TYPE_EDGE_RISING
-
-
-
 #define NVT_I2C_NAME "NVT-ts"
 #define I2C_BLDR_Address 0x01
 #define I2C_FW_Address 0x01
 #define I2C_HW_Address 0x62
-
 #define NVT_TS_NAME "NVTCapacitiveTouchScreen"
-
-
-
 #define TOUCH_DEFAULT_MAX_WIDTH 1080
 #define TOUCH_DEFAULT_MAX_HEIGHT 2160
 #define TOUCH_MAX_FINGER_NUM 10
 #define TOUCH_FORCE_NUM 1000
-
-
 #define WAKEUP_GESTURE 1
-#if WAKEUP_GESTURE
-extern const uint16_t gesture_key_array[];
-#endif
 #define BOOT_UPDATE_FIRMWARE 1
 #define BOOT_UPDATE_FIRMWARE_NAME_TIANMA "novatek/tianma_nt36672_miui_d2s.bin"
 #define BOOT_UPDATE_FIRMWARE_NAME_JDI "novatek/jdi_nt36672_miui_d2s.bin"
 
+#if WAKEUP_GESTURE
+extern const uint16_t gesture_key_array[];
+#endif
 
 struct nvt_ts_mem_map {
 	uint32_t EVENT_BUF_ADDR;
@@ -128,10 +112,7 @@ typedef enum {
     EVENT_MAP_PROJECTID                     = 0x9A,
 } I2C_EVENT_MAP;
 
-
 extern struct nvt_ts_data *ts;
-
-
 extern int32_t CTP_I2C_READ(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
 extern int32_t CTP_I2C_WRITE(struct i2c_client *client, uint16_t address, uint8_t *buf, uint16_t len);
 extern void nvt_bootloader_reset(void);
