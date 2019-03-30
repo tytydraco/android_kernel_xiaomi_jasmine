@@ -24,7 +24,6 @@
 #include <linux/regulator/consumer.h>
 
 #define tianma_jdi_flag 0
-#define NVT_DEBUG 1
 
 
 #define NVTTOUCH_INT_PIN 943
@@ -41,14 +40,6 @@
 #define I2C_BLDR_Address 0x01
 #define I2C_FW_Address 0x01
 #define I2C_HW_Address 0x62
-
-#if NVT_DEBUG
-#define NVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
-#else
-#define NVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
-#endif
-#define NVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_I2C_NAME, __func__, __LINE__, ##args)
-
 
 #define NVT_TS_NAME "NVTCapacitiveTouchScreen"
 
