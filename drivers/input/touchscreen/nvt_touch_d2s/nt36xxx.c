@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2010 - 2017 Novatek, Inc.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2019 Tyler Nijmeh <tylernij@gmail.com>.
  *
  * $Revision: 14651 $
  * $Date: 2017-07-21 14:58:50 +0800 (周五, 21 七月 2017) $
