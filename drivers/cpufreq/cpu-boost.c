@@ -26,29 +26,28 @@ static struct workqueue_struct *cpu_boost_wq;
 
 static struct work_struct input_boost_work;
 static struct work_struct cooldown_boost_work;
+static struct delayed_work input_boost_rem;
+static struct delayed_work cooldown_boost_rem;
 
 static unsigned int input_boost_ms = 40;
-module_param(input_boost_ms, uint, 0644);
-
 static unsigned int cooldown_boost_ms = 3000;
-module_param(cooldown_boost_ms, uint, 0644);
-
 static unsigned int input_stune_boost = 15;
 static unsigned int cooldown_stune_boost = 12;
 
+module_param(input_boost_ms, uint, 0644);
+module_param(cooldown_boost_ms, uint, 0644);
 module_param(input_stune_boost, uint, 0644);
 module_param(cooldown_stune_boost, uint, 0644);
 
 static int input_stune_slot;
 static int cooldown_stune_slot;
 
-static struct delayed_work input_boost_rem;
-static struct delayed_work cooldown_boost_rem;
-
 static bool input_stune_boost_active;
 static bool cooldown_stune_boost_active;
 
 static u64 last_input_time;
+
+/* How long after an input before another input boost can be triggered */
 #define MIN_INPUT_INTERVAL (input_boost_ms * USEC_PER_MSEC)
 
 static void do_input_boost_rem(struct work_struct *work)
