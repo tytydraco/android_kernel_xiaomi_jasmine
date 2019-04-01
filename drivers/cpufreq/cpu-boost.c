@@ -25,10 +25,14 @@
 static struct workqueue_struct *cpu_boost_wq;
 
 static struct work_struct input_boost_work;
-static bool input_boost_enabled;
-
 static unsigned int input_boost_ms = 40;
 module_param(input_boost_ms, uint, 0644);
+
+static unsigned int input_stune_boost = 15;
+
+module_param(input_stune_boost, uint, 0644);
+
+static int input_stune_slot;
 
 static struct delayed_work input_boost_rem;
 static u64 last_input_time;
@@ -36,11 +40,14 @@ static u64 last_input_time;
 
 static void do_input_boost_rem(struct work_struct *work)
 {
+	reset_stune_boost("top-app", input_stune_slot);
 }
 
 static void do_input_boost(struct work_struct *work)
 {
 	cancel_delayed_work_sync(&input_boost_rem);
+
+	do_stune_boost("top-app", input_stune_boost, &input_stune_slot);
 
 	queue_delayed_work(cpu_boost_wq, &input_boost_rem,
 					msecs_to_jiffies(input_boost_ms));
@@ -50,9 +57,6 @@ static void cpuboost_input_event(struct input_handle *handle,
 		unsigned int type, unsigned int code, int value)
 {
 	u64 now;
-
-	if (!input_boost_enabled)
-		return;
 
 	now = ktime_to_us(ktime_get());
 	if (now - last_input_time < MIN_INPUT_INTERVAL)
