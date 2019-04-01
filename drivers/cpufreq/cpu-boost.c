@@ -29,10 +29,10 @@ static struct work_struct cooldown_boost_work;
 static struct delayed_work input_boost_rem;
 static struct delayed_work cooldown_boost_rem;
 
-static unsigned int input_boost_ms = 40;
-static unsigned int cooldown_boost_ms = 3000;
-static unsigned int input_stune_boost = 15;
-static unsigned int cooldown_stune_boost = 12;
+static __read_mostly unsigned int input_boost_ms = 40;
+static __read_mostly unsigned int cooldown_boost_ms = 3000;
+static __read_mostly unsigned int input_stune_boost = 15;
+static __read_mostly unsigned int cooldown_stune_boost = 12;
 
 module_param(input_boost_ms, uint, 0644);
 module_param(cooldown_boost_ms, uint, 0644);
