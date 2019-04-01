@@ -36,7 +36,7 @@ static int input_stune_slot;
 
 static struct delayed_work input_boost_rem;
 static u64 last_input_time;
-#define MIN_INPUT_INTERVAL (150 * USEC_PER_MSEC)
+#define MIN_INPUT_INTERVAL (input_boost_ms * USEC_PER_MSEC)
 
 static void do_input_boost_rem(struct work_struct *work)
 {
