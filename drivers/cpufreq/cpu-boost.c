@@ -49,12 +49,12 @@ static u64 last_input_time;
 
 static void do_input_boost_rem(struct work_struct *work)
 {
+	queue_work(cpu_boost_wq, &cooldown_boost_work);
+
 	if (input_stune_boost_active) {
 		reset_stune_boost("top-app", input_stune_slot);
 		input_stune_boost_active = false;
 	}
-
-	queue_work(cpu_boost_wq, &cooldown_boost_work);
 }
 
 static void do_input_boost(struct work_struct *work)
