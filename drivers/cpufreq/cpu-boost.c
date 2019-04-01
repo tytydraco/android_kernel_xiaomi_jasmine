@@ -25,32 +25,74 @@
 static struct workqueue_struct *cpu_boost_wq;
 
 static struct work_struct input_boost_work;
+static struct work_struct cooldown_boost_work;
+
 static unsigned int input_boost_ms = 40;
 module_param(input_boost_ms, uint, 0644);
 
+static unsigned int cooldown_boost_ms = 3000;
+module_param(cooldown_boost_ms, uint, 0644);
+
 static unsigned int input_stune_boost = 15;
+static unsigned int cooldown_stune_boost = 12;
 
 module_param(input_stune_boost, uint, 0644);
+module_param(cooldown_stune_boost, uint, 0644);
 
 static int input_stune_slot;
+static int cooldown_stune_slot;
 
 static struct delayed_work input_boost_rem;
+static struct delayed_work cooldown_boost_rem;
+
+static bool input_stune_boost_active;
+static bool cooldown_stune_boost_active;
+
 static u64 last_input_time;
 #define MIN_INPUT_INTERVAL (input_boost_ms * USEC_PER_MSEC)
 
 static void do_input_boost_rem(struct work_struct *work)
 {
-	reset_stune_boost("top-app", input_stune_slot);
+	if (input_stune_boost_active) {
+		reset_stune_boost("top-app", input_stune_slot);
+		input_stune_boost_active = false;
+	}
+
+	queue_work(cpu_boost_wq, &cooldown_boost_work);
 }
 
 static void do_input_boost(struct work_struct *work)
 {
 	cancel_delayed_work_sync(&input_boost_rem);
 
-	do_stune_boost("top-app", input_stune_boost, &input_stune_slot);
+	if (!input_stune_boost_active) {
+		do_stune_boost("top-app", input_stune_boost, &input_stune_slot);
+		input_stune_boost_active = true;
+	}
 
 	queue_delayed_work(cpu_boost_wq, &input_boost_rem,
 					msecs_to_jiffies(input_boost_ms));
+}
+
+static void do_cooldown_boost_rem(struct work_struct *work)
+{
+	if (cooldown_stune_boost_active) {
+		reset_stune_boost("top-app", cooldown_stune_slot);
+		cooldown_stune_boost_active = false;
+	}
+}
+
+static void do_cooldown_boost(struct work_struct *work)
+{
+	cancel_delayed_work_sync(&cooldown_boost_rem);
+
+	if (!cooldown_stune_boost_active) {
+		do_stune_boost("top-app", cooldown_stune_boost, &cooldown_stune_slot);
+		cooldown_stune_boost_active = true;
+	}
+
+	queue_delayed_work(cpu_boost_wq, &cooldown_boost_rem,
+					msecs_to_jiffies(cooldown_boost_ms));
 }
 
 static void cpuboost_input_event(struct input_handle *handle,
@@ -149,7 +191,9 @@ static int cpu_boost_init(void)
 		return -EFAULT;
 
 	INIT_WORK(&input_boost_work, do_input_boost);
+	INIT_WORK(&cooldown_boost_work, do_cooldown_boost);
 	INIT_DELAYED_WORK(&input_boost_rem, do_input_boost_rem);
+	INIT_DELAYED_WORK(&cooldown_boost_rem, do_cooldown_boost_rem);
 
 	ret = input_register_handler(&cpuboost_input_handler);
 
