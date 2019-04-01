@@ -13,10 +13,6 @@
 
 #define pr_fmt(fmt) "cpu-boost: " fmt
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/cpu.h>
-#include <linux/sched.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/input.h>
