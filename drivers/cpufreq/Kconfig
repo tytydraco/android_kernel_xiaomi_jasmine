@@ -263,6 +263,15 @@ config COOLDOWN_STUNE_BOOST
 
 	  A value of 0 disables SchedTune boosting for this level.
 
+config SCHED_STUNE_BOOST
+	int "Sched SchedTune boost level"
+	default "12"
+	help
+	  Default SchedTune boost level for the top-app cgroup for
+	  sched_boost calls.
+
+	  A value of 0 disables SchedTune boosting for this level.
+
 endif
 
 config CPU_FREQ_GOV_SCHEDUTIL
