@@ -10,6 +10,8 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/cpu-boost.h>
+
 #include "sched.h"
 
 /*
@@ -47,6 +49,16 @@ int sched_boost_handler(struct ctl_table *table, int write,
 
 	if (ret || !write)
 		goto done;
+
+	if (verify_boost_params(old_val, *data)) {
+		if (*data > 0)
+			do_sched_boost();
+		else
+			do_sched_boost_rem();
+	} else {
+		*data = old_val;
+		ret = -EINVAL;
+	}
 
 done:
 	return ret;
