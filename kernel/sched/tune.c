@@ -354,6 +354,9 @@ schedtune_boostgroup_update(int idx, int boost)
 		trace_sched_tune_boostgroup_update(cpu, 0, bg->boost_max);
 	}
 
+	/* Recalculate the governor's frequency to put boosting into effect */
+	cpufreq_update_util(this_rq(), SCHED_CPUFREQ_NOLIMIT);
+
 	return 0;
 }
 
