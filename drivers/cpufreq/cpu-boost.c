@@ -51,20 +51,18 @@ static void do_input_boost_rem(struct work_struct *work)
 {
 	queue_work(cpu_boost_wq, &cooldown_boost_work);
 
-	if (input_stune_boost_active) {
-		reset_stune_boost("top-app", input_stune_slot);
-		input_stune_boost_active = false;
-	}
+	if (input_stune_boost_active)
+		input_stune_boost_active = reset_stune_boost("top-app",
+				input_stune_slot);
 }
 
 static void do_input_boost(struct work_struct *work)
 {
 	cancel_delayed_work_sync(&input_boost_rem);
 
-	if (!input_stune_boost_active) {
-		do_stune_boost("top-app", input_stune_boost, &input_stune_slot);
-		input_stune_boost_active = true;
-	}
+	if (!input_stune_boost_active)
+		input_stune_boost_active = !do_stune_boost("top-app",
+				input_stune_boost, &input_stune_slot);
 
 	queue_delayed_work(cpu_boost_wq, &input_boost_rem,
 					msecs_to_jiffies(input_boost_ms));
@@ -72,20 +70,18 @@ static void do_input_boost(struct work_struct *work)
 
 static void do_cooldown_boost_rem(struct work_struct *work)
 {
-	if (cooldown_stune_boost_active) {
-		reset_stune_boost("top-app", cooldown_stune_slot);
-		cooldown_stune_boost_active = false;
-	}
+	if (cooldown_stune_boost_active)
+		cooldown_stune_boost_active = reset_stune_boost("top-app",
+				cooldown_stune_slot);
 }
 
 static void do_cooldown_boost(struct work_struct *work)
 {
 	cancel_delayed_work_sync(&cooldown_boost_rem);
 
-	if (!cooldown_stune_boost_active) {
-		do_stune_boost("top-app", cooldown_stune_boost, &cooldown_stune_slot);
-		cooldown_stune_boost_active = true;
-	}
+	if (!cooldown_stune_boost_active)
+		cooldown_stune_boost_active = !do_stune_boost("top-app",
+				cooldown_stune_boost, &cooldown_stune_slot);
 
 	queue_delayed_work(cpu_boost_wq, &cooldown_boost_rem,
 					msecs_to_jiffies(cooldown_boost_ms));
