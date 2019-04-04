@@ -85,12 +85,21 @@ static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
 
 /************************ Governor internals ***********************/
 
-static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
+static inline bool sugov_should_ignore_limits(unsigned int flags)
+{
+	return flags & SCHED_CPUFREQ_NOLIMIT;
+}
+
+static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time,
+				     unsigned int flags)
 {
 	s64 delta_ns;
 
 	if (sg_policy->work_in_progress)
 		return false;
+
+	if (sugov_should_ignore_limits(flags))
+		return true;
 
 	if (unlikely(sg_policy->need_freq_update)) {
 		sg_policy->need_freq_update = false;
@@ -127,11 +136,12 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 }
 
 static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
-				unsigned int next_freq)
+				unsigned int next_freq, unsigned int flags)
 {
 	struct cpufreq_policy *policy = sg_policy->policy;
 
-	if (sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
+	if (!sugov_should_ignore_limits(flags) &&
+	    sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
 		/* Reset cached freq as next_freq isn't changed */
 		sg_policy->cached_raw_freq = 0;
 		return;
@@ -306,7 +316,7 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	sugov_set_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
 
-	if (!sugov_should_update_freq(sg_policy, time))
+	if (!sugov_should_update_freq(sg_policy, time, flags))
 		return;
 
 	busy = sugov_cpu_is_busy(sg_cpu);
@@ -328,7 +338,7 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 			sg_policy->cached_raw_freq = 0;
 		}
 	}
-	sugov_update_commit(sg_policy, time, next_f);
+	sugov_update_commit(sg_policy, time, next_f, flags);
 }
 
 static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
@@ -391,13 +401,13 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 	sugov_set_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
 
-	if (sugov_should_update_freq(sg_policy, time)) {
+	if (sugov_should_update_freq(sg_policy, time, flags)) {
 		if (flags & SCHED_CPUFREQ_DL)
 			next_f = sg_policy->policy->cpuinfo.max_freq;
 		else
 			next_f = sugov_next_freq_shared(sg_cpu, time);
 
-		sugov_update_commit(sg_policy, time, next_f);
+		sugov_update_commit(sg_policy, time, next_f, flags);
 	}
 
 	raw_spin_unlock(&sg_policy->update_lock);
