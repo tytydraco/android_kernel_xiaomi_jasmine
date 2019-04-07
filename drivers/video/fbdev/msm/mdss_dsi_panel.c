@@ -874,10 +874,10 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		 * Subtract our soft limit to ensure the limits properly
 		 * fit in our bounds.
 		 */
-		bl_level -= bl_level_soft_limit;
-
-		/* Make sure we don't turn off the display */
-		bl_level = (bl_level < pdata->panel_info.bl_min ? pdata->panel_info.bl_min : bl_level);
+		if (bl_level > bl_level_soft_limit)
+			bl_level -= bl_level_soft_limit;
+		else
+			bl_level = pdata->panel_info.bl_min;	
 	}
 
 	/*
