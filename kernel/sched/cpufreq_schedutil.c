@@ -139,9 +139,9 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 				unsigned int next_freq, unsigned int flags)
 {
 	struct cpufreq_policy *policy = sg_policy->policy;
+	bool ignore_limits = sugov_should_ignore_limits(flags);
 
-	if (!sugov_should_ignore_limits(flags) &&
-	    sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
+	if (!ignore_limits && sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
 		/* Reset cached freq as next_freq isn't changed */
 		sg_policy->cached_raw_freq = 0;
 		return;
@@ -151,7 +151,9 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 		return;
 
 	sg_policy->next_freq = next_freq;
-	sg_policy->last_freq_update_time = time;
+
+	if (!ignore_limits)
+		sg_policy->last_freq_update_time = time;
 
 	if (policy->fast_switch_enabled) {
 		next_freq = cpufreq_driver_fast_switch(policy, next_freq);
