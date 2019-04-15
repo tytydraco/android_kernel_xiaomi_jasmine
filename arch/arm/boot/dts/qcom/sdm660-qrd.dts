@@ -1,5 +1,4 @@
 /* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -68,7 +67,7 @@
 };
 
 &soc {
-/*	hbtp {
+	hbtp {
 		compatible = "qcom,hbtp-input";
 		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
 		pinctrl-0 = <&ts_rst_active>;
@@ -86,7 +85,6 @@
 		qcom,afe-power-on-delay-us = <1000>;
 		qcom,afe-power-off-delay-us = <6>;
 	};
-*/
 };
 
 &slim_aud {
