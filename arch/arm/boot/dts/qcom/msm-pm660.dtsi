@@ -679,11 +679,11 @@
 			qcom,misc-clk-trim-error-reg = <0xf3>;
 			qcom,actuator-type = "lra";
 			qcom,play-mode = "direct";
-			qcom,vmax-mv = <900>;
+			qcom,vmax-mv = <1200>;
 			qcom,ilim-ma = <800>;
 			qcom,wave-shape = "sine";
-			qcom,wave-play-rate-us = <5000>;
-			qcom,int-pwm-freq-khz = <100>;
+			qcom,wave-play-rate-us = <4166>;
+			qcom,int-pwm-freq-khz = <505>;
 			qcom,sc-deb-cycles = <8>;
 			qcom,en-brake;
 			qcom,brake-pattern = [03 03 00 00];
