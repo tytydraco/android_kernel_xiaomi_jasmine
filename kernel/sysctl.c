@@ -464,7 +464,6 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &one,
 	},
 #endif /* CONFIG_NUMA_BALANCING */
-#endif /* CONFIG_SCHED_SYSCTL */
 	{
 		.procname	= "sched_rt_period_us",
 		.data		= &sysctl_sched_rt_period,
@@ -522,6 +521,7 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &one_hundred,
 	},
 #endif
+#endif /* CONFIG_SCHED_SYSCTL */
 #ifdef CONFIG_PROVE_LOCKING
 	{
 		.procname	= "prove_locking",
