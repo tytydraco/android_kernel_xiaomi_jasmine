@@ -1,5 +1,4 @@
 /* Copyright (c) 2017 The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -119,25 +118,25 @@ static struct step_chg_cfg step_chg_config = {
 static struct jeita_fcc_cfg jeita_fcc_config = {
 	.psy_prop	= POWER_SUPPLY_PROP_TEMP,
 	.prop_name	= "BATT_TEMP",
-	.hysteresis	= 0, /* 1degC hysteresis */
+	.hysteresis	= 10, /* 1degC hysteresis */
 	.fcc_cfg	= {
 		/* TEMP_LOW	TEMP_HIGH	FCC */
-		{0,		50,		300000},
-		{51,		150,		900000},
-		{151,	450,		2900000},
-		{451,	600,		1500000},
+		{0,		100,		600000},
+		{101,		200,		2000000},
+		{201,		450,		3000000},
+		{451,		550,		600000},
 	},
 };
 
 static struct jeita_fv_cfg jeita_fv_config = {
 	.psy_prop	= POWER_SUPPLY_PROP_TEMP,
 	.prop_name	= "BATT_TEMP",
-	.hysteresis	= 0, /* 1degC hysteresis */
+	.hysteresis	= 10, /* 1degC hysteresis */
 	.fv_cfg		= {
-		/* TEMP_LOW	TEMP_HIGH	FV */
-		{0,		150,		4400000},
-		{151,	450,		4400000},
-		{451,	600,		4100000},
+		/* TEMP_LOW	TEMP_HIGH	FCC */
+		{0,		100,		4200000},
+		{101,		450,		4400000},
+		{451,		550,		4200000},
 	},
 };
 
@@ -254,7 +253,7 @@ static int handle_step_chg_config(struct step_chg_info *chip)
 
 	vote(chip->fcc_votable, STEP_CHG_VOTER, true, fcc_ua);
 
-	pr_err("%s = %d Step-FCC = %duA\n",
+	pr_debug("%s = %d Step-FCC = %duA\n",
 		step_chg_config.prop_name, pval.intval, fcc_ua);
 
 update_time:
@@ -266,26 +265,11 @@ reschedule:
 	return (STEP_CHG_HYSTERISIS_DELAY_US - elapsed_us + 1000);
 }
 
-extern union power_supply_propval lct_therm_lvl_reserved;
-extern int LctIsInVideo;
-extern int hwc_check_india;
-union power_supply_propval lct_therm_video_level = {6,};
-
 static int handle_jeita(struct step_chg_info *chip)
 {
 	union power_supply_propval pval = {0, };
 	int rc = 0, fcc_ua = 0, fv_uv = 0;
 	u64 elapsed_us;
-	if (hwc_check_india) {
-		pr_err("lct video LctIsInVideo=%d, lct_therm_lvl_reserved=%d\n",
-					LctIsInVideo, lct_therm_lvl_reserved.intval);
-	    if (LctIsInVideo == 1)
-			rc = power_supply_set_property(chip->batt_psy,
-			POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL, &lct_therm_video_level);
-		else
-			rc = power_supply_set_property(chip->batt_psy,
-			POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL, &lct_therm_lvl_reserved);
-	}
 
 	rc = power_supply_get_property(chip->batt_psy,
 		POWER_SUPPLY_PROP_SW_JEITA_ENABLED, &pval);
@@ -352,7 +336,7 @@ static int handle_jeita(struct step_chg_info *chip)
 
 	vote(chip->fv_votable, JEITA_VOTER, true, fv_uv);
 
-	pr_err("%s = %d FCC = %duA FV = %duV\n",
+	pr_debug("%s = %d FCC = %duA FV = %duV\n",
 		step_chg_config.prop_name, pval.intval, fcc_ua, fv_uv);
 
 update_time:
