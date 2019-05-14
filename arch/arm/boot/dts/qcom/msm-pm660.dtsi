@@ -679,7 +679,7 @@
 			qcom,misc-clk-trim-error-reg = <0xf3>;
 			qcom,actuator-type = "lra";
 			qcom,play-mode = "direct";
-			qcom,vmax-mv = <1200>;
+			qcom,vmax-mv = <2200>;
 			qcom,ilim-ma = <800>;
 			qcom,wave-shape = "sine";
 			qcom,wave-play-rate-us = <5500>;
