@@ -19,7 +19,7 @@
 #include <linux/init.h>
 
 /* Max times reads can starve a write */
-#define	DEFAULT_MAX_WRITES_STARVED	(2)
+#define	DEFAULT_MAX_WRITES_STARVED	(4)
 
 struct anxiety_data {
 	struct list_head queue[2];
