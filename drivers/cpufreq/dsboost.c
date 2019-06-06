@@ -60,10 +60,8 @@ static void do_input_boost_rem(struct work_struct *work)
 
 static void do_input_boost(struct work_struct *work)
 {
-	if (!cancel_delayed_work_sync(&input_boost_rem)) {
-		if (!input_stune_boost_active)
-			set_boost(true);
-	}
+	if (!cancel_delayed_work_sync(&input_boost_rem) && !input_stune_boost_active)
+		set_boost(true);
 
 	queue_delayed_work(dsboost_wq, &input_boost_rem,
 					msecs_to_jiffies(input_boost_duration));
