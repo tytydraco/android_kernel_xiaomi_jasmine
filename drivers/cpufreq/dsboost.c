@@ -35,9 +35,15 @@ static u64 last_input_time;
 /* How long after an input before another input boost can be triggered */
 #define MIN_INPUT_INTERVAL (input_boost_duration * USEC_PER_MSEC)
 
-static void do_input_boost_rem(struct work_struct *work)
+static inline void set_boost(bool enable)
 {
-	if (input_stune_boost_active) {
+	if (enable) {
+		input_stune_boost_active = !do_stune_boost("top-app",
+				input_stune_boost, &input_stune_slot);
+
+		do_prefer_idle("top-app", 1);
+		do_prefer_idle("foreground", 1);
+	} else {
 		input_stune_boost_active = reset_stune_boost("top-app",
 				input_stune_slot);
 
@@ -46,16 +52,17 @@ static void do_input_boost_rem(struct work_struct *work)
 	}
 }
 
+static void do_input_boost_rem(struct work_struct *work)
+{
+	if (input_stune_boost_active)
+		set_boost(false);
+}
+
 static void do_input_boost(struct work_struct *work)
 {
 	if (!cancel_delayed_work_sync(&input_boost_rem)) {
-		if (!input_stune_boost_active) {
-			input_stune_boost_active = !do_stune_boost("top-app",
-					input_stune_boost, &input_stune_slot);
-
-			do_prefer_idle("top-app", 1);
-			do_prefer_idle("foreground", 1);
-		}
+		if (!input_stune_boost_active)
+			set_boost(true);
 	}
 
 	queue_delayed_work(dsboost_wq, &input_boost_rem,
