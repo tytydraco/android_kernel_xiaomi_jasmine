@@ -166,7 +166,7 @@ static int dsboost_init(void)
 {
 	int ret;
 
-	dsboost_wq = alloc_workqueue("dsboost_wq", WQ_HIGHPRI, 0);
+	dsboost_wq = alloc_workqueue("dsboost_wq", WQ_FREEZABLE, 0);
 	if (!dsboost_wq) {
 		ret = -ENOMEM;
 		goto err_wq;
