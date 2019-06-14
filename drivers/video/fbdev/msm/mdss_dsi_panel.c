@@ -37,7 +37,7 @@ DEFINE_LED_TRIGGER(bl_led_trigger);
 
 static bool ce_enable = true;
 static bool srgb_enable = true;
-static bool cabc_enable = true;
+static bool cabc_enable = false;
 
 module_param(ce_enable, bool, 0644);
 module_param(srgb_enable, bool, 0644);
