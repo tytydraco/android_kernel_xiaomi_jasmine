@@ -781,6 +781,10 @@ static int fg_get_msoc(struct fg_chip *chip, int *msoc)
 	else
 		*msoc = DIV_ROUND_CLOSEST((*msoc - 1) * (FULL_CAPACITY - 2),
 				FULL_SOC_RAW - 2) + 1;
+
+	if (*msoc > FULL_CAPACITY)
+		*msoc = FULL_CAPACITY;
+
 	return 0;
 }
 
