@@ -1,5 +1,4 @@
 /* Copyright (c) 2011-2014, 2017, The Linux Foundataion. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -578,10 +577,7 @@ disable_vreg:
 				continue;
 		} else
 			j = i;
-
-		if (reg_ptr[j] != NULL) {
 		regulator_disable(reg_ptr[j]);
-		}
 		if (cam_vreg[j].delay > 20)
 			msleep(cam_vreg[j].delay);
 		else if (cam_vreg[j].delay)
