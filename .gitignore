@@ -114,5 +114,8 @@ all.config
 # Kdevelop4
 *.kdev4
 
+# Object files
+out/
+
 # fetched Android config fragments
 android/configs/android-*.cfg
