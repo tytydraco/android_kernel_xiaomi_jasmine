@@ -4631,7 +4631,20 @@ static int binder_thread_release(struct binder_proc *proc,
 		wake_up_poll(&thread->wait, POLLHUP | POLLFREE);
 	}
 
+<<<<<<< HEAD
 	binder_inner_proc_unlock(thread->proc);
+=======
+	/*
+	 * If this thread used poll, make sure we remove the waitqueue
+	 * from any epoll data structures holding it with POLLFREE.
+	 * waitqueue_active() is safe to use here because we're holding
+	 * the global lock.
+	 */
+	if ((thread->looper & BINDER_LOOPER_STATE_POLL) &&
+	    waitqueue_active(&thread->wait)) {
+		wake_up_poll(&thread->wait, POLLHUP | POLLFREE);
+	}
+>>>>>>> v4.4.196
 
 	/*
 	 * This is needed to avoid races between wake_up_poll() above and
@@ -4660,9 +4673,16 @@ static unsigned int binder_poll(struct file *filp,
 	if (!thread)
 		return POLLERR;
 
+<<<<<<< HEAD
 	binder_inner_proc_lock(thread->proc);
 	thread->looper |= BINDER_LOOPER_STATE_POLL;
 	wait_for_proc_work = binder_available_for_proc_work_ilocked(thread);
+=======
+	thread->looper |= BINDER_LOOPER_STATE_POLL;
+
+	wait_for_proc_work = thread->transaction_stack == NULL &&
+		list_empty(&thread->todo) && thread->return_error == BR_OK;
+>>>>>>> v4.4.196
 
 	binder_inner_proc_unlock(thread->proc);
 
